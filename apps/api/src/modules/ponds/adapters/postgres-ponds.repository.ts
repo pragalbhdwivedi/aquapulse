@@ -1,69 +1,112 @@
 import { Injectable } from "@nestjs/common";
+import {
+  PlaceholderDatabaseConnectionFactory,
+  createPlaceholderPondRow,
+  pondRowMapper,
+  type CompiledQueryPlan,
+  type DatabaseConfig,
+  type DatabaseConnectionFactory,
+  type PondRow
+} from "@aquapulse/database";
 import type { ListResponse, PondSummary } from "@aquapulse/types";
+import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreatePondsDto, UpdatePondsDto } from "../dto";
 import type { PondsRepositoryPort } from "../ports/ponds-repository.port";
 import type { PondListQueryContract } from "../query-contracts/ponds-query.contract";
 
-interface PondRow {
-  readonly id: string;
-  readonly name: string;
-  readonly code: string;
-  readonly farm_id: string;
-  readonly kind: "pond" | "tank" | "cage";
-  readonly status: "active" | "maintenance" | "inactive";
-  readonly created_at: string;
-  readonly updated_at: string;
+export interface PostgresPondsRepositoryDependencies {
+  readonly connectionFactory?: DatabaseConnectionFactory;
+  readonly databaseConfig?: DatabaseConfig;
 }
 
-function mapPondRowToDomain(row: PondRow): PondSummary {
+export function buildPondByIdQueryPlan(id: string): CompiledQueryPlan {
   return {
-    id: row.id,
-    name: row.name,
-    code: row.code,
-    farmId: row.farm_id,
-    kind: row.kind,
-    status: row.status,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
+    key: "ponds.getById",
+    statement: "ponds.getById",
+    params: [id],
+    filters: { id }
   };
 }
 
-function createPlaceholderPondRow(): PondRow {
+export function buildPondsListQueryPlan(query: PondListQueryContract): CompiledQueryPlan {
   return {
-    id: "pond-1",
-    name: "North Pond 1",
-    code: "NP-01",
-    farm_id: "farm-1",
-    kind: "pond",
-    status: "active",
-    created_at: "2026-04-13T00:00:00.000Z",
-    updated_at: "2026-04-13T00:00:00.000Z"
+    key: "ponds.list",
+    statement: "ponds.list",
+    params: [
+      query.page,
+      query.pageSize,
+      query.farmId ?? null,
+      query.status ?? null,
+      query.kind ?? null,
+      query.search ?? null
+    ],
+    pagination: { page: query.page, pageSize: query.pageSize },
+    filters: {
+      farmId: query.farmId,
+      status: query.status,
+      kind: query.kind,
+      search: query.search
+    },
+    sort: query.sort
   };
 }
 
 @Injectable()
 export class PostgresPondsRepository implements PondsRepositoryPort {
+  private connectionFactory: DatabaseConnectionFactory = new PlaceholderDatabaseConnectionFactory();
+  private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
+
+  static forTesting(
+    overrides: PostgresPondsRepositoryDependencies = {}
+  ): PostgresPondsRepository {
+    const repository = new PostgresPondsRepository();
+    repository.connectionFactory = overrides.connectionFactory ?? repository.connectionFactory;
+    repository.databaseConfig = overrides.databaseConfig ?? repository.databaseConfig;
+    return repository;
+  }
+
   async create(_input: CreatePondsDto): Promise<PondSummary> {
-    // TODO: Persist to ponds table once the database adapter is wired.
-    return mapPondRowToDomain(createPlaceholderPondRow());
+    // TODO: Persist to ponds storage once write adapters are enabled.
+    return pondRowMapper.toDomain(createPlaceholderPondRow());
   }
 
-  async update(_id: string, _input: UpdatePondsDto): Promise<PondSummary> {
-    // TODO: Update ponds row by id.
-    return mapPondRowToDomain(createPlaceholderPondRow());
+  async update(id: string, _input: UpdatePondsDto): Promise<PondSummary> {
+    // TODO: Update ponds storage by id once write adapters are enabled.
+    return pondRowMapper.toDomain(createPlaceholderPondRow({ id }));
   }
 
-  async getById(_id: string): Promise<PondSummary> {
-    // TODO: Query ponds row by id.
-    return mapPondRowToDomain(createPlaceholderPondRow());
+  async getById(id: string): Promise<PondSummary> {
+    const rows = await this.queryRows<PondRow>(buildPondByIdQueryPlan(id));
+    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id }));
   }
 
-  async list(_query: PondListQueryContract): Promise<ListResponse<PondSummary>> {
-    // TODO: Translate the pond query contract into SQL filters and pagination.
+  async list(query: PondListQueryContract): Promise<ListResponse<PondSummary>> {
+    const rows = await this.queryRows<PondRow>(buildPondsListQueryPlan(query));
+    const items =
+      rows.length > 0
+        ? rows.map((row) => pondRowMapper.toDomain(row))
+        : [pondRowMapper.toDomain(createPlaceholderPondRow())];
+
     return {
-      items: [mapPondRowToDomain(createPlaceholderPondRow())],
-      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+      items,
+      page: {
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems: items.length,
+        totalPages: Math.max(1, Math.ceil(items.length / query.pageSize))
+      }
     };
+  }
+
+  private async queryRows<TRow>(plan: CompiledQueryPlan): Promise<TRow[]> {
+    const client = await this.connectionFactory.create(this.databaseConfig);
+
+    try {
+      const result = await client.query<TRow>(plan.statement, plan.params);
+      return result.rows;
+    } finally {
+      await client.dispose();
+    }
   }
 }
 
@@ -71,6 +114,13 @@ export const POSTGRES_PONDS_IMPLEMENTATION_PLAN = {
   readMethods: ["getById", "list"],
   writeMethods: ["create", "update"],
   rowSource: "ponds",
-  queryNotes: ["apply farm/status/kind filters", "apply pagination and sort clauses"],
-  mappingNotes: ["map snake_case pond rows into PondSummary"]
+  queryNotes: [
+    "translate pond lookup inputs into a compiled query plan",
+    "apply farm/status/kind/search filters through the shared query contract",
+    "preserve in-memory as the default runtime while read slices mature"
+  ],
+  mappingNotes: [
+    "map snake_case pond rows into PondSummary via the shared row mapper",
+    "keep placeholder fallback rows for no-op database clients"
+  ]
 } as const;

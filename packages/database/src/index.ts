@@ -7,4 +7,5 @@ export * from "./contracts/persistence-runtime.js";
 export * from "./contracts/health.js";
 export * from "./query/query-contracts.js";
 export * from "./mapping/row-mapper.js";
+export * from "./mapping/aquapulse-row-mappers.js";
 export * from "./testing/database-test-helpers.js";
