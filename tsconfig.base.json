@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "baseUrl": ".",
+    "paths": {
+      "@aquapulse/ui": ["packages/ui/src/index.ts"],
+      "@aquapulse/types": ["packages/types/src/index.ts"],
+      "@aquapulse/validation": ["packages/validation/src/index.ts"],
+      "@aquapulse/database": ["packages/database/src/index.ts"],
+      "@aquapulse/ai": ["packages/ai/src/index.ts"]
+    }
+  }
+}

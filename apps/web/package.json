@@ -1,0 +1,22 @@
+{
+  "name": "@aquapulse/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "clean": "if exist .next rmdir /s /q .next"
+  },
+  "dependencies": {
+    "@aquapulse/ui": "workspace:*",
+    "@aquapulse/types": "workspace:*",
+    "next": "^15.3.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  }
+}

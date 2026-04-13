@@ -1,0 +1,23 @@
+{
+  "name": "@aquapulse/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "clean": "if exist dist rmdir /s /q dist"
+  },
+  "dependencies": {
+    "@aquapulse/ai": "workspace:*",
+    "@aquapulse/database": "workspace:*",
+    "@aquapulse/types": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4"
+  }
+}

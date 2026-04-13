@@ -1,0 +1,26 @@
+{
+  "name": "@aquapulse/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "biome",
+    "typescript",
+    "vitest"
+  ],
+  "exports": {
+    "./biome": "./biome/base.json",
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/node": "./typescript/node.json",
+    "./typescript/nextjs": "./typescript/nextjs.json",
+    "./typescript/react-library": "./typescript/react-library.json",
+    "./vitest/node": "./vitest/node.ts"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "echo config-typecheck",
+    "clean": "echo config-clean"
+  }
+}
