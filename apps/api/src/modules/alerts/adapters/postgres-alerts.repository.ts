@@ -2,8 +2,16 @@ import { Injectable } from "@nestjs/common";
 import {
   PlaceholderDatabaseConnectionFactory,
   alertRowMapper,
+  createCompiledQueryPlan,
+  createListQueryPlan,
+  createLookupQueryPlan,
+  createMutationQueryPlan,
   createPlaceholderAlertRow,
+  mapCreateAlertInputToRowWrite,
+  mapUpdateAlertInputToRowPatch,
   type AlertRow,
+  type AlertRowPatch,
+  type AlertRowWrite,
   type CompiledQueryPlan,
   type DatabaseConfig,
   type DatabaseConnectionFactory
@@ -20,18 +28,13 @@ export interface PostgresAlertsRepositoryDependencies {
 }
 
 export function buildAlertByIdQueryPlan(id: string): CompiledQueryPlan {
-  return {
-    key: "alerts.getById",
-    statement: "alerts.getById",
-    params: [id],
-    filters: { id }
-  };
+  return createLookupQueryPlan("alerts.getById", id);
 }
 
 export function buildAlertsListQueryPlan(query: AlertsListQueryContract): CompiledQueryPlan {
-  return {
+  return createListQueryPlan({
     key: "alerts.list",
-    statement: "alerts.list",
+    query,
     params: [
       query.page,
       query.pageSize,
@@ -41,25 +44,33 @@ export function buildAlertsListQueryPlan(query: AlertsListQueryContract): Compil
       query.source ?? null,
       query.search ?? null
     ],
-    pagination: { page: query.page, pageSize: query.pageSize },
     filters: {
       pondId: query.pondId,
       severity: query.severity,
       status: query.status,
       source: query.source,
       search: query.search
-    },
-    sort: query.sort
-  };
+    }
+  });
 }
 
 export function buildOpenAlertsQueryPlan(): CompiledQueryPlan {
-  return {
+  return createCompiledQueryPlan({
     key: "alerts.listOpen",
-    statement: "alerts.listOpen",
     params: [],
     filters: { status: "open" }
-  };
+  });
+}
+
+export function buildCreateAlertQueryPlan(row: AlertRowWrite): CompiledQueryPlan {
+  return createMutationQueryPlan("alerts.create", row);
+}
+
+export function buildUpdateAlertQueryPlan(id: string, patch: AlertRowPatch): CompiledQueryPlan {
+  return createMutationQueryPlan("alerts.update", patch, {
+    params: [id, patch],
+    filters: { id }
+  });
 }
 
 @Injectable()
@@ -77,13 +88,15 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async create(_input: CreateAlertsDto): Promise<AlertSummary> {
-    // TODO: Persist alerts once write adapters are enabled.
-    return alertRowMapper.toDomain(createPlaceholderAlertRow());
+    const row = mapCreateAlertInputToRowWrite(_input);
+    const rows = await this.queryRows<AlertRow>(buildCreateAlertQueryPlan(row));
+    return alertRowMapper.toDomain(rows[0] ?? createPlaceholderAlertRow({ id: row.id }));
   }
 
   async update(id: string, _input: UpdateAlertsDto): Promise<AlertSummary> {
-    // TODO: Update alerts storage by id once write adapters are enabled.
-    return alertRowMapper.toDomain(createPlaceholderAlertRow({ id }));
+    const patch = mapUpdateAlertInputToRowPatch(id, _input);
+    const rows = await this.queryRows<AlertRow>(buildUpdateAlertQueryPlan(id, patch));
+    return alertRowMapper.toDomain(rows[0] ?? createPlaceholderAlertRow({ id }));
   }
 
   async getById(id: string): Promise<AlertSummary> {
@@ -139,12 +152,14 @@ export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
   writeMethods: ["create", "update"],
   rowSource: "alerts",
   queryNotes: [
+    "shape create and update payloads into mutation plans without requiring a live database",
     "translate severity/source/status filters into a compiled query plan",
     "keep the open-alerts path as a dedicated read slice",
     "preserve placeholder results when no live database client is active"
   ],
   mappingNotes: [
     "map alert rows into AlertSummary via the shared row mapper",
+    "shape create/update DTO inputs into alert row write payloads",
     "retain pond linkage and alert status fields during domain conversion"
   ]
 } as const;

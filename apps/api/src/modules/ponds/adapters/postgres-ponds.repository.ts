@@ -1,12 +1,19 @@
 import { Injectable } from "@nestjs/common";
 import {
   PlaceholderDatabaseConnectionFactory,
+  createLookupQueryPlan,
+  createMutationQueryPlan,
+  createListQueryPlan,
   createPlaceholderPondRow,
+  mapCreatePondInputToRowWrite,
+  mapUpdatePondInputToRowPatch,
   pondRowMapper,
   type CompiledQueryPlan,
   type DatabaseConfig,
   type DatabaseConnectionFactory,
-  type PondRow
+  type PondRow,
+  type PondRowPatch,
+  type PondRowWrite
 } from "@aquapulse/database";
 import type { ListResponse, PondSummary } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
@@ -20,18 +27,13 @@ export interface PostgresPondsRepositoryDependencies {
 }
 
 export function buildPondByIdQueryPlan(id: string): CompiledQueryPlan {
-  return {
-    key: "ponds.getById",
-    statement: "ponds.getById",
-    params: [id],
-    filters: { id }
-  };
+  return createLookupQueryPlan("ponds.getById", id);
 }
 
 export function buildPondsListQueryPlan(query: PondListQueryContract): CompiledQueryPlan {
-  return {
+  return createListQueryPlan({
     key: "ponds.list",
-    statement: "ponds.list",
+    query,
     params: [
       query.page,
       query.pageSize,
@@ -40,15 +42,24 @@ export function buildPondsListQueryPlan(query: PondListQueryContract): CompiledQ
       query.kind ?? null,
       query.search ?? null
     ],
-    pagination: { page: query.page, pageSize: query.pageSize },
     filters: {
       farmId: query.farmId,
       status: query.status,
       kind: query.kind,
       search: query.search
-    },
-    sort: query.sort
-  };
+    }
+  });
+}
+
+export function buildCreatePondQueryPlan(row: PondRowWrite): CompiledQueryPlan {
+  return createMutationQueryPlan("ponds.create", row);
+}
+
+export function buildUpdatePondQueryPlan(id: string, patch: PondRowPatch): CompiledQueryPlan {
+  return createMutationQueryPlan("ponds.update", patch, {
+    params: [id, patch],
+    filters: { id }
+  });
 }
 
 @Injectable()
@@ -66,13 +77,15 @@ export class PostgresPondsRepository implements PondsRepositoryPort {
   }
 
   async create(_input: CreatePondsDto): Promise<PondSummary> {
-    // TODO: Persist to ponds storage once write adapters are enabled.
-    return pondRowMapper.toDomain(createPlaceholderPondRow());
+    const row = mapCreatePondInputToRowWrite(_input);
+    const rows = await this.queryRows<PondRow>(buildCreatePondQueryPlan(row));
+    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id: row.id }));
   }
 
   async update(id: string, _input: UpdatePondsDto): Promise<PondSummary> {
-    // TODO: Update ponds storage by id once write adapters are enabled.
-    return pondRowMapper.toDomain(createPlaceholderPondRow({ id }));
+    const patch = mapUpdatePondInputToRowPatch(id, _input);
+    const rows = await this.queryRows<PondRow>(buildUpdatePondQueryPlan(id, patch));
+    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id }));
   }
 
   async getById(id: string): Promise<PondSummary> {
@@ -116,11 +129,13 @@ export const POSTGRES_PONDS_IMPLEMENTATION_PLAN = {
   rowSource: "ponds",
   queryNotes: [
     "translate pond lookup inputs into a compiled query plan",
+    "shape create and update payloads into mutation plans without requiring live SQL",
     "apply farm/status/kind/search filters through the shared query contract",
     "preserve in-memory as the default runtime while read slices mature"
   ],
   mappingNotes: [
     "map snake_case pond rows into PondSummary via the shared row mapper",
+    "shape create/update DTO inputs into pond row write payloads",
     "keep placeholder fallback rows for no-op database clients"
   ]
 } as const;

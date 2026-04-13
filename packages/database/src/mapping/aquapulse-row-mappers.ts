@@ -23,6 +23,48 @@ export interface AlertRow {
   readonly updated_at: string;
 }
 
+export interface PondRowWrite {
+  readonly id: string;
+  readonly name: string;
+  readonly code: string;
+  readonly farm_id: string;
+  readonly kind: PondSummary["kind"];
+  readonly status: PondSummary["status"];
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface PondRowPatch {
+  readonly id: string;
+  readonly updated_at: string;
+  readonly name?: string;
+  readonly code?: string;
+  readonly farm_id?: string;
+  readonly kind?: PondSummary["kind"];
+  readonly status?: PondSummary["status"];
+}
+
+export interface AlertRowWrite {
+  readonly id: string;
+  readonly title: string;
+  readonly severity: AlertSummary["severity"];
+  readonly source: string;
+  readonly pond_id?: string;
+  readonly status: AlertSummary["status"];
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface AlertRowPatch {
+  readonly id: string;
+  readonly updated_at: string;
+  readonly title?: string;
+  readonly severity?: AlertSummary["severity"];
+  readonly source?: string;
+  readonly pond_id?: string;
+  readonly status?: AlertSummary["status"];
+}
+
 export const pondRowMapper: RowMapper<PondRow, PondSummary> = {
   toDomain(row) {
     return {
@@ -78,5 +120,55 @@ export function createPlaceholderAlertRow(overrides: Partial<AlertRow> = {}): Al
     created_at: "2026-04-13T00:00:00.000Z",
     updated_at: "2026-04-13T00:00:00.000Z",
     ...overrides
+  };
+}
+
+export function mapCreatePondInputToRowWrite(input: { readonly id?: string }): PondRowWrite {
+  const base = createPlaceholderPondRow(input.id ? { id: input.id } : {});
+
+  return {
+    id: base.id,
+    name: base.name,
+    code: base.code,
+    farm_id: base.farm_id,
+    kind: base.kind,
+    status: base.status,
+    created_at: base.created_at,
+    updated_at: base.updated_at
+  };
+}
+
+export function mapUpdatePondInputToRowPatch(
+  id: string,
+  _input: { readonly id?: string }
+): PondRowPatch {
+  return {
+    id,
+    updated_at: createPlaceholderPondRow({ id }).updated_at
+  };
+}
+
+export function mapCreateAlertInputToRowWrite(input: { readonly id?: string }): AlertRowWrite {
+  const base = createPlaceholderAlertRow(input.id ? { id: input.id } : {});
+
+  return {
+    id: base.id,
+    title: base.title,
+    severity: base.severity,
+    source: base.source,
+    pond_id: base.pond_id,
+    status: base.status,
+    created_at: base.created_at,
+    updated_at: base.updated_at
+  };
+}
+
+export function mapUpdateAlertInputToRowPatch(
+  id: string,
+  _input: { readonly id?: string }
+): AlertRowPatch {
+  return {
+    id,
+    updated_at: createPlaceholderAlertRow({ id }).updated_at
   };
 }

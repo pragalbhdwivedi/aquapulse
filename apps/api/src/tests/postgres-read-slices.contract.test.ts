@@ -8,6 +8,7 @@ import {
 } from "@aquapulse/database";
 import { describe, expect, it } from "vitest";
 import {
+  buildCreateAlertQueryPlan,
   PostgresAlertsRepository,
   buildAlertByIdQueryPlan,
   buildAlertsListQueryPlan,
@@ -15,11 +16,14 @@ import {
 } from "../modules/alerts/adapters/postgres-alerts.repository";
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
 import {
+  buildCreatePondQueryPlan,
   PostgresPondsRepository,
   buildPondByIdQueryPlan,
-  buildPondsListQueryPlan
+  buildPondsListQueryPlan,
+  buildUpdatePondQueryPlan
 } from "../modules/ponds/adapters/postgres-ponds.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
+import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
 
 interface RecordedQuery {
   readonly statement: string;
@@ -145,5 +149,90 @@ describe("Postgres read adapter slices", () => {
       search: undefined
     });
     expect(buildOpenAlertsQueryPlan().filters).toEqual({ status: "open" });
+  });
+
+  it("pond and alert write slices remain no-op-safe while compiling stable mutation plans", async () => {
+    const recordedQueries: RecordedQuery[] = [];
+    const pondsRepository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
+      connectionFactory: createRecordingFactory([], recordedQueries),
+      databaseConfig: createTestDatabaseConfig()
+    });
+    const alertsRepository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
+      connectionFactory: createRecordingFactory([], recordedQueries),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const createdPond = await pondsRepository.create({ id: "pond-write-1" });
+    const updatedPond = await pondsRepository.update("pond-write-2", {});
+    const createdAlert = await alertsRepository.create({ id: "alert-write-1" });
+    const updatedAlert = await alertsRepository.update("alert-write-2", {});
+
+    expect(createdPond.id).toBe("pond-write-1");
+    expect(updatedPond.id).toBe("pond-write-2");
+    expect(createdAlert.id).toBe("alert-write-1");
+    expect(updatedAlert.id).toBe("alert-write-2");
+    expect(recordedQueries).toEqual([
+      {
+        statement: "ponds.create",
+        params: [
+          {
+            id: "pond-write-1",
+            name: "North Pond 1",
+            code: "NP-01",
+            farm_id: "farm-1",
+            kind: "pond",
+            status: "active",
+            created_at: "2026-04-13T00:00:00.000Z",
+            updated_at: "2026-04-13T00:00:00.000Z"
+          }
+        ]
+      },
+      {
+        statement: "ponds.update",
+        params: [
+          "pond-write-2",
+          {
+            id: "pond-write-2",
+            updated_at: "2026-04-13T00:00:00.000Z"
+          }
+        ]
+      },
+      {
+        statement: "alerts.create",
+        params: [
+          {
+            id: "alert-write-1",
+            title: "Low dissolved oxygen warning",
+            severity: "high",
+            source: "water-quality",
+            pond_id: "pond-1",
+            status: "open",
+            created_at: "2026-04-13T00:00:00.000Z",
+            updated_at: "2026-04-13T00:00:00.000Z"
+          }
+        ]
+      },
+      {
+        statement: "alerts.update",
+        params: [
+          "alert-write-2",
+          {
+            id: "alert-write-2",
+            updated_at: "2026-04-13T00:00:00.000Z"
+          }
+        ]
+      }
+    ]);
+
+    expect(buildCreatePondQueryPlan({ id: "pond-write-1", name: "North Pond 1", code: "NP-01", farm_id: "farm-1", kind: "pond", status: "active", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("ponds.create");
+    expect(buildUpdatePondQueryPlan("pond-write-2", { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
+      "pond-write-2",
+      { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
+    ]);
+    expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
+    expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
+      "alert-write-2",
+      { id: "alert-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
+    ]);
   });
 });
