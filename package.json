@@ -4,12 +4,14 @@
   "private": true,
   "packageManager": "pnpm@10.11.0",
   "scripts": {
-    "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck"
+    "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck",
+    "test:contracts": "corepack pnpm exec vitest run"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
   }
 }
