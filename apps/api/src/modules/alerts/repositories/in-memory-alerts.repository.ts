@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { AlertSummary, ListResponse } from "@aquapulse/types";
-import type { CreateAlertsDto, QueryAlertsDto, UpdateAlertsDto } from "../dto";
+import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
+import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
 
 const alert: AlertSummary = {
   id: "alert-1",
@@ -28,7 +29,7 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
     return alert;
   }
 
-  async list(_query: QueryAlertsDto): Promise<ListResponse<AlertSummary>> {
+  async list(_query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
     return { items: [alert], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 

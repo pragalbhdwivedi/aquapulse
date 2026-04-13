@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { ListResponse, WaterQualityReading } from "@aquapulse/types";
-import type { CreateWaterQualityDto, QueryWaterQualityDto, UpdateWaterQualityDto } from "../dto";
+import type { CreateWaterQualityDto, UpdateWaterQualityDto } from "../dto";
 import type { WaterQualityRepositoryPort } from "../ports/water-quality-repository.port";
+import type { WaterQualityListQueryContract } from "../query-contracts/water-quality-query.contract";
 
 const reading: WaterQualityReading = {
   id: "wq-1",
@@ -27,7 +28,7 @@ export class InMemoryWaterQualityRepository implements WaterQualityRepositoryPor
     return reading;
   }
 
-  async list(_query: QueryWaterQualityDto): Promise<ListResponse<WaterQualityReading>> {
+  async list(_query: WaterQualityListQueryContract): Promise<ListResponse<WaterQualityReading>> {
     return { items: [reading], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 

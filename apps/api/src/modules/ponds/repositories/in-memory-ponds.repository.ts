@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { ListResponse, PondSummary } from "@aquapulse/types";
-import type { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "../dto";
+import type { CreatePondsDto, UpdatePondsDto } from "../dto";
 import type { PondsRepositoryPort } from "../ports/ponds-repository.port";
+import type { PondListQueryContract } from "../query-contracts/ponds-query.contract";
 
 const pond: PondSummary = {
   id: "pond-1",
@@ -28,7 +29,7 @@ export class InMemoryPondsRepository implements PondsRepositoryPort {
     return pond;
   }
 
-  async list(_query: QueryPondsDto): Promise<ListResponse<PondSummary>> {
+  async list(_query: PondListQueryContract): Promise<ListResponse<PondSummary>> {
     return { items: [pond], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 }

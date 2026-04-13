@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { AuditEvent, ListResponse } from "@aquapulse/types";
-import type { CreateAuditDto, QueryAuditDto, UpdateAuditDto } from "../dto";
+import type { CreateAuditDto, UpdateAuditDto } from "../dto";
 import type { AuditRepositoryPort } from "../ports/audit-repository.port";
+import type { AuditListQueryContract } from "../query-contracts/audit-query.contract";
 
 const auditEvent: AuditEvent = {
   id: "audit-1",
@@ -27,7 +28,7 @@ export class InMemoryAuditRepository implements AuditRepositoryPort {
     return auditEvent;
   }
 
-  async list(_query: QueryAuditDto): Promise<ListResponse<AuditEvent>> {
+  async list(_query: AuditListQueryContract): Promise<ListResponse<AuditEvent>> {
     return { items: [auditEvent], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 

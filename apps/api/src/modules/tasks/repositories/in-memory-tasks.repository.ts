@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { ListResponse, TaskSummary } from "@aquapulse/types";
-import type { CreateTasksDto, QueryTasksDto, UpdateTasksDto } from "../dto";
+import type { CreateTasksDto, UpdateTasksDto } from "../dto";
 import type { TasksRepositoryPort } from "../ports/tasks-repository.port";
+import type { TasksListQueryContract } from "../query-contracts/tasks-query.contract";
 
 const task: TaskSummary = {
   id: "task-1",
@@ -27,7 +28,7 @@ export class InMemoryTasksRepository implements TasksRepositoryPort {
     return task;
   }
 
-  async list(_query: QueryTasksDto): Promise<ListResponse<TaskSummary>> {
+  async list(_query: TasksListQueryContract): Promise<ListResponse<TaskSummary>> {
     return { items: [task], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 }

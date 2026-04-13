@@ -126,6 +126,37 @@ export interface AiResponseRecord extends BaseEntity {
   readonly model: string;
 }
 
+export interface AiRequestRecord extends BaseEntity {
+  readonly requestType: "alerts_explain" | "ponds_summarize" | "handover_generate" | "text_rewrite" | "dashboard_query" | "incident_draft";
+  readonly requestedBy?: EntityId;
+  readonly inputPayload: Record<string, unknown>;
+  readonly status: "queued" | "processing" | "completed" | "failed";
+}
+
+export interface AiFeedbackRecord extends BaseEntity {
+  readonly responseId: EntityId;
+  readonly rating: "positive" | "negative" | "needs_review";
+  readonly comment?: string;
+  readonly submittedBy?: EntityId;
+}
+
+export interface AiPromptTemplateRecord extends BaseEntity {
+  readonly key: string;
+  readonly label: string;
+  readonly promptText: string;
+  readonly version: number;
+  readonly status: "draft" | "active" | "archived";
+}
+
+export interface AiActionDraftRecord extends BaseEntity {
+  readonly responseId: EntityId;
+  readonly resourceType: string;
+  readonly resourceId?: EntityId;
+  readonly title: string;
+  readonly body: string;
+  readonly status: "draft" | "approved" | "rejected";
+}
+
 export interface AiAlertsExplainRequest {
   readonly alertId: EntityId;
   readonly includeRecommendations?: boolean;

@@ -1,7 +1,11 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 import type {
+  AiActionDraftRecord,
   AiAlertsExplainResponse,
   AiDashboardQueryResponse,
+  AiFeedbackRecord,
+  AiPromptTemplateRecord,
+  AiRequestRecord,
   AiResponseRecord,
   ApiSuccessEnvelope,
   ListResponse
@@ -32,6 +36,58 @@ const aiList: ListResponse<AiResponseRecord> = {
   page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
 };
 
+const aiRequestList: ListResponse<AiRequestRecord> = {
+  items: [{
+    id: "ai-request-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    requestType: "dashboard_query",
+    requestedBy: "user-1",
+    inputPayload: { question: "What needs attention today?" },
+    status: "completed"
+  }],
+  page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+};
+
+const aiFeedbackList: ListResponse<AiFeedbackRecord> = {
+  items: [{
+    id: "ai-feedback-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    responseId: "ai-response-1",
+    rating: "positive",
+    comment: "Useful",
+    submittedBy: "user-1"
+  }],
+  page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+};
+
+const promptTemplate: AiPromptTemplateRecord = {
+  id: "ai-template-1",
+  createdAt: "2026-04-13T00:00:00.000Z",
+  updatedAt: "2026-04-13T00:00:00.000Z",
+  key: "dashboard.summary",
+  label: "Dashboard Summary",
+  promptText: "Summarize the dashboard.",
+  version: 1,
+  status: "active"
+};
+
+const actionDraftList: ListResponse<AiActionDraftRecord> = {
+  items: [{
+    id: "ai-action-draft-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    responseId: "ai-response-1",
+    resourceType: "alert",
+    resourceId: "alert-1",
+    title: "Inspect aeration equipment",
+    body: "Inspect pond 1 aeration equipment.",
+    status: "draft"
+  }],
+  page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
+};
+
 describe("AI contracts", () => {
   it("application service uses the AI repository port for record access", async () => {
     const repository: AiRepositoryPort = {
@@ -39,7 +95,15 @@ describe("AI contracts", () => {
       update: vi.fn().mockResolvedValue(aiRecord),
       getById: vi.fn().mockResolvedValue(aiRecord),
       list: vi.fn().mockResolvedValue(aiList),
-      saveResponseRecord: vi.fn().mockResolvedValue(aiRecord)
+      saveRequestRecord: vi.fn().mockResolvedValue(aiRequestList.items[0]!),
+      saveResponseRecord: vi.fn().mockResolvedValue(aiRecord),
+      listRequests: vi.fn().mockResolvedValue(aiRequestList),
+      saveFeedbackRecord: vi.fn().mockResolvedValue(aiFeedbackList.items[0]!),
+      listFeedback: vi.fn().mockResolvedValue(aiFeedbackList),
+      getPromptTemplateByKey: vi.fn().mockResolvedValue(promptTemplate),
+      listPromptTemplates: vi.fn().mockResolvedValue({ items: [promptTemplate], page: aiList.page }),
+      saveActionDraft: vi.fn().mockResolvedValue(actionDraftList.items[0]!),
+      listActionDrafts: vi.fn().mockResolvedValue(actionDraftList)
     };
 
     const service = new AiApplicationService(repository);
