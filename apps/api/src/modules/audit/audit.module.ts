@@ -3,5 +3,13 @@ import { AuditApplicationService } from "./application/audit.application-service
 import { AuditController } from "./audit.controller";
 import { AuditService } from "./audit.service";
 
-@Module({ controllers: [AuditController], providers: [AuditService, AuditApplicationService], exports: [AuditService, AuditApplicationService] })
+const AUDIT_PROVIDERS = [AuditService, AuditApplicationService];
+const AUDIT_EXPORTS = [AuditService, AuditApplicationService];
+
+@Module({
+  imports: [],
+  controllers: [AuditController],
+  providers: AUDIT_PROVIDERS,
+  exports: AUDIT_EXPORTS
+})
 export class AuditModule {}

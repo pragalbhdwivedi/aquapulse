@@ -3,5 +3,13 @@ import { BatchesApplicationService } from "./application/batches.application-ser
 import { BatchesController } from "./batches.controller";
 import { BatchesService } from "./batches.service";
 
-@Module({ controllers: [BatchesController], providers: [BatchesService, BatchesApplicationService], exports: [BatchesService, BatchesApplicationService] })
+const BATCHES_PROVIDERS = [BatchesService, BatchesApplicationService];
+const BATCHES_EXPORTS = [BatchesService, BatchesApplicationService];
+
+@Module({
+  imports: [],
+  controllers: [BatchesController],
+  providers: BATCHES_PROVIDERS,
+  exports: BATCHES_EXPORTS
+})
 export class BatchesModule {}

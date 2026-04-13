@@ -1,17 +1,13 @@
-import { apiClients } from "@web/clients";
+import { getReportsPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 
 export default async function ReportsPage() {
-  const [ponds, alerts, handover] = await Promise.all([
-    apiClients.ponds.list(),
-    apiClients.alerts.list(),
-    apiClients.ai.generateHandover({ shiftDate: "2026-04-13T00:00:00.000Z" })
-  ]);
+  const reports = await getReportsPageData();
 
   return (
-    <PageShell title="Reports" description="Placeholder reports route using the API client layer.">
-      <p>Data points: {ponds.data.items.length + alerts.data.items.length}</p>
-      <p>Handover: {handover.data.summary}</p>
+    <PageShell title="Reports" description="Placeholder reports route using the repository and query layer.">
+      <p>Data points: {reports.ponds.items.length + reports.alerts.items.length}</p>
+      <p>Handover: {reports.handover.summary}</p>
     </PageShell>
   );
 }

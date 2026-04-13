@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import type { ApiSuccessEnvelope, ListResponse, PondSummary } from "@aquapulse/types";
 import type { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "../dto";
 
@@ -12,6 +13,7 @@ const pond: PondSummary = {
   status: "active"
 };
 
+@Injectable()
 export class PondsApplicationService {
   async create(_input: CreatePondsDto): Promise<ApiSuccessEnvelope<PondSummary>> {
     return { ok: true, data: pond };

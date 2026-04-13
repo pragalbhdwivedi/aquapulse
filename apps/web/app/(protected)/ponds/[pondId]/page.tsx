@@ -1,15 +1,17 @@
-import { pondsRepository } from "@web/repositories";
+import { getPondDetailPageData } from "@web/queries";
 import { PageShell } from "../../_components/page-shell";
 
 export default async function PondDetailPage({ params }: { params: Promise<{ pondId: string }> }) {
   const { pondId } = await params;
-  const pond = await pondsRepository.getById(pondId);
+  const detail = await getPondDetailPageData(pondId);
 
   return (
-    <PageShell title={pond.data.name} description="Placeholder pond detail route restored for workspace stability.">
-      <p>Code: {pond.data.code}</p>
-      <p>Status: {pond.data.status}</p>
-      <p>Type: {pond.data.kind}</p>
+    <PageShell title={detail.pond.name} description="Placeholder pond detail route using the repository and query layer.">
+      <p>Code: {detail.pond.code}</p>
+      <p>Status: {detail.pond.status}</p>
+      <p>Type: {detail.pond.kind}</p>
+      <p>Water-quality readings: {detail.waterQuality.items.length}</p>
+      <p>AI summary: {detail.summary.summary}</p>
     </PageShell>
   );
 }

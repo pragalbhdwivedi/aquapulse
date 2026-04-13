@@ -2,9 +2,9 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterce
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
-import { createItemResponse, createListResponse } from "../../common/api/response-mapper";
 import { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "./dto";
 import { PondsApplicationService } from "./application/ponds.application-service";
+import { toCreatePondsInput, toPondsItemResponse, toPondsListResponse, toQueryPondsInput, toUpdatePondsInput } from "./mappers/ponds.mapper";
 import { PondsService } from "./ponds.service";
 
 @Controller("ponds")
@@ -16,25 +16,31 @@ export class PondsController {
     private readonly pondsApplicationService: PondsApplicationService
   ) {}
 
+  // Collection handlers
   @Post()
   async create(@Body() input: CreatePondsDto) {
     await this.pondsService.getPlaceholder();
-    return createItemResponse((await this.pondsApplicationService.create(input)).data);
-  }
 
-  @Patch(":id")
-  async update(@Param("id") id: string, @Body() input: UpdatePondsDto) {
-    return createItemResponse((await this.pondsApplicationService.update(id, input)).data);
+    const result = await this.pondsApplicationService.create(toCreatePondsInput(input));
+    return toPondsItemResponse(result.data);
   }
 
   @Get()
   async list(@Query() query: QueryPondsDto) {
-    const result = await this.pondsApplicationService.list(query);
-    return createListResponse(result.data.items, result.data.page);
+    const result = await this.pondsApplicationService.list(toQueryPondsInput(query));
+    return toPondsListResponse(result.data);
+  }
+
+  // Resource handlers
+  @Patch(":id")
+  async update(@Param("id") id: string, @Body() input: UpdatePondsDto) {
+    const result = await this.pondsApplicationService.update(id, toUpdatePondsInput(input));
+    return toPondsItemResponse(result.data);
   }
 
   @Get(":id")
   async getById(@Param("id") id: string) {
-    return createItemResponse((await this.pondsApplicationService.getById(id)).data);
+    const result = await this.pondsApplicationService.getById(id);
+    return toPondsItemResponse(result.data);
   }
 }

@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import type { ApiSuccessEnvelope, BatchSummary, ListResponse } from "@aquapulse/types";
 import type { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "../dto";
 
@@ -12,6 +13,7 @@ const batch: BatchSummary = {
   lifecycleStage: "growing"
 };
 
+@Injectable()
 export class BatchesApplicationService {
   async create(_input: CreateBatchesDto): Promise<ApiSuccessEnvelope<BatchSummary>> { return { ok: true, data: batch }; }
   async update(_id: string, _input: UpdateBatchesDto): Promise<ApiSuccessEnvelope<BatchSummary>> { return { ok: true, data: batch }; }

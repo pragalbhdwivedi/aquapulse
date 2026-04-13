@@ -1,5 +1,18 @@
 import type { ApiSuccessEnvelope, AuditEvent, ListResponse } from "@aquapulse/types";
+import type { CreateAuditDto, QueryAuditDto, UpdateAuditDto } from "../dto";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
+
+export function toCreateAuditInput(input: CreateAuditDto): CreateAuditDto {
+  return input;
+}
+
+export function toUpdateAuditInput(input: UpdateAuditDto): UpdateAuditDto {
+  return input;
+}
+
+export function toQueryAuditInput(input: QueryAuditDto): QueryAuditDto {
+  return input;
+}
 
 export function toAuditItemResponse(item: AuditEvent): ApiSuccessEnvelope<AuditEvent> {
   return createItemResponse(item);

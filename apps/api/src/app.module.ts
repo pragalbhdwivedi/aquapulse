@@ -10,8 +10,20 @@ import { PondsModule } from "./modules/ponds/ponds.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { WaterQualityModule } from "./modules/water-quality/water-quality.module";
 
+const CORE_MODULES = [
+  PondsModule,
+  BatchesModule,
+  WaterQualityModule,
+  FeedModule,
+  TasksModule,
+  AlertsModule,
+  AttachmentsModule,
+  AuditModule,
+  AiModule
+];
+
 @Module({
-  imports: [PondsModule, BatchesModule, WaterQualityModule, FeedModule, TasksModule, AlertsModule, AttachmentsModule, AuditModule, AiModule],
+  imports: CORE_MODULES,
   controllers: [HealthController]
 })
 export class AppModule {}

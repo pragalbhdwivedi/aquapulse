@@ -1,14 +1,13 @@
-import { apiClients } from "@web/clients";
+import { getAlertsPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 
 export default async function AlertsPage() {
-  const alerts = await apiClients.alerts.list();
-  const explanation = await apiClients.alerts.explain({ alertId: alerts.data.items[0]?.id ?? "alert-1" });
+  const alertsPage = await getAlertsPageData();
 
   return (
-    <PageShell title="Alerts" description="Placeholder alerts route using the API client layer.">
-      <p>Alerts: {alerts.data.items.length}</p>
-      <p>AI explanation: {explanation.data.explanation}</p>
+    <PageShell title="Alerts" description="Placeholder alerts route using the repository and query layer.">
+      <p>Alerts: {alertsPage.alerts.items.length}</p>
+      <p>AI explanation: {alertsPage.explanation}</p>
     </PageShell>
   );
 }

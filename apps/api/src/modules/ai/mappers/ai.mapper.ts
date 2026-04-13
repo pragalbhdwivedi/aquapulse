@@ -9,7 +9,54 @@ import type {
   ApiSuccessEnvelope,
   ListResponse
 } from "@aquapulse/types";
+import type {
+  CreateAiDto,
+  DashboardQueryDto,
+  DraftIncidentDto,
+  ExplainAlertDto,
+  GenerateHandoverDto,
+  QueryAiDto,
+  RewriteTextDto,
+  SummarizePondDto,
+  UpdateAiDto
+} from "../dto";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
+
+export function toCreateAiInput(input: CreateAiDto): CreateAiDto {
+  return input;
+}
+
+export function toUpdateAiInput(input: UpdateAiDto): UpdateAiDto {
+  return input;
+}
+
+export function toQueryAiInput(input: QueryAiDto): QueryAiDto {
+  return input;
+}
+
+export function toExplainAlertInput(input: ExplainAlertDto): ExplainAlertDto {
+  return input;
+}
+
+export function toSummarizePondInput(input: SummarizePondDto): SummarizePondDto {
+  return input;
+}
+
+export function toGenerateHandoverInput(input: GenerateHandoverDto): GenerateHandoverDto {
+  return input;
+}
+
+export function toRewriteTextInput(input: RewriteTextDto): RewriteTextDto {
+  return input;
+}
+
+export function toDashboardQueryInput(input: DashboardQueryDto): DashboardQueryDto {
+  return input;
+}
+
+export function toDraftIncidentInput(input: DraftIncidentDto): DraftIncidentDto {
+  return input;
+}
 
 export function toAiItemResponse(item: AiResponseRecord): ApiSuccessEnvelope<AiResponseRecord> {
   return createItemResponse(item);

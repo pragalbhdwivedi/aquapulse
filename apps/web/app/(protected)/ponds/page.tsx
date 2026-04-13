@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { apiClients } from "@web/clients";
+import { getPondsPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 
 export default async function PondsPage() {
-  const ponds = await apiClients.ponds.list();
+  const ponds = await getPondsPageData();
 
   return (
-    <PageShell title="Ponds" description="Placeholder pond list using the frontend API client layer.">
+    <PageShell title="Ponds" description="Placeholder pond list using the repository and query layer.">
       <ul>
-        {ponds.data.items.map((pond) => (
+        {ponds.items.map((pond) => (
           <li key={pond.id}>
             <Link href={`/ponds/${pond.id}`}>{pond.name}</Link> - {pond.code}
           </li>

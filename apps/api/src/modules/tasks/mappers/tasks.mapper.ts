@@ -1,5 +1,18 @@
 import type { ApiSuccessEnvelope, ListResponse, TaskSummary } from "@aquapulse/types";
+import type { CreateTasksDto, QueryTasksDto, UpdateTasksDto } from "../dto";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
+
+export function toCreateTasksInput(input: CreateTasksDto): CreateTasksDto {
+  return input;
+}
+
+export function toUpdateTasksInput(input: UpdateTasksDto): UpdateTasksDto {
+  return input;
+}
+
+export function toQueryTasksInput(input: QueryTasksDto): QueryTasksDto {
+  return input;
+}
 
 export function toTasksItemResponse(item: TaskSummary): ApiSuccessEnvelope<TaskSummary> {
   return createItemResponse(item);

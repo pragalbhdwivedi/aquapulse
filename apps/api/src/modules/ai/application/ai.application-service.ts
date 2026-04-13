@@ -1,3 +1,4 @@
+import { Injectable } from "@nestjs/common";
 import type {
   AiAlertsExplainResponse,
   AiDashboardQueryResponse,
@@ -31,6 +32,7 @@ const aiRecord: AiResponseRecord = {
   model: "gpt-placeholder"
 };
 
+@Injectable()
 export class AiApplicationService {
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: aiRecord }; }
   async update(_id: string, _input: UpdateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: aiRecord }; }

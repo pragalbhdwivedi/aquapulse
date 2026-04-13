@@ -1,15 +1,28 @@
 import type {
   AiDashboardQueryResponse,
+  AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
   AlertSummary,
+  ApiSuccessEnvelope,
   AuditEvent,
   ListResponse,
   PondSummary,
-  TaskSummary
+  TaskSummary,
+  WaterQualityReading
 } from "@aquapulse/types";
-import { aiRepository, alertsRepository, auditRepository, pondsRepository, tasksRepository } from "../repositories";
+import {
+  aiRepository,
+  alertsRepository,
+  auditRepository,
+  pondsRepository,
+  tasksRepository,
+  waterQualityRepository
+} from "../repositories";
 
-export async function getDashboardSnapshot(): Promise<{
+type EnvelopeData<TEnvelope> = TEnvelope extends ApiSuccessEnvelope<infer TData> ? TData : never;
+type WaterQualityList = EnvelopeData<Awaited<ReturnType<typeof waterQualityRepository.listByPond>>>;
+
+export async function getDashboardPageData(): Promise<{
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   tasks: ListResponse<TaskSummary>;
@@ -30,7 +43,48 @@ export async function getDashboardSnapshot(): Promise<{
   };
 }
 
-export async function getReportsSnapshot(): Promise<{
+export async function getPondsPageData(): Promise<ListResponse<PondSummary>> {
+  const ponds = await pondsRepository.list();
+  return ponds.data;
+}
+
+export async function getPondDetailPageData(pondId: string): Promise<{
+  pond: PondSummary;
+  waterQuality: WaterQualityList;
+  summary: AiPondsSummarizeResponse;
+}> {
+  const [pond, waterQuality, summary] = await Promise.all([
+    pondsRepository.getById(pondId),
+    waterQualityRepository.listByPond(pondId),
+    pondsRepository.summarize({ pondId })
+  ]);
+
+  return {
+    pond: pond.data,
+    waterQuality: waterQuality.data,
+    summary: summary.data
+  };
+}
+
+export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
+  const ponds = await pondsRepository.list();
+  return ponds.data;
+}
+
+export async function getAlertsPageData(): Promise<{
+  alerts: ListResponse<AlertSummary>;
+  explanation: string;
+}> {
+  const alerts = await alertsRepository.list();
+  const explanation = await alertsRepository.explain({ alertId: alerts.data.items[0]?.id ?? "alert-1" });
+
+  return {
+    alerts: alerts.data,
+    explanation: explanation.data.explanation
+  };
+}
+
+export async function getReportsPageData(): Promise<{
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   handover: AiHandoverGenerateResponse;
@@ -48,7 +102,12 @@ export async function getReportsSnapshot(): Promise<{
   };
 }
 
-export async function getAuditSnapshot(): Promise<ListResponse<AuditEvent>> {
+export async function getAuditPageData(): Promise<ListResponse<AuditEvent>> {
   const audit = await auditRepository.list();
   return audit.data;
+}
+
+export async function getTasksPageData(): Promise<ListResponse<TaskSummary>> {
+  const tasks = await tasksRepository.list();
+  return tasks.data;
 }

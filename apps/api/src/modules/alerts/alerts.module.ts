@@ -3,5 +3,13 @@ import { AlertsApplicationService } from "./application/alerts.application-servi
 import { AlertsController } from "./alerts.controller";
 import { AlertsService } from "./alerts.service";
 
-@Module({ controllers: [AlertsController], providers: [AlertsService, AlertsApplicationService], exports: [AlertsService, AlertsApplicationService] })
+const ALERTS_PROVIDERS = [AlertsService, AlertsApplicationService];
+const ALERTS_EXPORTS = [AlertsService, AlertsApplicationService];
+
+@Module({
+  imports: [],
+  controllers: [AlertsController],
+  providers: ALERTS_PROVIDERS,
+  exports: ALERTS_EXPORTS
+})
 export class AlertsModule {}
