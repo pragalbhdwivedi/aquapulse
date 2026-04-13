@@ -1,9 +1,6 @@
-import type { DateRange, FilterOption, PaginationParams, SortOption } from "@aquapulse/types";
+import type { RepositoryListQuery } from "@aquapulse/database";
 
-export interface WaterQualityListQueryContract extends PaginationParams {
+export interface WaterQualityListQueryContract extends RepositoryListQuery {
   readonly pondId?: string;
-  readonly dateRange?: DateRange;
   readonly metric?: "temperatureC" | "ph";
-  readonly sort?: SortOption[];
-  readonly filters?: FilterOption<number | string>;
 }

@@ -6,11 +6,12 @@ export default defineConfig({
     alias: {
       "@aquapulse/types": fileURLToPath(new URL("./packages/types/src/index.ts", import.meta.url)),
       "@aquapulse/validation": fileURLToPath(new URL("./packages/validation/src/index.ts", import.meta.url)),
+      "@aquapulse/database": fileURLToPath(new URL("./packages/database/src/index.ts", import.meta.url)),
       "@web": fileURLToPath(new URL("./apps/web/src", import.meta.url))
     }
   },
   test: {
-    include: ["apps/**/src/**/*.test.ts"],
+    include: ["apps/**/src/**/*.test.ts", "packages/**/src/**/*.test.ts"],
     environment: "node"
   }
 });

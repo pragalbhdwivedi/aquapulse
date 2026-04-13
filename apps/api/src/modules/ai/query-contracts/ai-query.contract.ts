@@ -1,35 +1,29 @@
-import type { DateRange, FilterOption, PaginationParams, SortOption } from "@aquapulse/types";
+import type { RepositoryListQuery } from "@aquapulse/database";
 
-export interface AiResponseLogQueryContract extends PaginationParams {
+export interface AiResponseLogQueryContract extends RepositoryListQuery {
   readonly requestId?: string;
   readonly status?: "draft" | "completed" | "rejected";
   readonly model?: string;
-  readonly dateRange?: DateRange;
-  readonly sort?: SortOption[];
-  readonly filters?: FilterOption[];
 }
 
-export interface AiRequestLogQueryContract extends PaginationParams {
+export interface AiRequestLogQueryContract extends RepositoryListQuery {
   readonly requestType?: "alerts_explain" | "ponds_summarize" | "handover_generate" | "text_rewrite" | "dashboard_query" | "incident_draft";
   readonly requestedBy?: string;
   readonly status?: "queued" | "processing" | "completed" | "failed";
-  readonly dateRange?: DateRange;
-  readonly sort?: SortOption[];
-  readonly filters?: FilterOption[];
 }
 
-export interface AiFeedbackQueryContract extends PaginationParams {
+export interface AiFeedbackQueryContract extends RepositoryListQuery {
   readonly responseId?: string;
   readonly rating?: "positive" | "negative" | "needs_review";
   readonly submittedBy?: string;
 }
 
-export interface AiPromptTemplateQueryContract extends PaginationParams {
+export interface AiPromptTemplateQueryContract extends RepositoryListQuery {
   readonly key?: string;
   readonly status?: "draft" | "active" | "archived";
 }
 
-export interface AiActionDraftQueryContract extends PaginationParams {
+export interface AiActionDraftQueryContract extends RepositoryListQuery {
   readonly responseId?: string;
   readonly resourceType?: string;
   readonly status?: "draft" | "approved" | "rejected";

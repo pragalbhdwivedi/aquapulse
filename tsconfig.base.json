@@ -15,6 +15,7 @@
     "paths": {
       "@aquapulse/types": ["packages/types/src/index.ts"],
       "@aquapulse/validation": ["packages/validation/src/index.ts"],
+      "@aquapulse/database": ["packages/database/src/index.ts"],
       "@web/*": ["apps/web/src/*"]
     }
   }

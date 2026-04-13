@@ -1,10 +1,7 @@
-import type { DateRange, FilterOption, PaginationParams, SortOption } from "@aquapulse/types";
+import type { RepositoryListQuery } from "@aquapulse/database";
 
-export interface AuditListQueryContract extends PaginationParams {
+export interface AuditListQueryContract extends RepositoryListQuery {
   readonly resourceType?: string;
   readonly resourceId?: string;
   readonly action?: "create" | "update" | "delete" | "view" | "export";
-  readonly dateRange?: DateRange;
-  readonly sort?: SortOption[];
-  readonly filters?: FilterOption[];
 }

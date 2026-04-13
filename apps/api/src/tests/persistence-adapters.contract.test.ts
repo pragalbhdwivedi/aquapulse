@@ -1,4 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { resolvePersistenceAdapter } from "../common/persistence/persistence-adapter.types";
 import type { AiRepositoryPort } from "../modules/ai/ports/ai-repository.port";
 import { AI_ACTIVE_REPOSITORY, AI_ADAPTERS, AI_PERSISTENCE_PROVIDER } from "../modules/ai/ai.module";
 import { PostgresAiRepository } from "../modules/ai/adapters/postgres-ai.repository";
@@ -51,6 +52,14 @@ describe("Persistence adapter skeletons", () => {
     expect(ALERTS_PERSISTENCE_PROVIDER.useExisting).toBe(ALERTS_ACTIVE_REPOSITORY);
     expect(TASKS_PERSISTENCE_PROVIDER.useExisting).toBe(TASKS_ACTIVE_REPOSITORY);
     expect(AI_PERSISTENCE_PROVIDER.useExisting).toBe(AI_ACTIVE_REPOSITORY);
+
+    expect(
+      resolvePersistenceAdapter(
+        { inMemory: PONDS_ACTIVE_REPOSITORY, postgres: PostgresPondsRepository },
+        { token: Symbol("ponds"), defaultAdapter: "in-memory" },
+        "postgres"
+      )
+    ).toBe(PONDS_ACTIVE_REPOSITORY);
   });
 
   it("query contracts stay aligned with repository list boundaries", () => {
