@@ -61,3 +61,11 @@ export class PostgresFeedRepository implements FeedRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_FEED_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list"],
+  writeMethods: ["create", "update"],
+  rowSource: "feed_entries",
+  queryNotes: ["filter by pond/batch/date", "prepare feed-type lookup joins if needed"],
+  mappingNotes: ["map feed entry rows into FeedEntry"]
+} as const;

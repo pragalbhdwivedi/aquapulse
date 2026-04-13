@@ -68,3 +68,11 @@ export class PostgresAttachmentsRepository implements AttachmentsRepositoryPort 
     };
   }
 }
+
+export const POSTGRES_ATTACHMENTS_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list", "listByResource"],
+  writeMethods: ["create", "update"],
+  rowSource: "attachments",
+  queryNotes: ["filter by resource type/id", "prepare file metadata indexing assumptions"],
+  mappingNotes: ["map attachment rows into AttachmentMetadata"]
+} as const;

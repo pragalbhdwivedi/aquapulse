@@ -63,3 +63,11 @@ export class PostgresAuditRepository implements AuditRepositoryPort {
     return event;
   }
 }
+
+export const POSTGRES_AUDIT_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list"],
+  writeMethods: ["create", "update", "saveEvent"],
+  rowSource: "audit_events",
+  queryNotes: ["filter by resource/action/date range", "support append-only event persistence"],
+  mappingNotes: ["map audit rows into AuditEvent"]
+} as const;

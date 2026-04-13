@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { createPersistenceAdapterProvider } from "../../common/persistence/persistence-adapter.types";
+import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
 import { PostgresTasksRepository } from "./adapters/postgres-tasks.repository";
 import { TasksApplicationService } from "./application/tasks.application-service";
 import { TASKS_REPOSITORY } from "./ports/tasks-repository.port";
@@ -7,9 +7,18 @@ import { InMemoryTasksRepository } from "./repositories/in-memory-tasks.reposito
 import { TasksController } from "./tasks.controller";
 import { TasksService } from "./tasks.service";
 
-export const TASKS_ACTIVE_REPOSITORY = InMemoryTasksRepository;
-export const TASKS_PERSISTENCE_PROVIDER = createPersistenceAdapterProvider(TASKS_REPOSITORY, TASKS_ACTIVE_REPOSITORY);
-export const TASKS_ADAPTERS = [InMemoryTasksRepository, PostgresTasksRepository];
+export const TASKS_ADAPTER_REGISTRY = { inMemory: InMemoryTasksRepository, postgres: PostgresTasksRepository };
+export const TASKS_ACTIVE_REPOSITORY = resolveConfiguredPersistenceAdapter(TASKS_ADAPTER_REGISTRY, {
+  token: TASKS_REPOSITORY,
+  defaultAdapter: "in-memory",
+  allowRuntimeSwitch: true
+});
+export const TASKS_PERSISTENCE_PROVIDER = createPersistenceAdapterProvider(TASKS_REPOSITORY, TASKS_ACTIVE_REPOSITORY, {
+  token: TASKS_REPOSITORY,
+  defaultAdapter: "in-memory",
+  allowRuntimeSwitch: true
+});
+export const TASKS_ADAPTERS = [TASKS_ADAPTER_REGISTRY.inMemory, TASKS_ADAPTER_REGISTRY.postgres];
 const TASKS_PROVIDERS = [TasksService, ...TASKS_ADAPTERS, TASKS_PERSISTENCE_PROVIDER, TasksApplicationService];
 const TASKS_EXPORTS = [TasksService, TasksApplicationService];
 

@@ -3,7 +3,10 @@ import {
   PlaceholderDatabaseConnectionFactory,
   createDefaultPersistenceRuntimeConfig,
   createTestDatabaseConfig,
+  parseDatabaseRuntimeConfig,
+  parsePersistenceRuntimeConfigFromEnv,
   parseDatabaseConfig,
+  resolvePersistenceSelection,
   selectPersistenceAdapter,
   type DatabaseClient,
   type DatabaseConfig,
@@ -41,5 +44,30 @@ describe("Database package foundation", () => {
     expect(readiness.message).toContain("not wired");
 
     expectTypeOf(client).toEqualTypeOf<DatabaseClient>();
+  });
+
+  it("maps env into database and persistence runtime config safely", () => {
+    const runtime = parseDatabaseRuntimeConfig({
+      DATABASE_HOST: "db.internal",
+      DATABASE_PORT: "6543",
+      AQUAPULSE_PERSISTENCE_MODE: "postgres",
+      AQUAPULSE_ENABLE_POSTGRES_ADAPTERS: "false"
+    });
+
+    expect(runtime.database.host).toBe("db.internal");
+    expect(runtime.database.port).toBe(6543);
+    expect(runtime.persistence.requestedAdapter).toBe("postgres");
+    expect(runtime.persistence.postgresEnabled).toBe(false);
+    expect(runtime.healthcheckOnBoot).toBe(false);
+
+    const selection = resolvePersistenceSelection(runtime.persistence);
+    expect(selection.adapter).toBe("in-memory");
+    expect(selection.reason).toBe("runtime_switch_disabled");
+
+    const switchable = parsePersistenceRuntimeConfigFromEnv({
+      AQUAPULSE_PERSISTENCE_MODE: "postgres",
+      AQUAPULSE_ENABLE_POSTGRES_ADAPTERS: "true"
+    });
+    expect(switchable.requestedAdapter).toBe("postgres");
   });
 });

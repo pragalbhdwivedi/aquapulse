@@ -61,3 +61,11 @@ export class PostgresBatchesRepository implements BatchesRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_BATCHES_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list"],
+  writeMethods: ["create", "update"],
+  rowSource: "batches",
+  queryNotes: ["filter by pond and lifecycle stage", "prepare stock count projections"],
+  mappingNotes: ["map batch lifecycle fields into BatchSummary"]
+} as const;

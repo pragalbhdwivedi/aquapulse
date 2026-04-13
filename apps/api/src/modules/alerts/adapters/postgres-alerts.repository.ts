@@ -69,3 +69,11 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list", "listOpen"],
+  writeMethods: ["create", "update"],
+  rowSource: "alerts",
+  queryNotes: ["filter by severity/source/status", "support open-alert fast path"],
+  mappingNotes: ["map alert rows into AlertSummary"]
+} as const;

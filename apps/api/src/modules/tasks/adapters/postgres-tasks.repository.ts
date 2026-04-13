@@ -59,3 +59,11 @@ export class PostgresTasksRepository implements TasksRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_TASKS_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list"],
+  writeMethods: ["create", "update"],
+  rowSource: "tasks",
+  queryNotes: ["filter by assignee/pond/status", "prepare due-date sorting later if needed"],
+  mappingNotes: ["map task assignment columns into TaskSummary"]
+} as const;

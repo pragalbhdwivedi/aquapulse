@@ -1,4 +1,5 @@
 export * from "./config/database-config.js";
+export * from "./config/database-runtime.js";
 export * from "./connection/database-client.js";
 export * from "./connection/database-connection.js";
 export * from "./adapters/adapter-factory.js";

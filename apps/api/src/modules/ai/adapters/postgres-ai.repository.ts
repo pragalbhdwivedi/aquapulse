@@ -247,3 +247,39 @@ export class PostgresAiRepository implements AiRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_AI_IMPLEMENTATION_PLAN = {
+  readMethods: [
+    "getById",
+    "list",
+    "listRequests",
+    "listFeedback",
+    "getPromptTemplateByKey",
+    "listPromptTemplates",
+    "listActionDrafts"
+  ],
+  writeMethods: [
+    "create",
+    "update",
+    "saveRequestRecord",
+    "saveResponseRecord",
+    "saveFeedbackRecord",
+    "saveActionDraft"
+  ],
+  rowSources: [
+    "ai_requests",
+    "ai_responses",
+    "ai_feedback",
+    "ai_prompt_templates",
+    "ai_action_drafts"
+  ],
+  queryNotes: [
+    "shape log lookups by request/status/date range",
+    "keep prompt-template lookup keyed and version-aware",
+    "support action-draft lookups by response and resource"
+  ],
+  mappingNotes: [
+    "map request/response rows independently",
+    "keep feedback/template/draft row encoders isolated from runtime AI logic"
+  ]
+} as const;

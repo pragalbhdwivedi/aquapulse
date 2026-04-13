@@ -1,5 +1,5 @@
 import { Module } from "@nestjs/common";
-import { createPersistenceAdapterProvider } from "../../common/persistence/persistence-adapter.types";
+import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
 import { PostgresAiRepository } from "./adapters/postgres-ai.repository";
 import { AiApplicationService } from "./application/ai.application-service";
 import { AiController } from "./ai.controller";
@@ -7,9 +7,18 @@ import { AI_REPOSITORY } from "./ports/ai-repository.port";
 import { InMemoryAiRepository } from "./repositories/in-memory-ai.repository";
 import { AiService } from "./ai.service";
 
-export const AI_ACTIVE_REPOSITORY = InMemoryAiRepository;
-export const AI_PERSISTENCE_PROVIDER = createPersistenceAdapterProvider(AI_REPOSITORY, AI_ACTIVE_REPOSITORY);
-export const AI_ADAPTERS = [InMemoryAiRepository, PostgresAiRepository];
+export const AI_ADAPTER_REGISTRY = { inMemory: InMemoryAiRepository, postgres: PostgresAiRepository };
+export const AI_ACTIVE_REPOSITORY = resolveConfiguredPersistenceAdapter(AI_ADAPTER_REGISTRY, {
+  token: AI_REPOSITORY,
+  defaultAdapter: "in-memory",
+  allowRuntimeSwitch: true
+});
+export const AI_PERSISTENCE_PROVIDER = createPersistenceAdapterProvider(AI_REPOSITORY, AI_ACTIVE_REPOSITORY, {
+  token: AI_REPOSITORY,
+  defaultAdapter: "in-memory",
+  allowRuntimeSwitch: true
+});
+export const AI_ADAPTERS = [AI_ADAPTER_REGISTRY.inMemory, AI_ADAPTER_REGISTRY.postgres];
 const AI_PROVIDERS = [AiService, ...AI_ADAPTERS, AI_PERSISTENCE_PROVIDER, AiApplicationService];
 const AI_EXPORTS = [AiService, AiApplicationService];
 

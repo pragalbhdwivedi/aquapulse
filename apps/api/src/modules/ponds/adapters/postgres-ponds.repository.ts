@@ -66,3 +66,11 @@ export class PostgresPondsRepository implements PondsRepositoryPort {
     };
   }
 }
+
+export const POSTGRES_PONDS_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list"],
+  writeMethods: ["create", "update"],
+  rowSource: "ponds",
+  queryNotes: ["apply farm/status/kind filters", "apply pagination and sort clauses"],
+  mappingNotes: ["map snake_case pond rows into PondSummary"]
+} as const;

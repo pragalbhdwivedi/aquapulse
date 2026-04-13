@@ -66,3 +66,11 @@ export class PostgresWaterQualityRepository implements WaterQualityRepositoryPor
     };
   }
 }
+
+export const POSTGRES_WATER_QUALITY_IMPLEMENTATION_PLAN = {
+  readMethods: ["getById", "list", "listByPond"],
+  writeMethods: ["create", "update"],
+  rowSource: "water_quality_readings",
+  queryNotes: ["support pond/date range filtering", "shape metric-specific sort options"],
+  mappingNotes: ["map reading rows into WaterQualityReading with nullable metrics"]
+} as const;
