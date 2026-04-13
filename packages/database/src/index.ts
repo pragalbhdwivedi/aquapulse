@@ -3,6 +3,7 @@ export * from "./config/database-runtime.js";
 export * from "./connection/database-client.js";
 export * from "./connection/database-connection.js";
 export * from "./adapters/adapter-factory.js";
+export * from "./adapters/postgres-row-gateway.js";
 export * from "./contracts/persistence-runtime.js";
 export * from "./contracts/health.js";
 export * from "./query/query-contracts.js";

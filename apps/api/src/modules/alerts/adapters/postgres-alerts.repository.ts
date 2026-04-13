@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   PlaceholderDatabaseConnectionFactory,
+  PostgresRowGateway,
   alertRowMapper,
   createCompiledQueryPlan,
   createListQueryPlan,
@@ -89,61 +90,51 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
   async create(_input: CreateAlertsDto): Promise<AlertSummary> {
     const row = mapCreateAlertInputToRowWrite(_input);
-    const rows = await this.queryRows<AlertRow>(buildCreateAlertQueryPlan(row));
-    return alertRowMapper.toDomain(rows[0] ?? createPlaceholderAlertRow({ id: row.id }));
+    return this.gateway.executeMappedMutation(
+      buildCreateAlertQueryPlan(row),
+      alertRowMapper,
+      createPlaceholderAlertRow({ id: row.id })
+    );
   }
 
   async update(id: string, _input: UpdateAlertsDto): Promise<AlertSummary> {
     const patch = mapUpdateAlertInputToRowPatch(id, _input);
-    const rows = await this.queryRows<AlertRow>(buildUpdateAlertQueryPlan(id, patch));
-    return alertRowMapper.toDomain(rows[0] ?? createPlaceholderAlertRow({ id }));
+    return this.gateway.executeMappedMutation(
+      buildUpdateAlertQueryPlan(id, patch),
+      alertRowMapper,
+      createPlaceholderAlertRow({ id })
+    );
   }
 
   async getById(id: string): Promise<AlertSummary> {
-    const rows = await this.queryRows<AlertRow>(buildAlertByIdQueryPlan(id));
-    return alertRowMapper.toDomain(rows[0] ?? createPlaceholderAlertRow({ id }));
+    return this.gateway.executeMappedItem(
+      buildAlertByIdQueryPlan(id),
+      alertRowMapper,
+      createPlaceholderAlertRow({ id })
+    );
   }
 
   async list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
-    const rows = await this.queryRows<AlertRow>(buildAlertsListQueryPlan(query));
-    return this.toListResponse(rows, query.page, query.pageSize);
+    return this.gateway.executeMappedList(buildAlertsListQueryPlan(query), alertRowMapper, {
+      page: query.page,
+      pageSize: query.pageSize,
+      fallbackRows: [createPlaceholderAlertRow()]
+    });
   }
 
   async listOpen(): Promise<ListResponse<AlertSummary>> {
-    const rows = await this.queryRows<AlertRow>(buildOpenAlertsQueryPlan());
-    return this.toListResponse(rows, 1, 20);
+    return this.gateway.executeMappedList(buildOpenAlertsQueryPlan(), alertRowMapper, {
+      page: 1,
+      pageSize: 20,
+      fallbackRows: [createPlaceholderAlertRow()]
+    });
   }
 
-  private async queryRows<TRow>(plan: CompiledQueryPlan): Promise<TRow[]> {
-    const client = await this.connectionFactory.create(this.databaseConfig);
-
-    try {
-      const result = await client.query<TRow>(plan.statement, plan.params);
-      return result.rows;
-    } finally {
-      await client.dispose();
-    }
-  }
-
-  private toListResponse(
-    rows: AlertRow[],
-    page: number,
-    pageSize: number
-  ): ListResponse<AlertSummary> {
-    const items =
-      rows.length > 0
-        ? rows.map((row) => alertRowMapper.toDomain(row))
-        : [alertRowMapper.toDomain(createPlaceholderAlertRow())];
-
-    return {
-      items,
-      page: {
-        page,
-        pageSize,
-        totalItems: items.length,
-        totalPages: Math.max(1, Math.ceil(items.length / pageSize))
-      }
-    };
+  private get gateway(): PostgresRowGateway {
+    return new PostgresRowGateway({
+      connectionFactory: this.connectionFactory,
+      databaseConfig: this.databaseConfig
+    });
   }
 }
 

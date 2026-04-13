@@ -1,5 +1,5 @@
-import type { SortOption } from "@aquapulse/types";
-import type { CompiledQueryPlan, RepositoryListQuery } from "./query-contracts.js";
+import type { PaginationParams, SortOption } from "@aquapulse/types";
+import type { CompiledQueryPlan } from "./query-contracts.js";
 
 export interface QueryPlanDefinition {
   readonly key: string;
@@ -45,14 +45,18 @@ export function createMutationQueryPlan<TPayload extends object>(
   });
 }
 
-export interface ListQueryPlanOptions<TQuery extends RepositoryListQuery> {
+export interface ListQueryInput extends PaginationParams {
+  readonly sort?: readonly SortOption[];
+}
+
+export interface ListQueryPlanOptions<TQuery extends ListQueryInput> {
   readonly key: string;
   readonly query: TQuery;
   readonly params: readonly unknown[];
   readonly filters?: Readonly<Record<string, unknown>>;
 }
 
-export function createListQueryPlan<TQuery extends RepositoryListQuery>(
+export function createListQueryPlan<TQuery extends ListQueryInput>(
   options: ListQueryPlanOptions<TQuery>
 ): CompiledQueryPlan {
   return {

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   PlaceholderDatabaseConnectionFactory,
+  PostgresRowGateway,
   createLookupQueryPlan,
   createMutationQueryPlan,
   createListQueryPlan,
@@ -78,48 +79,43 @@ export class PostgresPondsRepository implements PondsRepositoryPort {
 
   async create(_input: CreatePondsDto): Promise<PondSummary> {
     const row = mapCreatePondInputToRowWrite(_input);
-    const rows = await this.queryRows<PondRow>(buildCreatePondQueryPlan(row));
-    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id: row.id }));
+    return this.gateway.executeMappedMutation(
+      buildCreatePondQueryPlan(row),
+      pondRowMapper,
+      createPlaceholderPondRow({ id: row.id })
+    );
   }
 
   async update(id: string, _input: UpdatePondsDto): Promise<PondSummary> {
     const patch = mapUpdatePondInputToRowPatch(id, _input);
-    const rows = await this.queryRows<PondRow>(buildUpdatePondQueryPlan(id, patch));
-    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id }));
+    return this.gateway.executeMappedMutation(
+      buildUpdatePondQueryPlan(id, patch),
+      pondRowMapper,
+      createPlaceholderPondRow({ id })
+    );
   }
 
   async getById(id: string): Promise<PondSummary> {
-    const rows = await this.queryRows<PondRow>(buildPondByIdQueryPlan(id));
-    return pondRowMapper.toDomain(rows[0] ?? createPlaceholderPondRow({ id }));
+    return this.gateway.executeMappedItem(
+      buildPondByIdQueryPlan(id),
+      pondRowMapper,
+      createPlaceholderPondRow({ id })
+    );
   }
 
   async list(query: PondListQueryContract): Promise<ListResponse<PondSummary>> {
-    const rows = await this.queryRows<PondRow>(buildPondsListQueryPlan(query));
-    const items =
-      rows.length > 0
-        ? rows.map((row) => pondRowMapper.toDomain(row))
-        : [pondRowMapper.toDomain(createPlaceholderPondRow())];
-
-    return {
-      items,
-      page: {
-        page: query.page,
-        pageSize: query.pageSize,
-        totalItems: items.length,
-        totalPages: Math.max(1, Math.ceil(items.length / query.pageSize))
-      }
-    };
+    return this.gateway.executeMappedList(buildPondsListQueryPlan(query), pondRowMapper, {
+      page: query.page,
+      pageSize: query.pageSize,
+      fallbackRows: [createPlaceholderPondRow()]
+    });
   }
 
-  private async queryRows<TRow>(plan: CompiledQueryPlan): Promise<TRow[]> {
-    const client = await this.connectionFactory.create(this.databaseConfig);
-
-    try {
-      const result = await client.query<TRow>(plan.statement, plan.params);
-      return result.rows;
-    } finally {
-      await client.dispose();
-    }
+  private get gateway(): PostgresRowGateway {
+    return new PostgresRowGateway({
+      connectionFactory: this.connectionFactory,
+      databaseConfig: this.databaseConfig
+    });
   }
 }
 

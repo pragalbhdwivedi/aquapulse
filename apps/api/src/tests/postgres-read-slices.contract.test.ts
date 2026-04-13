@@ -1,10 +1,9 @@
 import {
   createPlaceholderAlertRow,
   createPlaceholderPondRow,
+  createRecordingConnectionFactory,
   createTestDatabaseConfig,
-  type DatabaseClient,
-  type DatabaseQueryResult,
-  type DatabaseConnectionFactory
+  type RecordedDatabasePlan
 } from "@aquapulse/database";
 import { describe, expect, it } from "vitest";
 import {
@@ -30,57 +29,13 @@ interface RecordedQuery {
   readonly params: readonly unknown[];
 }
 
-function createRecordingFactory<TRow>(
-  rows: TRow[],
-  recordedQueries: RecordedQuery[]
-): DatabaseConnectionFactory {
-  function createResult<TExpectedRow>(): DatabaseQueryResult<TExpectedRow> {
-    return {
-      rows: rows as unknown as TExpectedRow[],
-      rowCount: rows.length
-    };
-  }
-
-  return {
-    async create() {
-      const client: DatabaseClient = {
-        async query(statement, params = []) {
-          recordedQueries.push({ statement, params });
-          return createResult();
-        },
-        async transaction(callback) {
-          return callback({
-            async query(statement, params = []) {
-              recordedQueries.push({ statement, params });
-              return createResult();
-            }
-          });
-        },
-        async dispose() {
-          return;
-        }
-      };
-
-      return client;
-    },
-    async checkReadiness() {
-      return {
-        ready: false,
-        message: "Test factory does not open a live database connection.",
-        checkedAt: new Date(0).toISOString()
-      };
-    }
-  };
-}
-
 describe("Postgres read adapter slices", () => {
   it("ponds adapter keeps the repository contract while using shared row mapping", async () => {
-    const recordedQueries: RecordedQuery[] = [];
+    const recordedQueries: RecordedDatabasePlan[] = [];
     const repository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
-      connectionFactory: createRecordingFactory(
-        [createPlaceholderPondRow({ id: "pond-42", farm_id: "farm-42" })],
-        recordedQueries
-      ),
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [createPlaceholderPondRow({ id: "pond-42", farm_id: "farm-42" })]
+      }),
       databaseConfig: createTestDatabaseConfig()
     });
 
@@ -111,12 +66,11 @@ describe("Postgres read adapter slices", () => {
   });
 
   it("alerts adapter keeps the repository contract and translates query inputs consistently", async () => {
-    const recordedQueries: RecordedQuery[] = [];
+    const recordedQueries: RecordedDatabasePlan[] = [];
     const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
-      connectionFactory: createRecordingFactory(
-        [createPlaceholderAlertRow({ id: "alert-42", pond_id: "pond-42", status: "open" })],
-        recordedQueries
-      ),
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [createPlaceholderAlertRow({ id: "alert-42", pond_id: "pond-42", status: "open" })]
+      }),
       databaseConfig: createTestDatabaseConfig()
     });
 
@@ -152,13 +106,13 @@ describe("Postgres read adapter slices", () => {
   });
 
   it("pond and alert write slices remain no-op-safe while compiling stable mutation plans", async () => {
-    const recordedQueries: RecordedQuery[] = [];
+    const recordedQueries: RecordedDatabasePlan[] = [];
     const pondsRepository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
-      connectionFactory: createRecordingFactory([], recordedQueries),
+      connectionFactory: createRecordingConnectionFactory(recordedQueries),
       databaseConfig: createTestDatabaseConfig()
     });
     const alertsRepository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
-      connectionFactory: createRecordingFactory([], recordedQueries),
+      connectionFactory: createRecordingConnectionFactory(recordedQueries),
       databaseConfig: createTestDatabaseConfig()
     });
 

@@ -1,64 +1,108 @@
 import { Injectable } from "@nestjs/common";
+import {
+  PlaceholderDatabaseConnectionFactory,
+  PostgresRowGateway,
+  createListQueryPlan,
+  createLookupQueryPlan,
+  createMutationQueryPlan,
+  createPlaceholderFeedRow,
+  feedRowMapper,
+  mapCreateFeedInputToRowWrite,
+  mapUpdateFeedInputToRowPatch,
+  type CompiledQueryPlan,
+  type DatabaseConfig,
+  type DatabaseConnectionFactory,
+  type FeedRow,
+  type FeedRowPatch,
+  type FeedRowWrite
+} from "@aquapulse/database";
 import type { FeedEntry, ListResponse } from "@aquapulse/types";
+import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreateFeedDto, QueryFeedDto, UpdateFeedDto } from "../dto";
 import type { FeedRepositoryPort } from "../ports/feed-repository.port";
 
-interface FeedRow {
-  readonly id: string;
-  readonly pond_id: string;
-  readonly batch_id?: string;
-  readonly feed_type: string;
-  readonly quantity_kg: number;
-  readonly fed_at: string;
-  readonly created_at: string;
-  readonly updated_at: string;
+export interface PostgresFeedRepositoryDependencies {
+  readonly connectionFactory?: DatabaseConnectionFactory;
+  readonly databaseConfig?: DatabaseConfig;
 }
 
-function mapFeedRowToDomain(row: FeedRow): FeedEntry {
-  return {
-    id: row.id,
-    pondId: row.pond_id,
-    batchId: row.batch_id,
-    feedType: row.feed_type,
-    quantityKg: row.quantity_kg,
-    fedAt: row.fed_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  };
+export function buildFeedByIdQueryPlan(id: string): CompiledQueryPlan {
+  return createLookupQueryPlan("feed.getById", id);
 }
 
-function createPlaceholderFeedRow(): FeedRow {
-  return {
-    id: "feed-1",
-    pond_id: "pond-1",
-    batch_id: "batch-1",
-    feed_type: "Starter Feed",
-    quantity_kg: 35,
-    fed_at: "2026-04-13T00:00:00.000Z",
-    created_at: "2026-04-13T00:00:00.000Z",
-    updated_at: "2026-04-13T00:00:00.000Z"
-  };
+export function buildFeedListQueryPlan(query: QueryFeedDto): CompiledQueryPlan {
+  return createListQueryPlan({
+    key: "feed.list",
+    query,
+    params: [query.page, query.pageSize, query.search ?? null],
+    filters: { search: query.search }
+  });
+}
+
+export function buildCreateFeedQueryPlan(row: FeedRowWrite): CompiledQueryPlan {
+  return createMutationQueryPlan("feed.create", row);
+}
+
+export function buildUpdateFeedQueryPlan(id: string, patch: FeedRowPatch): CompiledQueryPlan {
+  return createMutationQueryPlan("feed.update", patch, {
+    params: [id, patch],
+    filters: { id }
+  });
 }
 
 @Injectable()
 export class PostgresFeedRepository implements FeedRepositoryPort {
-  async create(_input: CreateFeedDto): Promise<FeedEntry> {
-    return mapFeedRowToDomain(createPlaceholderFeedRow());
+  private connectionFactory: DatabaseConnectionFactory = new PlaceholderDatabaseConnectionFactory();
+  private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
+
+  static forTesting(
+    overrides: PostgresFeedRepositoryDependencies = {}
+  ): PostgresFeedRepository {
+    const repository = new PostgresFeedRepository();
+    repository.connectionFactory = overrides.connectionFactory ?? repository.connectionFactory;
+    repository.databaseConfig = overrides.databaseConfig ?? repository.databaseConfig;
+    return repository;
   }
 
-  async update(_id: string, _input: UpdateFeedDto): Promise<FeedEntry> {
-    return mapFeedRowToDomain(createPlaceholderFeedRow());
+  async create(input: CreateFeedDto): Promise<FeedEntry> {
+    const row = mapCreateFeedInputToRowWrite(input);
+    return this.gateway.executeMappedMutation(
+      buildCreateFeedQueryPlan(row),
+      feedRowMapper,
+      createPlaceholderFeedRow({ id: row.id })
+    );
   }
 
-  async getById(_id: string): Promise<FeedEntry> {
-    return mapFeedRowToDomain(createPlaceholderFeedRow());
+  async update(id: string, input: UpdateFeedDto): Promise<FeedEntry> {
+    const patch = mapUpdateFeedInputToRowPatch(id, input);
+    return this.gateway.executeMappedMutation(
+      buildUpdateFeedQueryPlan(id, patch),
+      feedRowMapper,
+      createPlaceholderFeedRow({ id })
+    );
   }
 
-  async list(_query: QueryFeedDto): Promise<ListResponse<FeedEntry>> {
-    return {
-      items: [mapFeedRowToDomain(createPlaceholderFeedRow())],
-      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
-    };
+  async getById(id: string): Promise<FeedEntry> {
+    return this.gateway.executeMappedItem(
+      buildFeedByIdQueryPlan(id),
+      feedRowMapper,
+      createPlaceholderFeedRow({ id })
+    );
+  }
+
+  async list(query: QueryFeedDto): Promise<ListResponse<FeedEntry>> {
+    return this.gateway.executeMappedList(buildFeedListQueryPlan(query), feedRowMapper, {
+      page: query.page,
+      pageSize: query.pageSize,
+      fallbackRows: [createPlaceholderFeedRow()]
+    });
+  }
+
+  private get gateway(): PostgresRowGateway {
+    return new PostgresRowGateway({
+      connectionFactory: this.connectionFactory,
+      databaseConfig: this.databaseConfig
+    });
   }
 }
 
@@ -66,6 +110,12 @@ export const POSTGRES_FEED_IMPLEMENTATION_PLAN = {
   readMethods: ["getById", "list"],
   writeMethods: ["create", "update"],
   rowSource: "feed_entries",
-  queryNotes: ["filter by pond/batch/date", "prepare feed-type lookup joins if needed"],
-  mappingNotes: ["map feed entry rows into FeedEntry"]
+  queryNotes: [
+    "shape feed list retrieval through compiled list plans",
+    "keep feed read and write execution on the shared Postgres row gateway"
+  ],
+  mappingNotes: [
+    "map feed entry rows into FeedEntry via shared row mappers",
+    "shape create/update DTO inputs into feed row payloads"
+  ]
 } as const;

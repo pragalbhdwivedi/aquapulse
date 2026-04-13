@@ -4,10 +4,19 @@ import {
   createListQueryPlan,
   createLookupQueryPlan,
   createMutationQueryPlan,
+  mapCreateAttachmentInputToRowWrite,
   mapCreateAlertInputToRowWrite,
+  mapCreateBatchInputToRowWrite,
+  mapCreateFeedInputToRowWrite,
   mapCreatePondInputToRowWrite,
+  mapCreateTaskInputToRowWrite,
+  mapUpdateAttachmentInputToRowPatch,
   mapUpdateAlertInputToRowPatch,
+  mapUpdateBatchInputToRowPatch,
+  mapUpdateFeedInputToRowPatch,
   mapUpdatePondInputToRowPatch
+  ,
+  mapUpdateTaskInputToRowPatch
 } from "../index.js";
 
 describe("Shared query builders and write mappers", () => {
@@ -80,6 +89,30 @@ describe("Shared query builders and write mappers", () => {
     });
     expect(mapUpdateAlertInputToRowPatch("alert-77", {})).toEqual({
       id: "alert-77",
+      updated_at: "2026-04-13T00:00:00.000Z"
+    });
+
+    expect(mapCreateTaskInputToRowWrite({ id: "task-77" }).id).toBe("task-77");
+    expect(mapUpdateTaskInputToRowPatch("task-77", {})).toEqual({
+      id: "task-77",
+      updated_at: "2026-04-13T00:00:00.000Z"
+    });
+
+    expect(mapCreateAttachmentInputToRowWrite({ id: "attachment-77" }).id).toBe("attachment-77");
+    expect(mapUpdateAttachmentInputToRowPatch("attachment-77", {})).toEqual({
+      id: "attachment-77",
+      updated_at: "2026-04-13T00:00:00.000Z"
+    });
+
+    expect(mapCreateBatchInputToRowWrite({ id: "batch-77" }).id).toBe("batch-77");
+    expect(mapUpdateBatchInputToRowPatch("batch-77", {})).toEqual({
+      id: "batch-77",
+      updated_at: "2026-04-13T00:00:00.000Z"
+    });
+
+    expect(mapCreateFeedInputToRowWrite({ id: "feed-77" }).id).toBe("feed-77");
+    expect(mapUpdateFeedInputToRowPatch("feed-77", {})).toEqual({
+      id: "feed-77",
       updated_at: "2026-04-13T00:00:00.000Z"
     });
   });

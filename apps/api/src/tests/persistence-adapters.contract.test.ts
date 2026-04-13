@@ -6,6 +6,19 @@ import { PostgresAiRepository } from "../modules/ai/adapters/postgres-ai.reposit
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
 import { ALERTS_ACTIVE_REPOSITORY, ALERTS_ADAPTERS, ALERTS_PERSISTENCE_PROVIDER } from "../modules/alerts/alerts.module";
 import { PostgresAlertsRepository } from "../modules/alerts/adapters/postgres-alerts.repository";
+import type { AttachmentsRepositoryPort } from "../modules/attachments/ports/attachments-repository.port";
+import {
+  ATTACHMENTS_ACTIVE_REPOSITORY,
+  ATTACHMENTS_ADAPTERS,
+  ATTACHMENTS_PERSISTENCE_PROVIDER
+} from "../modules/attachments/attachments.module";
+import { PostgresAttachmentsRepository } from "../modules/attachments/adapters/postgres-attachments.repository";
+import type { BatchesRepositoryPort } from "../modules/batches/ports/batches-repository.port";
+import { BATCHES_ACTIVE_REPOSITORY, BATCHES_ADAPTERS, BATCHES_PERSISTENCE_PROVIDER } from "../modules/batches/batches.module";
+import { PostgresBatchesRepository } from "../modules/batches/adapters/postgres-batches.repository";
+import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
+import { FEED_ACTIVE_REPOSITORY, FEED_ADAPTERS, FEED_PERSISTENCE_PROVIDER } from "../modules/feed/feed.module";
+import { PostgresFeedRepository } from "../modules/feed/adapters/postgres-feed.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import { PONDS_ACTIVE_REPOSITORY, PONDS_ADAPTERS, PONDS_PERSISTENCE_PROVIDER } from "../modules/ponds/ponds.module";
 import { PostgresPondsRepository } from "../modules/ponds/adapters/postgres-ponds.repository";
@@ -21,18 +34,27 @@ describe("Persistence adapter skeletons", () => {
   it("postgres adapter skeletons satisfy the repository ports", async () => {
     const pondsRepository: PondsRepositoryPort = new PostgresPondsRepository();
     const alertsRepository: AlertsRepositoryPort = new PostgresAlertsRepository();
+    const attachmentsRepository: AttachmentsRepositoryPort = new PostgresAttachmentsRepository();
+    const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
+    const feedRepository: FeedRepositoryPort = new PostgresFeedRepository();
     const tasksRepository: TasksRepositoryPort = new PostgresTasksRepository();
     const aiRepository: AiRepositoryPort = new PostgresAiRepository();
 
-    const [ponds, alerts, tasks, ai] = await Promise.all([
+    const [ponds, alerts, attachments, batches, feed, tasks, ai] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.list({ page: 1, pageSize: 20 }),
+      attachmentsRepository.list({ page: 1, pageSize: 20 }),
+      batchesRepository.list({ page: 1, pageSize: 20 }),
+      feedRepository.list({ page: 1, pageSize: 20 }),
       tasksRepository.list({ page: 1, pageSize: 20 }),
       aiRepository.list({ page: 1, pageSize: 20 })
     ]);
 
     expect(ponds.items[0]?.id).toBe("pond-1");
     expect(alerts.items[0]?.id).toBe("alert-1");
+    expect(attachments.items[0]?.id).toBe("attachment-1");
+    expect(batches.items[0]?.id).toBe("batch-1");
+    expect(feed.items[0]?.id).toBe("feed-1");
     expect(tasks.items[0]?.id).toBe("task-1");
     expect(ai.items[0]?.id).toBe("ai-response-1");
   });
@@ -40,16 +62,25 @@ describe("Persistence adapter skeletons", () => {
   it("module provider composition keeps the in-memory adapter active by default", () => {
     expect(PONDS_ACTIVE_REPOSITORY.name).toBe("InMemoryPondsRepository");
     expect(ALERTS_ACTIVE_REPOSITORY.name).toBe("InMemoryAlertsRepository");
+    expect(ATTACHMENTS_ACTIVE_REPOSITORY.name).toBe("InMemoryAttachmentsRepository");
+    expect(BATCHES_ACTIVE_REPOSITORY.name).toBe("InMemoryBatchesRepository");
+    expect(FEED_ACTIVE_REPOSITORY.name).toBe("InMemoryFeedRepository");
     expect(TASKS_ACTIVE_REPOSITORY.name).toBe("InMemoryTasksRepository");
     expect(AI_ACTIVE_REPOSITORY.name).toBe("InMemoryAiRepository");
 
     expect(PONDS_ADAPTERS).toContain(PostgresPondsRepository);
     expect(ALERTS_ADAPTERS).toContain(PostgresAlertsRepository);
+    expect(ATTACHMENTS_ADAPTERS).toContain(PostgresAttachmentsRepository);
+    expect(BATCHES_ADAPTERS).toContain(PostgresBatchesRepository);
+    expect(FEED_ADAPTERS).toContain(PostgresFeedRepository);
     expect(TASKS_ADAPTERS).toContain(PostgresTasksRepository);
     expect(AI_ADAPTERS).toContain(PostgresAiRepository);
 
     expect(PONDS_PERSISTENCE_PROVIDER.useExisting).toBe(PONDS_ACTIVE_REPOSITORY);
     expect(ALERTS_PERSISTENCE_PROVIDER.useExisting).toBe(ALERTS_ACTIVE_REPOSITORY);
+    expect(ATTACHMENTS_PERSISTENCE_PROVIDER.useExisting).toBe(ATTACHMENTS_ACTIVE_REPOSITORY);
+    expect(BATCHES_PERSISTENCE_PROVIDER.useExisting).toBe(BATCHES_ACTIVE_REPOSITORY);
+    expect(FEED_PERSISTENCE_PROVIDER.useExisting).toBe(FEED_ACTIVE_REPOSITORY);
     expect(TASKS_PERSISTENCE_PROVIDER.useExisting).toBe(TASKS_ACTIVE_REPOSITORY);
     expect(AI_PERSISTENCE_PROVIDER.useExisting).toBe(AI_ACTIVE_REPOSITORY);
 

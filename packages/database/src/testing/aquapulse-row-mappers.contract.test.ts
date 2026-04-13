@@ -1,9 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachmentRowMapper,
+  batchRowMapper,
   alertRowMapper,
+  createPlaceholderAttachmentRow,
   createPlaceholderAlertRow,
+  createPlaceholderBatchRow,
+  createPlaceholderFeedRow,
   createPlaceholderPondRow,
+  createPlaceholderTaskRow,
+  feedRowMapper,
   pondRowMapper
+  ,
+  taskRowMapper
 } from "../index.js";
 
 describe("Shared AquaPulse row mappers", () => {
@@ -33,5 +42,14 @@ describe("Shared AquaPulse row mappers", () => {
     expect(alert.id).toBe("alert-77");
     expect(alert.pondId).toBe("pond-77");
     expect(alert.status).toBe("acknowledged");
+  });
+
+  it("maps task, attachment, batch, and feed rows into domain shapes", () => {
+    expect(taskRowMapper.toDomain(createPlaceholderTaskRow({ id: "task-77" })).id).toBe("task-77");
+    expect(
+      attachmentRowMapper.toDomain(createPlaceholderAttachmentRow({ id: "attachment-77" })).id
+    ).toBe("attachment-77");
+    expect(batchRowMapper.toDomain(createPlaceholderBatchRow({ id: "batch-77" })).id).toBe("batch-77");
+    expect(feedRowMapper.toDomain(createPlaceholderFeedRow({ id: "feed-77" })).id).toBe("feed-77");
   });
 });
