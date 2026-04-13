@@ -1,0 +1,18 @@
+export const navigationSections = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/ponds", label: "Ponds" },
+  { href: "/ponds/map", label: "Pond Map" },
+  { href: "/batches", label: "Batches" },
+  { href: "/feed", label: "Feed" },
+  { href: "/inventory", label: "Inventory" },
+  { href: "/treatments", label: "Treatments" },
+  { href: "/mortality", label: "Mortality" },
+  { href: "/expenses", label: "Expenses" },
+  { href: "/alerts", label: "Alerts" },
+  { href: "/approvals", label: "Approvals" },
+  { href: "/reports", label: "Reports" },
+  { href: "/timeline", label: "Timeline" },
+  { href: "/audit", label: "Audit" },
+  { href: "/settings", label: "Settings" },
+  { href: "/admin", label: "Admin" },
+] as const;
