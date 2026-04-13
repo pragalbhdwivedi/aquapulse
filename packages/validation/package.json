@@ -1,0 +1,13 @@
+{
+  "name": "@aquapulse/validation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit --project tsconfig.json"
+  },
+  "dependencies": {
+    "@aquapulse/types": "workspace:*",
+    "zod": "^3.24.3"
+  }
+}
