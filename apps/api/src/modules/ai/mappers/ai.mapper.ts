@@ -20,6 +20,8 @@ import type {
   SummarizePondDto,
   UpdateAiDto
 } from "../dto";
+import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
+import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
 export function toCreateAiInput(input: CreateAiDto): CreateAiDto {
@@ -30,8 +32,12 @@ export function toUpdateAiInput(input: UpdateAiDto): UpdateAiDto {
   return input;
 }
 
-export function toQueryAiInput(input: QueryAiDto): QueryAiDto {
-  return input;
+export function toQueryAiInput(input: QueryAiDto): AiResponseLogQueryContract {
+  return toRepositoryListQuery(input, {
+    requestId: input.requestId,
+    status: input.status,
+    model: input.model
+  });
 }
 
 export function toExplainAlertInput(input: ExplainAlertDto): ExplainAlertDto {

@@ -18,8 +18,9 @@ import {
 } from "@aquapulse/database";
 import type { BatchSummary, ListResponse } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
-import type { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "../dto";
+import type { CreateBatchesDto, UpdateBatchesDto } from "../dto";
 import type { BatchesRepositoryPort } from "../ports/batches-repository.port";
+import type { BatchesListQueryContract } from "../query-contracts/batches-query.contract";
 
 export interface PostgresBatchesRepositoryDependencies {
   readonly connectionFactory?: DatabaseConnectionFactory;
@@ -30,12 +31,12 @@ export function buildBatchByIdQueryPlan(id: string): CompiledQueryPlan {
   return createLookupQueryPlan("batches.getById", id);
 }
 
-export function buildBatchesListQueryPlan(query: QueryBatchesDto): CompiledQueryPlan {
+export function buildBatchesListQueryPlan(query: BatchesListQueryContract): CompiledQueryPlan {
   return createListQueryPlan({
     key: "batches.list",
     query,
-    params: [query.page, query.pageSize, query.search ?? null],
-    filters: { search: query.search }
+    params: [query.page, query.pageSize, query.pondId ?? null, query.lifecycleStage ?? null, query.search ?? null],
+    filters: { pondId: query.pondId, lifecycleStage: query.lifecycleStage, search: query.search }
   });
 }
 
@@ -90,7 +91,7 @@ export class PostgresBatchesRepository implements BatchesRepositoryPort {
     );
   }
 
-  async list(query: QueryBatchesDto): Promise<ListResponse<BatchSummary>> {
+  async list(query: BatchesListQueryContract): Promise<ListResponse<BatchSummary>> {
     return this.gateway.executeMappedList(buildBatchesListQueryPlan(query), batchRowMapper, {
       page: query.page,
       pageSize: query.pageSize,

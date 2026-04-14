@@ -1,5 +1,7 @@
 import type { ApiSuccessEnvelope, ListResponse, WaterQualityReading } from "@aquapulse/types";
+import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
 import type { CreateWaterQualityDto, QueryWaterQualityDto, UpdateWaterQualityDto } from "../dto";
+import type { WaterQualityListQueryContract } from "../query-contracts/water-quality-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
 export function toCreateWaterQualityInput(input: CreateWaterQualityDto): CreateWaterQualityDto {
@@ -10,8 +12,11 @@ export function toUpdateWaterQualityInput(input: UpdateWaterQualityDto): UpdateW
   return input;
 }
 
-export function toQueryWaterQualityInput(input: QueryWaterQualityDto): QueryWaterQualityDto {
-  return input;
+export function toQueryWaterQualityInput(input: QueryWaterQualityDto): WaterQualityListQueryContract {
+  return toRepositoryListQuery(input, {
+    pondId: input.pondId,
+    metric: input.metric
+  });
 }
 
 export function toWaterQualityItemResponse(item: WaterQualityReading): ApiSuccessEnvelope<WaterQualityReading> {

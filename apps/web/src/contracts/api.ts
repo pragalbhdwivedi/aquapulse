@@ -20,34 +20,76 @@ import type {
   TaskSummary,
   WaterQualityReading
 } from "@aquapulse/types";
+import type { RepositoryListQuery } from "@aquapulse/database";
 
 export type ApiContract<TData> = Promise<ApiSuccessEnvelope<TData>>;
 
+export interface PondsListQuery extends RepositoryListQuery {
+  readonly farmId?: string;
+  readonly status?: "active" | "maintenance" | "inactive";
+  readonly kind?: "pond" | "tank" | "cage";
+}
+
+export interface AlertsListQuery extends RepositoryListQuery {
+  readonly pondId?: string;
+  readonly severity?: AlertSummary["severity"];
+  readonly status?: AlertSummary["status"];
+  readonly source?: string;
+}
+
+export interface TasksListQuery extends RepositoryListQuery {
+  readonly assigneeId?: string;
+  readonly pondId?: string;
+  readonly status?: TaskSummary["status"];
+}
+
+export interface AuditListQuery extends RepositoryListQuery {
+  readonly resourceType?: string;
+  readonly resourceId?: string;
+  readonly action?: AuditEvent["action"];
+}
+
+export interface BatchesListQuery extends RepositoryListQuery {
+  readonly pondId?: string;
+  readonly lifecycleStage?: BatchSummary["lifecycleStage"];
+}
+
+export interface FeedListQuery extends RepositoryListQuery {
+  readonly pondId?: string;
+  readonly batchId?: string;
+  readonly feedType?: string;
+}
+
+export interface WaterQualityListQuery extends RepositoryListQuery {
+  readonly pondId?: string;
+  readonly metric?: "temperatureC" | "ph";
+}
+
 export interface PondsApiClient {
-  list(): ApiContract<ListResponse<PondSummary>>;
+  list(query?: PondsListQuery): ApiContract<ListResponse<PondSummary>>;
   getById(id: string): ApiContract<PondSummary>;
   summarize(input: AiPondsSummarizeRequest): ApiContract<AiPondsSummarizeResponse>;
 }
 
 export interface BatchesApiClient {
-  list(): ApiContract<ListResponse<BatchSummary>>;
+  list(query?: BatchesListQuery): ApiContract<ListResponse<BatchSummary>>;
 }
 
 export interface WaterQualityApiClient {
-  listByPond(pondId: string): ApiContract<ListResponse<WaterQualityReading>>;
+  list(query: WaterQualityListQuery): ApiContract<ListResponse<WaterQualityReading>>;
 }
 
 export interface AlertsApiClient {
-  list(): ApiContract<ListResponse<AlertSummary>>;
+  list(query?: AlertsListQuery): ApiContract<ListResponse<AlertSummary>>;
   explain(input: AiAlertsExplainRequest): ApiContract<AiAlertsExplainResponse>;
 }
 
 export interface TasksApiClient {
-  list(): ApiContract<ListResponse<TaskSummary>>;
+  list(query?: TasksListQuery): ApiContract<ListResponse<TaskSummary>>;
 }
 
 export interface AuditApiClient {
-  list(): ApiContract<ListResponse<AuditEvent>>;
+  list(query?: AuditListQuery): ApiContract<ListResponse<AuditEvent>>;
 }
 
 export interface AiApiClient {

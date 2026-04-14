@@ -6,6 +6,7 @@ import { PostgresAiRepository } from "../modules/ai/adapters/postgres-ai.reposit
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
 import { ALERTS_ACTIVE_REPOSITORY, ALERTS_ADAPTERS, ALERTS_PERSISTENCE_PROVIDER } from "../modules/alerts/alerts.module";
 import { PostgresAlertsRepository } from "../modules/alerts/adapters/postgres-alerts.repository";
+import type { AttachmentsListQueryContract } from "../modules/attachments/query-contracts/attachments-query.contract";
 import type { AttachmentsRepositoryPort } from "../modules/attachments/ports/attachments-repository.port";
 import {
   ATTACHMENTS_ACTIVE_REPOSITORY,
@@ -16,6 +17,8 @@ import { PostgresAttachmentsRepository } from "../modules/attachments/adapters/p
 import type { BatchesRepositoryPort } from "../modules/batches/ports/batches-repository.port";
 import { BATCHES_ACTIVE_REPOSITORY, BATCHES_ADAPTERS, BATCHES_PERSISTENCE_PROVIDER } from "../modules/batches/batches.module";
 import { PostgresBatchesRepository } from "../modules/batches/adapters/postgres-batches.repository";
+import type { BatchesListQueryContract } from "../modules/batches/query-contracts/batches-query.contract";
+import type { FeedListQueryContract } from "../modules/feed/query-contracts/feed-query.contract";
 import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
 import { FEED_ACTIVE_REPOSITORY, FEED_ADAPTERS, FEED_PERSISTENCE_PROVIDER } from "../modules/feed/feed.module";
 import { PostgresFeedRepository } from "../modules/feed/adapters/postgres-feed.repository";
@@ -96,6 +99,9 @@ describe("Persistence adapter skeletons", () => {
   it("query contracts stay aligned with repository list boundaries", () => {
     expectTypeOf<PondListQueryContract>().toMatchTypeOf<Parameters<PondsRepositoryPort["list"]>[0]>();
     expectTypeOf<AlertsListQueryContract>().toMatchTypeOf<Parameters<AlertsRepositoryPort["list"]>[0]>();
+    expectTypeOf<AttachmentsListQueryContract>().toMatchTypeOf<Parameters<AttachmentsRepositoryPort["list"]>[0]>();
+    expectTypeOf<BatchesListQueryContract>().toMatchTypeOf<Parameters<BatchesRepositoryPort["list"]>[0]>();
+    expectTypeOf<FeedListQueryContract>().toMatchTypeOf<Parameters<FeedRepositoryPort["list"]>[0]>();
     expectTypeOf<TasksListQueryContract>().toMatchTypeOf<Parameters<TasksRepositoryPort["list"]>[0]>();
     expectTypeOf<AiResponseLogQueryContract>().toMatchTypeOf<Parameters<AiRepositoryPort["list"]>[0]>();
   });

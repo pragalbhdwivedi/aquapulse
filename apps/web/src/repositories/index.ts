@@ -22,32 +22,44 @@ import type {
 } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "../clients";
 import { apiClients } from "../clients";
+import type {
+  AlertsListQuery,
+  AuditListQuery,
+  BatchesListQuery,
+  PondsListQuery,
+  TasksListQuery,
+  WaterQualityListQuery
+} from "../contracts/api";
 
 export interface PondsRepository {
-  list(): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>>;
+  list(query?: PondsListQuery): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>>;
   getById(id: string): Promise<ApiSuccessEnvelope<PondSummary>>;
   summarize(input: AiPondsSummarizeRequest): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>>;
 }
 
 export interface BatchesRepository {
-  list(): Promise<ApiSuccessEnvelope<ListResponse<BatchSummary>>>;
+  list(query?: BatchesListQuery): Promise<ApiSuccessEnvelope<ListResponse<BatchSummary>>>;
 }
 
 export interface WaterQualityRepository {
-  listByPond(pondId: string): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
+  list(query: WaterQualityListQuery): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
+  listByPond(
+    pondId: string,
+    query?: Omit<WaterQualityListQuery, "pondId">
+  ): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
 }
 
 export interface AlertsRepository {
-  list(): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>>;
+  list(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>>;
   explain(input: AiAlertsExplainRequest): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>>;
 }
 
 export interface TasksRepository {
-  list(): Promise<ApiSuccessEnvelope<ListResponse<TaskSummary>>>;
+  list(query?: TasksListQuery): Promise<ApiSuccessEnvelope<ListResponse<TaskSummary>>>;
 }
 
 export interface AuditRepository {
-  list(): Promise<ApiSuccessEnvelope<ListResponse<AuditEvent>>>;
+  list(query?: AuditListQuery): Promise<ApiSuccessEnvelope<ListResponse<AuditEvent>>>;
 }
 
 export interface AiRepository {
@@ -70,8 +82,8 @@ export interface AquaPulseRepositories {
 export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepositories {
   return {
     ponds: {
-      list() {
-        return clients.ponds.list();
+      list(query?: PondsListQuery) {
+        return clients.ponds.list(query);
       },
       getById(id: string) {
         return clients.ponds.getById(id);
@@ -81,31 +93,34 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       }
     },
     batches: {
-      list() {
-        return clients.batches.list();
+      list(query?: BatchesListQuery) {
+        return clients.batches.list(query);
       }
     },
     waterQuality: {
-      listByPond(pondId: string) {
-        return clients.waterQuality.listByPond(pondId);
+      list(query: WaterQualityListQuery) {
+        return clients.waterQuality.list(query);
+      },
+      listByPond(pondId: string, query?: Omit<WaterQualityListQuery, "pondId">) {
+        return clients.waterQuality.list({ page: 1, pageSize: 20, ...query, pondId });
       }
     },
     alerts: {
-      list() {
-        return clients.alerts.list();
+      list(query?: AlertsListQuery) {
+        return clients.alerts.list(query);
       },
       explain(input: AiAlertsExplainRequest) {
         return clients.alerts.explain(input);
       }
     },
     tasks: {
-      list() {
-        return clients.tasks.list();
+      list(query?: TasksListQuery) {
+        return clients.tasks.list(query);
       }
     },
     audit: {
-      list() {
-        return clients.audit.list();
+      list(query?: AuditListQuery) {
+        return clients.audit.list(query);
       }
     },
     ai: {

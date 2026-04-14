@@ -6,23 +6,101 @@ import type {
   AiPondsSummarizeRequest,
   AiTextRewriteRequest
 } from "@aquapulse/types";
-import type { AiApiClient, AlertsApiClient, AuditApiClient, BatchesApiClient, PondsApiClient, TasksApiClient, WaterQualityApiClient } from "../contracts/api";
+import type {
+  AiApiClient,
+  AlertsApiClient,
+  AlertsListQuery,
+  AuditApiClient,
+  AuditListQuery,
+  BatchesApiClient,
+  BatchesListQuery,
+  PondsApiClient,
+  PondsListQuery,
+  TasksApiClient,
+  TasksListQuery,
+  WaterQualityApiClient,
+  WaterQualityListQuery
+} from "../contracts/api";
 import { list, ok } from "../lib/api-response";
 import { mockAlerts, mockAudit, mockBatches, mockPonds, mockTasks, mockWaterQuality } from "./data";
 
+function matchesSearch(value: string | undefined, search: string | undefined): boolean {
+  return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
+}
+
 export const pondsMockAdapter: PondsApiClient = {
-  async list() { return ok(list(mockPonds)); },
+  async list(query?: PondsListQuery) {
+    const items = mockPonds.filter(
+      (item) =>
+        (!query?.farmId || item.farmId === query.farmId) &&
+        (!query?.status || item.status === query.status) &&
+        (!query?.kind || item.kind === query.kind) &&
+        matchesSearch(`${item.name} ${item.code}`, query?.search)
+    );
+    return ok(list(items, query));
+  },
   async getById(id: string) { return ok(mockPonds.find((item) => item.id === id) ?? mockPonds[0]); },
   async summarize(_input: AiPondsSummarizeRequest) { return ok({ summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] }); }
 };
-export const batchesMockAdapter: BatchesApiClient = { async list() { return ok(list(mockBatches)); } };
-export const waterQualityMockAdapter: WaterQualityApiClient = { async listByPond(pondId: string) { return ok(list(mockWaterQuality.filter((item) => item.pondId === pondId))); } };
+export const batchesMockAdapter: BatchesApiClient = {
+  async list(query?: BatchesListQuery) {
+    const items = mockBatches.filter(
+      (item) =>
+        (!query?.pondId || item.pondId === query.pondId) &&
+        (!query?.lifecycleStage || item.lifecycleStage === query.lifecycleStage) &&
+        matchesSearch(`${item.name} ${item.species}`, query?.search)
+    );
+    return ok(list(items, query));
+  }
+};
+export const waterQualityMockAdapter: WaterQualityApiClient = {
+  async list(query: WaterQualityListQuery) {
+    const items = mockWaterQuality.filter(
+      (item) =>
+        (!query.pondId || item.pondId === query.pondId) &&
+        (!query.metric || (query.metric === "temperatureC" ? item.temperatureC !== undefined : item.ph !== undefined))
+    );
+    return ok(list(items, query));
+  }
+};
 export const alertsMockAdapter: AlertsApiClient = {
-  async list() { return ok(list(mockAlerts)); },
+  async list(query?: AlertsListQuery) {
+    const items = mockAlerts.filter(
+      (item) =>
+        (!query?.pondId || item.pondId === query.pondId) &&
+        (!query?.severity || item.severity === query.severity) &&
+        (!query?.status || item.status === query.status) &&
+        (!query?.source || item.source === query.source) &&
+        matchesSearch(item.title, query?.search)
+    );
+    return ok(list(items, query));
+  },
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };
-export const tasksMockAdapter: TasksApiClient = { async list() { return ok(list(mockTasks)); } };
-export const auditMockAdapter: AuditApiClient = { async list() { return ok(list(mockAudit)); } };
+export const tasksMockAdapter: TasksApiClient = {
+  async list(query?: TasksListQuery) {
+    const items = mockTasks.filter(
+      (item) =>
+        (!query?.assigneeId || item.assigneeId === query.assigneeId) &&
+        (!query?.pondId || item.pondId === query.pondId) &&
+        (!query?.status || item.status === query.status) &&
+        matchesSearch(item.title, query?.search)
+    );
+    return ok(list(items, query));
+  }
+};
+export const auditMockAdapter: AuditApiClient = {
+  async list(query?: AuditListQuery) {
+    const items = mockAudit.filter(
+      (item) =>
+        (!query?.resourceType || item.resourceType === query.resourceType) &&
+        (!query?.resourceId || item.resourceId === query.resourceId) &&
+        (!query?.action || item.action === query.action) &&
+        matchesSearch(item.summary, query?.search)
+    );
+    return ok(list(items, query));
+  }
+};
 export const aiMockAdapter: AiApiClient = {
   async rewriteText(input: AiTextRewriteRequest) { return ok({ rewrittenText: `[placeholder] ${input.text}` }); },
   async queryDashboard(_input: AiDashboardQueryRequest) { return ok({ answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] }); },

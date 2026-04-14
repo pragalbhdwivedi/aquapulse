@@ -1,7 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { ApiSuccessEnvelope, ListResponse, PondSummary } from "@aquapulse/types";
-import type { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "../dto";
+import type { CreatePondsDto, UpdatePondsDto } from "../dto";
 import { PONDS_REPOSITORY, type PondsRepositoryPort } from "../ports/ponds-repository.port";
+import type { PondListQueryContract } from "../query-contracts/ponds-query.contract";
 
 @Injectable()
 export class PondsApplicationService {
@@ -17,7 +18,7 @@ export class PondsApplicationService {
     return { ok: true, data: await this.pondsRepository.update(_id, _input) };
   }
 
-  async list(_query: QueryPondsDto): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>> {
+  async list(_query: PondListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>> {
     return { ok: true, data: await this.pondsRepository.list(_query) };
   }
 

@@ -19,8 +19,9 @@ import {
 } from "@aquapulse/database";
 import type { AttachmentMetadata, ListResponse } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
-import type { CreateAttachmentsDto, QueryAttachmentsDto, UpdateAttachmentsDto } from "../dto";
+import type { CreateAttachmentsDto, UpdateAttachmentsDto } from "../dto";
 import type { AttachmentsRepositoryPort } from "../ports/attachments-repository.port";
+import type { AttachmentsListQueryContract } from "../query-contracts/attachments-query.contract";
 
 export interface PostgresAttachmentsRepositoryDependencies {
   readonly connectionFactory?: DatabaseConnectionFactory;
@@ -31,12 +32,16 @@ export function buildAttachmentByIdQueryPlan(id: string): CompiledQueryPlan {
   return createLookupQueryPlan("attachments.getById", id);
 }
 
-export function buildAttachmentsListQueryPlan(query: QueryAttachmentsDto): CompiledQueryPlan {
+export function buildAttachmentsListQueryPlan(query: AttachmentsListQueryContract): CompiledQueryPlan {
   return createListQueryPlan({
     key: "attachments.list",
     query,
-    params: [query.page, query.pageSize, query.search ?? null],
-    filters: { search: query.search }
+    params: [query.page, query.pageSize, query.resourceType ?? null, query.resourceId ?? null, query.search ?? null],
+    filters: {
+      resourceType: query.resourceType,
+      resourceId: query.resourceId,
+      search: query.search
+    }
   });
 }
 
@@ -105,7 +110,7 @@ export class PostgresAttachmentsRepository implements AttachmentsRepositoryPort 
     );
   }
 
-  async list(query: QueryAttachmentsDto): Promise<ListResponse<AttachmentMetadata>> {
+  async list(query: AttachmentsListQueryContract): Promise<ListResponse<AttachmentMetadata>> {
     return this.gateway.executeMappedList(buildAttachmentsListQueryPlan(query), attachmentRowMapper, {
       page: query.page,
       pageSize: query.pageSize,

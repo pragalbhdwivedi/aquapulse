@@ -18,8 +18,9 @@ import {
 } from "@aquapulse/database";
 import type { FeedEntry, ListResponse } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
-import type { CreateFeedDto, QueryFeedDto, UpdateFeedDto } from "../dto";
+import type { CreateFeedDto, UpdateFeedDto } from "../dto";
 import type { FeedRepositoryPort } from "../ports/feed-repository.port";
+import type { FeedListQueryContract } from "../query-contracts/feed-query.contract";
 
 export interface PostgresFeedRepositoryDependencies {
   readonly connectionFactory?: DatabaseConnectionFactory;
@@ -30,12 +31,17 @@ export function buildFeedByIdQueryPlan(id: string): CompiledQueryPlan {
   return createLookupQueryPlan("feed.getById", id);
 }
 
-export function buildFeedListQueryPlan(query: QueryFeedDto): CompiledQueryPlan {
+export function buildFeedListQueryPlan(query: FeedListQueryContract): CompiledQueryPlan {
   return createListQueryPlan({
     key: "feed.list",
     query,
-    params: [query.page, query.pageSize, query.search ?? null],
-    filters: { search: query.search }
+    params: [query.page, query.pageSize, query.pondId ?? null, query.batchId ?? null, query.feedType ?? null, query.search ?? null],
+    filters: {
+      pondId: query.pondId,
+      batchId: query.batchId,
+      feedType: query.feedType,
+      search: query.search
+    }
   });
 }
 
@@ -90,7 +96,7 @@ export class PostgresFeedRepository implements FeedRepositoryPort {
     );
   }
 
-  async list(query: QueryFeedDto): Promise<ListResponse<FeedEntry>> {
+  async list(query: FeedListQueryContract): Promise<ListResponse<FeedEntry>> {
     return this.gateway.executeMappedList(buildFeedListQueryPlan(query), feedRowMapper, {
       page: query.page,
       pageSize: query.pageSize,

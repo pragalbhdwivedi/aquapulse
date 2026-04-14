@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { AttachmentMetadata, ListResponse } from "@aquapulse/types";
-import type { CreateAttachmentsDto, QueryAttachmentsDto, UpdateAttachmentsDto } from "../dto";
+import type { CreateAttachmentsDto, UpdateAttachmentsDto } from "../dto";
 import type { AttachmentsRepositoryPort } from "../ports/attachments-repository.port";
+import type { AttachmentsListQueryContract } from "../query-contracts/attachments-query.contract";
 
 const attachment: AttachmentMetadata = {
   id: "attachment-1",
@@ -28,7 +29,7 @@ export class InMemoryAttachmentsRepository implements AttachmentsRepositoryPort 
     return attachment;
   }
 
-  async list(_query: QueryAttachmentsDto): Promise<ListResponse<AttachmentMetadata>> {
+  async list(_query: AttachmentsListQueryContract): Promise<ListResponse<AttachmentMetadata>> {
     return { items: [attachment], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 

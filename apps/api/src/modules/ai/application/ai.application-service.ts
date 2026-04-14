@@ -22,6 +22,7 @@ import type {
   UpdateAiDto
 } from "../dto";
 import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.port";
+import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.contract";
 
 @Injectable()
 export class AiApplicationService {
@@ -31,7 +32,7 @@ export class AiApplicationService {
 
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.create(_input) }; }
   async update(_id: string, _input: UpdateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.update(_id, _input) }; }
-  async list(_query: QueryAiDto): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> { return { ok: true, data: await this.aiRepository.list(_query) }; }
+  async list(_query: AiResponseLogQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> { return { ok: true, data: await this.aiRepository.list(_query) }; }
   async getById(_id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.getById(_id) }; }
   async explainAlert(_input: ExplainAlertDto): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>> { return { ok: true, data: { explanation: "Placeholder AI explanation for an alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] } }; }
   async summarizePond(_input: SummarizePondDto): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>> { return { ok: true, data: { summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] } }; }

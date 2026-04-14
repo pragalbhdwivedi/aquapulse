@@ -92,7 +92,7 @@ describe("Postgres module rollout adapters", () => {
       { id: "task-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
     expect(buildAttachmentByIdQueryPlan("attachment-42").key).toBe("attachments.getById");
-    expect(buildAttachmentsListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null]);
+    expect(buildAttachmentsListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null]);
     expect(buildAttachmentsByResourceQueryPlan("alert", "alert-42").filters).toEqual({
       resourceType: "alert",
       resourceId: "alert-42"
@@ -150,14 +150,14 @@ describe("Postgres module rollout adapters", () => {
     expect(createdFeed.id).toBe("feed-42");
     expect(updatedFeed.id).toBe("feed-42");
     expect(buildBatchByIdQueryPlan("batch-42").key).toBe("batches.getById");
-    expect(buildBatchesListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null]);
+    expect(buildBatchesListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null]);
     expect(buildCreateBatchQueryPlan(createPlaceholderBatchRow({ id: "batch-write-1" })).key).toBe("batches.create");
     expect(buildUpdateBatchQueryPlan("batch-write-2", { id: "batch-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
       "batch-write-2",
       { id: "batch-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
     expect(buildFeedByIdQueryPlan("feed-42").key).toBe("feed.getById");
-    expect(buildFeedListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null]);
+    expect(buildFeedListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null, null]);
     expect(buildCreateFeedQueryPlan(createPlaceholderFeedRow({ id: "feed-write-1" })).key).toBe("feed.create");
     expect(buildUpdateFeedQueryPlan("feed-write-2", { id: "feed-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
       "feed-write-2",

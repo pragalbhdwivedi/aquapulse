@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { alertsRepository, auditRepository, pondsRepository, tasksRepository } from "../repositories";
 import {
   getAlertsPageData,
   getAuditPageData,
@@ -37,5 +38,19 @@ describe("Frontend query layer", () => {
     expect(alerts.explanation).toContain("Placeholder");
     expect(audit.items[0]?.resourceType).toBe("alert");
     expect(reports.handover.summary).toContain("Placeholder");
+  });
+
+  it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {
+    const [ponds, alerts, audit, tasks] = await Promise.all([
+      pondsRepository.list({ page: 1, pageSize: 5, search: "North" }),
+      alertsRepository.list({ page: 1, pageSize: 5, status: "open" }),
+      auditRepository.list({ page: 1, pageSize: 5, resourceType: "alert" }),
+      tasksRepository.list({ page: 1, pageSize: 5, status: "todo" })
+    ]);
+
+    expect(ponds.data.page.pageSize).toBe(5);
+    expect(alerts.data.items[0]?.status).toBe("open");
+    expect(audit.data.items[0]?.resourceType).toBe("alert");
+    expect(tasks.data.items[0]?.status).toBe("todo");
   });
 });

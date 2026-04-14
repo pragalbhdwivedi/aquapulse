@@ -1,5 +1,7 @@
 import type { ApiSuccessEnvelope, BatchSummary, ListResponse } from "@aquapulse/types";
+import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
 import type { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "../dto";
+import type { BatchesListQueryContract } from "../query-contracts/batches-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
 export function toCreateBatchesInput(input: CreateBatchesDto): CreateBatchesDto {
@@ -10,8 +12,11 @@ export function toUpdateBatchesInput(input: UpdateBatchesDto): UpdateBatchesDto 
   return input;
 }
 
-export function toQueryBatchesInput(input: QueryBatchesDto): QueryBatchesDto {
-  return input;
+export function toQueryBatchesInput(input: QueryBatchesDto): BatchesListQueryContract {
+  return toRepositoryListQuery(input, {
+    pondId: input.pondId,
+    lifecycleStage: input.lifecycleStage
+  });
 }
 
 export function toBatchesItemResponse(item: BatchSummary): ApiSuccessEnvelope<BatchSummary> {

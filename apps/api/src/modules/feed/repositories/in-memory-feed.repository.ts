@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { FeedEntry, ListResponse } from "@aquapulse/types";
-import type { CreateFeedDto, QueryFeedDto, UpdateFeedDto } from "../dto";
+import type { CreateFeedDto, UpdateFeedDto } from "../dto";
 import type { FeedRepositoryPort } from "../ports/feed-repository.port";
+import type { FeedListQueryContract } from "../query-contracts/feed-query.contract";
 
 const feedEntry: FeedEntry = {
   id: "feed-1",
@@ -28,7 +29,7 @@ export class InMemoryFeedRepository implements FeedRepositoryPort {
     return feedEntry;
   }
 
-  async list(_query: QueryFeedDto): Promise<ListResponse<FeedEntry>> {
+  async list(_query: FeedListQueryContract): Promise<ListResponse<FeedEntry>> {
     return { items: [feedEntry], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 }

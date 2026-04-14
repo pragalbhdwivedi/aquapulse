@@ -1,7 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { ApiSuccessEnvelope, ListResponse, WaterQualityReading } from "@aquapulse/types";
-import type { CreateWaterQualityDto, QueryWaterQualityDto, UpdateWaterQualityDto } from "../dto";
+import type { CreateWaterQualityDto, UpdateWaterQualityDto } from "../dto";
 import { WATER_QUALITY_REPOSITORY, type WaterQualityRepositoryPort } from "../ports/water-quality-repository.port";
+import type { WaterQualityListQueryContract } from "../query-contracts/water-quality-query.contract";
 
 @Injectable()
 export class WaterQualityApplicationService {
@@ -11,6 +12,6 @@ export class WaterQualityApplicationService {
 
   async create(_input: CreateWaterQualityDto): Promise<ApiSuccessEnvelope<WaterQualityReading>> { return { ok: true, data: await this.waterQualityRepository.create(_input) }; }
   async update(_id: string, _input: UpdateWaterQualityDto): Promise<ApiSuccessEnvelope<WaterQualityReading>> { return { ok: true, data: await this.waterQualityRepository.update(_id, _input) }; }
-  async list(_query: QueryWaterQualityDto): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>> { return { ok: true, data: await this.waterQualityRepository.list(_query) }; }
+  async list(_query: WaterQualityListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>> { return { ok: true, data: await this.waterQualityRepository.list(_query) }; }
   async getById(_id: string): Promise<ApiSuccessEnvelope<WaterQualityReading>> { return { ok: true, data: await this.waterQualityRepository.getById(_id) }; }
 }

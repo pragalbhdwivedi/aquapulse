@@ -1,5 +1,7 @@
 import type { ApiSuccessEnvelope, ListResponse, PondSummary } from "@aquapulse/types";
+import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
 import type { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "../dto";
+import type { PondListQueryContract } from "../query-contracts/ponds-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
 export function toCreatePondsInput(input: CreatePondsDto): CreatePondsDto {
@@ -10,8 +12,12 @@ export function toUpdatePondsInput(input: UpdatePondsDto): UpdatePondsDto {
   return input;
 }
 
-export function toQueryPondsInput(input: QueryPondsDto): QueryPondsDto {
-  return input;
+export function toQueryPondsInput(input: QueryPondsDto): PondListQueryContract {
+  return toRepositoryListQuery(input, {
+    farmId: input.farmId,
+    status: input.status,
+    kind: input.kind
+  });
 }
 
 export function toPondsItemResponse(item: PondSummary): ApiSuccessEnvelope<PondSummary> {

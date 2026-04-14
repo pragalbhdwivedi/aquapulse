@@ -1,7 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { BatchSummary, ListResponse } from "@aquapulse/types";
-import type { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "../dto";
+import type { CreateBatchesDto, UpdateBatchesDto } from "../dto";
 import type { BatchesRepositoryPort } from "../ports/batches-repository.port";
+import type { BatchesListQueryContract } from "../query-contracts/batches-query.contract";
 
 const batch: BatchSummary = {
   id: "batch-1",
@@ -28,7 +29,7 @@ export class InMemoryBatchesRepository implements BatchesRepositoryPort {
     return batch;
   }
 
-  async list(_query: QueryBatchesDto): Promise<ListResponse<BatchSummary>> {
+  async list(_query: BatchesListQueryContract): Promise<ListResponse<BatchSummary>> {
     return { items: [batch], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
   }
 }

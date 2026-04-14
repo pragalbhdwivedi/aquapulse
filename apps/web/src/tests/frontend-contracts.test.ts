@@ -6,6 +6,7 @@ import type {
   ListResponse,
   PondSummary
 } from "@aquapulse/types";
+import type { AlertsListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
 import { createMockApiClients, type AquaPulseApiClients } from "../clients";
 import {
   createRepositories,
@@ -25,7 +26,7 @@ describe("Frontend contract boundaries", () => {
 
   it("repositories stay aligned with the shared API envelopes", async () => {
     const repositories: AquaPulseRepositories = createRepositories(createMockApiClients());
-    const ponds = await repositories.ponds.list();
+    const ponds = await repositories.ponds.list({ page: 2, pageSize: 10, status: "active" });
     const explanation = await repositories.alerts.explain({ alertId: "alert-1" });
 
     expect(ponds.data.items).toHaveLength(1);
@@ -35,6 +36,8 @@ describe("Frontend contract boundaries", () => {
     expectTypeOf(repositories.alerts).toMatchTypeOf<AlertsRepository>();
     expectTypeOf<typeof ponds>().toEqualTypeOf<ApiSuccessEnvelope<ListResponse<PondSummary>>>();
     expectTypeOf<typeof explanation>().toEqualTypeOf<ApiSuccessEnvelope<AiAlertsExplainResponse>>();
+    expect(ponds.data.page.page).toBe(2);
+    expect(ponds.data.page.pageSize).toBe(10);
   });
 
   it("AI repository methods keep the dashboard contract stable", async () => {
@@ -43,5 +46,22 @@ describe("Frontend contract boundaries", () => {
 
     expect(result.data.answer).toContain("Placeholder");
     expectTypeOf<typeof result>().toEqualTypeOf<ApiSuccessEnvelope<AiDashboardQueryResponse>>();
+  });
+
+  it("query-capable repository methods stay aligned with normalized list query contracts", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const pondsQuery: PondsListQuery = { page: 1, pageSize: 20, farmId: "farm-1", search: "North" };
+    const alertsQuery: AlertsListQuery = { page: 1, pageSize: 20, status: "open" };
+    const tasksQuery: TasksListQuery = { page: 1, pageSize: 20, assigneeId: "user-1" };
+
+    const [ponds, alerts, tasks] = await Promise.all([
+      repositories.ponds.list(pondsQuery),
+      repositories.alerts.list(alertsQuery),
+      repositories.tasks.list(tasksQuery)
+    ]);
+
+    expect(ponds.data.items[0]?.farmId).toBe("farm-1");
+    expect(alerts.data.items[0]?.status).toBe("open");
+    expect(tasks.data.items[0]?.assigneeId).toBe("user-1");
   });
 });
