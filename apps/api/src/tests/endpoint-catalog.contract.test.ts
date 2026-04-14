@@ -21,7 +21,7 @@ function getHandlerContract(controllerClass: object, handlerName: string) {
   const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod;
 
   const normalizedSegments = ["api", controllerPath, handlerPath]
-    .filter((segment) => typeof segment === "string" && segment.length > 0)
+    .filter((segment): segment is string => typeof segment === "string" && segment.length > 0)
     .map((segment) => segment.replace(/^\/+|\/+$/g, ""))
     .filter((segment) => segment.length > 0);
   const path = `/${normalizedSegments.join("/")}`;

@@ -1,22 +1,26 @@
 import type {
   AiApiClient,
   AlertsApiClient,
+  AttachmentsApiClient,
   AuditApiClient,
   BatchesApiClient,
+  FeedApiClient,
   PondsApiClient,
   TasksApiClient,
   WaterQualityApiClient
 } from "../contracts/api";
-import { createClientsFromEndpointHandlers, createEndpointHandlersFromClients } from "./endpoint-runtime";
 import {
   aiMockAdapter,
   alertsMockAdapter,
+  attachmentsMockAdapter,
   auditMockAdapter,
   batchesMockAdapter,
+  feedMockAdapter,
   pondsMockAdapter,
   tasksMockAdapter,
   waterQualityMockAdapter
 } from "../mocks/adapters";
+import { createHttpPlaceholderClients as createDelegatedHttpPlaceholderClients } from "./http-placeholder";
 
 export interface AquaPulseApiClients {
   ponds: PondsApiClient;
@@ -24,6 +28,8 @@ export interface AquaPulseApiClients {
   waterQuality: WaterQualityApiClient;
   alerts: AlertsApiClient;
   tasks: TasksApiClient;
+  attachments: AttachmentsApiClient;
+  feed: FeedApiClient;
   ai: AiApiClient;
   audit: AuditApiClient;
 }
@@ -37,14 +43,11 @@ export function createMockApiClients(): AquaPulseApiClients {
     waterQuality: waterQualityMockAdapter,
     alerts: alertsMockAdapter,
     tasks: tasksMockAdapter,
+    attachments: attachmentsMockAdapter,
+    feed: feedMockAdapter,
     ai: aiMockAdapter,
     audit: auditMockAdapter
   };
-}
-
-export function createHttpPlaceholderClients(): AquaPulseApiClients {
-  const handlers = createEndpointHandlersFromClients(createMockApiClients());
-  return createClientsFromEndpointHandlers(handlers);
 }
 
 export interface AquaPulseClientRuntimeRegistry {
@@ -55,8 +58,12 @@ export interface AquaPulseClientRuntimeRegistry {
 export function createClientRuntimeRegistry(): AquaPulseClientRuntimeRegistry {
   return {
     mock: () => createMockApiClients(),
-    http: () => createHttpPlaceholderClients()
+    http: () => createDelegatedHttpPlaceholderClients(createMockApiClients())
   };
+}
+
+export function createHttpPlaceholderClients(clients = createMockApiClients()): AquaPulseApiClients {
+  return createDelegatedHttpPlaceholderClients(clients);
 }
 
 export function createApiClients(source: AquaPulseClientSource = "mock"): AquaPulseApiClients {

@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { EndpointResponse } from "@aquapulse/types";
+import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { CreateFeedDto, QueryFeedDto, UpdateFeedDto } from "./dto";
 import { FeedApplicationService } from "./application/feed.application-service";
 import { toCreateFeedInput, toFeedItemResponse, toFeedListResponse, toQueryFeedInput, toUpdateFeedInput } from "./mappers/feed.mapper";
@@ -18,29 +21,49 @@ export class FeedController {
 
   // Collection handlers
   @Post()
-  async create(@Body() input: CreateFeedDto) {
+  async create(
+    @Body() input: CreateFeedDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.create>> {
     await this.feedService.getPlaceholder();
-
-    const result = await this.feedApplicationService.create(toCreateFeedInput(input));
-    return toFeedItemResponse(result.data);
+    return delegateCreate(
+      input,
+      toCreateFeedInput,
+      (mappedInput) => this.feedApplicationService.create(mappedInput),
+      toFeedItemResponse
+    );
   }
 
   @Get()
-  async list(@Query() query: QueryFeedDto) {
-    const result = await this.feedApplicationService.list(toQueryFeedInput(query));
-    return toFeedListResponse(result.data);
+  async list(
+    @Query() query: QueryFeedDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.list>> {
+    return delegateList(
+      query,
+      toQueryFeedInput,
+      (mappedQuery) => this.feedApplicationService.list(mappedQuery),
+      toFeedListResponse
+    );
   }
 
   // Resource handlers
   @Patch(":id")
-  async update(@Param("id") id: string, @Body() input: UpdateFeedDto) {
-    const result = await this.feedApplicationService.update(id, toUpdateFeedInput(input));
-    return toFeedItemResponse(result.data);
+  async update(
+    @Param("id") id: string,
+    @Body() input: UpdateFeedDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.update>> {
+    return delegateUpdate(
+      id,
+      input,
+      toUpdateFeedInput,
+      (resourceId, mappedInput) => this.feedApplicationService.update(resourceId, mappedInput),
+      toFeedItemResponse
+    );
   }
 
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    const result = await this.feedApplicationService.getById(id);
-    return toFeedItemResponse(result.data);
+  async getById(
+    @Param("id") id: string
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.getById>> {
+    return delegateGetById(id, (resourceId) => this.feedApplicationService.getById(resourceId), toFeedItemResponse);
   }
 }

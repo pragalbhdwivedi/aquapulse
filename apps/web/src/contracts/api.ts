@@ -1,4 +1,5 @@
 import type {
+  AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
   AiResponseLogListQueryRequest,
@@ -14,6 +15,7 @@ import type {
   AiTextRewriteResponse,
   AlertSummary,
   AlertsListQueryRequest,
+  AttachmentMetadata,
   ApiSuccessEnvelope,
   AttachmentsListQueryRequest,
   AuditListQueryRequest,
@@ -21,6 +23,7 @@ import type {
   FeedListQueryRequest,
   AuditEvent,
   BatchSummary,
+  FeedEntry,
   ListResponse,
   PondsListQueryRequest,
   PondSummary,
@@ -49,6 +52,7 @@ export function normalizeListQuery<TQuery extends Partial<ListQueryRequest>>(
 export type PondsListQuery = PondsListQueryRequest;
 export type AlertsListQuery = AlertsListQueryRequest;
 export type TasksListQuery = TasksListQueryRequest;
+export type AttachmentsListQuery = AttachmentsListQueryRequest;
 export type AuditListQuery = AuditListQueryRequest;
 export type BatchesListQuery = BatchesListQueryRequest;
 export type FeedListQuery = FeedListQueryRequest;
@@ -65,26 +69,43 @@ export interface PondsApiClient {
 
 export interface BatchesApiClient {
   list(query?: BatchesListQuery): ApiListContract<BatchSummary>;
+  getById(id: string): ApiItemContract<BatchSummary>;
 }
 
 export interface WaterQualityApiClient {
   list(query: WaterQualityListQuery): ApiListContract<WaterQualityReading>;
+  getById(id: string): ApiItemContract<WaterQualityReading>;
 }
 
 export interface AlertsApiClient {
   list(query?: AlertsListQuery): ApiListContract<AlertSummary>;
+  getById(id: string): ApiItemContract<AlertSummary>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
 }
 
 export interface TasksApiClient {
   list(query?: TasksListQuery): ApiListContract<TaskSummary>;
+  getById(id: string): ApiItemContract<TaskSummary>;
+}
+
+export interface AttachmentsApiClient {
+  list(query?: AttachmentsListQuery): ApiListContract<AttachmentMetadata>;
+  getById(id: string): ApiItemContract<AttachmentMetadata>;
+}
+
+export interface FeedApiClient {
+  list(query?: FeedListQuery): ApiListContract<FeedEntry>;
+  getById(id: string): ApiItemContract<FeedEntry>;
 }
 
 export interface AuditApiClient {
   list(query?: AuditListQuery): ApiListContract<AuditEvent>;
+  getById(id: string): ApiItemContract<AuditEvent>;
 }
 
 export interface AiApiClient {
+  list(query?: AiListQuery): ApiListContract<AiResponseRecord>;
+  getById(id: string): ApiItemContract<AiResponseRecord>;
   rewriteText(input: AiTextRewriteRequest): ApiItemContract<AiTextRewriteResponse>;
   queryDashboard(input: AiDashboardQueryRequest): ApiItemContract<AiDashboardQueryResponse>;
   generateHandover(input: AiHandoverGenerateRequest): ApiItemContract<AiHandoverGenerateResponse>;

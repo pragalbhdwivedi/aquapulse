@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { EndpointResponse } from "@aquapulse/types";
+import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AttachmentsApplicationService } from "./application/attachments.application-service";
 import { AttachmentsService } from "./attachments.service";
 import { CreateAttachmentsDto, QueryAttachmentsDto, UpdateAttachmentsDto } from "./dto";
@@ -24,29 +27,53 @@ export class AttachmentsController {
 
   // Collection handlers
   @Post()
-  async create(@Body() input: CreateAttachmentsDto) {
+  async create(
+    @Body() input: CreateAttachmentsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.create>> {
     await this.attachmentsService.getPlaceholder();
-
-    const result = await this.attachmentsApplicationService.create(toCreateAttachmentsInput(input));
-    return toAttachmentsItemResponse(result.data);
+    return delegateCreate(
+      input,
+      toCreateAttachmentsInput,
+      (mappedInput) => this.attachmentsApplicationService.create(mappedInput),
+      toAttachmentsItemResponse
+    );
   }
 
   @Get()
-  async list(@Query() query: QueryAttachmentsDto) {
-    const result = await this.attachmentsApplicationService.list(toQueryAttachmentsInput(query));
-    return toAttachmentsListResponse(result.data);
+  async list(
+    @Query() query: QueryAttachmentsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.list>> {
+    return delegateList(
+      query,
+      toQueryAttachmentsInput,
+      (mappedQuery) => this.attachmentsApplicationService.list(mappedQuery),
+      toAttachmentsListResponse
+    );
   }
 
   // Resource handlers
   @Patch(":id")
-  async update(@Param("id") id: string, @Body() input: UpdateAttachmentsDto) {
-    const result = await this.attachmentsApplicationService.update(id, toUpdateAttachmentsInput(input));
-    return toAttachmentsItemResponse(result.data);
+  async update(
+    @Param("id") id: string,
+    @Body() input: UpdateAttachmentsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.update>> {
+    return delegateUpdate(
+      id,
+      input,
+      toUpdateAttachmentsInput,
+      (resourceId, mappedInput) => this.attachmentsApplicationService.update(resourceId, mappedInput),
+      toAttachmentsItemResponse
+    );
   }
 
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    const result = await this.attachmentsApplicationService.getById(id);
-    return toAttachmentsItemResponse(result.data);
+  async getById(
+    @Param("id") id: string
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.getById>> {
+    return delegateGetById(
+      id,
+      (resourceId) => this.attachmentsApplicationService.getById(resourceId),
+      toAttachmentsItemResponse
+    );
   }
 }

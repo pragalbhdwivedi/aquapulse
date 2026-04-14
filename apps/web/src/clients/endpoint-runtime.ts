@@ -1,20 +1,53 @@
-import type { EndpointRequest, EndpointResponse } from "@aquapulse/types";
-import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import type {
-  AiApiClient,
-  AlertsApiClient,
-  AuditApiClient,
-  BatchesApiClient,
-  PondsApiClient,
-  TasksApiClient,
-  WaterQualityApiClient
-} from "../contracts/api";
+  ApiSuccessEnvelope,
+  AttachmentMetadata,
+  EndpointRequest,
+  EndpointResponse,
+  ListResponse,
+  FeedEntry
+} from "@aquapulse/types";
+import { aquaPulseEndpointCatalog } from "@aquapulse/types";
+import type { AquaPulseApiClients } from "./index";
 
 type EndpointCatalog = typeof aquaPulseEndpointCatalog;
 
 type EndpointHandler<TEndpoint> = (
   request: EndpointRequest<TEndpoint>
 ) => Promise<EndpointResponse<TEndpoint>>;
+
+type ListCapableClient<TItem, TQuery> = {
+  list: (query: TQuery) => Promise<ApiSuccessEnvelope<ListResponse<TItem>>>;
+};
+
+type DetailCapableClient<TItem> = {
+  getById: (id: string) => Promise<{ ok: true; data: TItem }>;
+};
+
+function createListHandler<TItem, TQuery>(
+  client: ListCapableClient<TItem, TQuery>,
+  fallbackQuery: TQuery
+) {
+  return async (request: TQuery) => client.list(request ?? fallbackQuery);
+}
+
+function createDetailHandler<TItem>(
+  client: DetailCapableClient<TItem>
+) {
+  return async (request: { readonly id: string }) => client.getById(request.id);
+}
+
+function createMutationFromDetailHandler<TItem, TBody>(
+  client: DetailCapableClient<TItem>
+) {
+  return async (request: { readonly id?: string; readonly body?: TBody }) =>
+    client.getById(request.id ?? "placeholder-id");
+}
+
+function createMutationFromValue<TRequest, TItem>(
+  value: TItem
+) {
+  return async (_request: TRequest) => ({ ok: true as const, data: value });
+}
 
 export interface AquaPulseEndpointHandlers {
   ponds: {
@@ -81,111 +114,94 @@ export interface AquaPulseEndpointHandlers {
   };
 }
 
-export interface MinimalAquaPulseClients {
-  ponds: Pick<PondsApiClient, "list" | "getById" | "summarize">;
-  alerts: Pick<AlertsApiClient, "list" | "explain">;
-  tasks: Pick<TasksApiClient, "list">;
-  batches: Pick<BatchesApiClient, "list">;
-  waterQuality: Pick<WaterQualityApiClient, "list">;
-  audit: Pick<AuditApiClient, "list">;
-  ai: Pick<AiApiClient, "rewriteText" | "queryDashboard" | "generateHandover" | "draftIncident">;
+function placeholderAttachment(): AttachmentMetadata {
+  return {
+    id: "attachment-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    resourceType: "alert",
+    resourceId: "alert-1",
+    fileName: "sample-photo.jpg",
+    mimeType: "image/jpeg",
+    sizeBytes: 102400
+  };
+}
+
+function placeholderFeedEntry(): FeedEntry {
+  return {
+    id: "feed-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    pondId: "pond-1",
+    batchId: "batch-1",
+    feedType: "Starter Feed",
+    quantityKg: 35,
+    fedAt: "2026-04-13T00:00:00.000Z"
+  };
 }
 
 export function createEndpointHandlersFromClients(
-  clients: MinimalAquaPulseClients
+  clients: AquaPulseApiClients
 ): AquaPulseEndpointHandlers {
   return {
     ponds: {
-      create: async () => clients.ponds.getById("pond-1"),
-      list: async (request) => clients.ponds.list(request),
-      getById: async (request) => clients.ponds.getById(request.id),
-      update: async (request) => clients.ponds.getById(request.id),
+      create: createMutationFromDetailHandler(clients.ponds),
+      list: createListHandler(clients.ponds, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.ponds),
+      update: createMutationFromDetailHandler(clients.ponds),
       summarize: async (request) => clients.ponds.summarize(request)
     },
     alerts: {
-      create: async () => {
-        const list = await clients.alerts.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items[0] };
-      },
-      list: async (request) => clients.alerts.list(request),
-      getById: async (request) => {
-        const list = await clients.alerts.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
-      update: async (request) => {
-        const list = await clients.alerts.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
+      create: createMutationFromDetailHandler(clients.alerts),
+      list: createListHandler(clients.alerts, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.alerts),
+      update: createMutationFromDetailHandler(clients.alerts),
       explain: async (request) => clients.alerts.explain(request)
     },
     tasks: {
-      create: async () => {
-        const list = await clients.tasks.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items[0] };
-      },
-      list: async (request) => clients.tasks.list(request),
-      getById: async (request) => {
-        const list = await clients.tasks.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
-      update: async (request) => {
-        const list = await clients.tasks.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      }
+      create: createMutationFromDetailHandler(clients.tasks),
+      list: createListHandler(clients.tasks, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.tasks),
+      update: createMutationFromDetailHandler(clients.tasks)
     },
     attachments: {
-      create: async () => ({ ok: true, data: { id: "attachment-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", resourceType: "alert", resourceId: "alert-1", fileName: "sample-photo.jpg", mimeType: "image/jpeg", sizeBytes: 102400 } }),
-      list: async () => ({ ok: true, data: { items: [], page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 1 } } }),
-      getById: async () => ({ ok: true, data: { id: "attachment-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", resourceType: "alert", resourceId: "alert-1", fileName: "sample-photo.jpg", mimeType: "image/jpeg", sizeBytes: 102400 } }),
-      update: async () => ({ ok: true, data: { id: "attachment-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", resourceType: "alert", resourceId: "alert-1", fileName: "sample-photo.jpg", mimeType: "image/jpeg", sizeBytes: 102400 } })
+      create: createMutationFromValue(placeholderAttachment()),
+      list: createListHandler(clients.attachments, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.attachments),
+      update: createMutationFromDetailHandler(clients.attachments)
     },
     batches: {
-      create: async () => ({ ok: true, data: (await clients.batches.list({ page: 1, pageSize: 20 })).data.items[0] }),
-      list: async (request) => clients.batches.list(request),
-      getById: async (request) => {
-        const list = await clients.batches.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
-      update: async (request) => {
-        const list = await clients.batches.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      }
+      create: createMutationFromDetailHandler(clients.batches),
+      list: createListHandler(clients.batches, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.batches),
+      update: createMutationFromDetailHandler(clients.batches)
     },
     feed: {
-      create: async () => ({ ok: true, data: { id: "feed-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", pondId: "pond-1", batchId: "batch-1", feedType: "Starter Feed", quantityKg: 35, fedAt: "2026-04-13T00:00:00.000Z" } }),
-      list: async () => ({ ok: true, data: { items: [], page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 1 } } }),
-      getById: async () => ({ ok: true, data: { id: "feed-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", pondId: "pond-1", batchId: "batch-1", feedType: "Starter Feed", quantityKg: 35, fedAt: "2026-04-13T00:00:00.000Z" } }),
-      update: async () => ({ ok: true, data: { id: "feed-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", pondId: "pond-1", batchId: "batch-1", feedType: "Starter Feed", quantityKg: 35, fedAt: "2026-04-13T00:00:00.000Z" } })
+      create: createMutationFromValue(placeholderFeedEntry()),
+      list: createListHandler(clients.feed, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.feed),
+      update: createMutationFromDetailHandler(clients.feed)
     },
     audit: {
-      create: async () => ({ ok: true, data: (await clients.audit.list({ page: 1, pageSize: 20 })).data.items[0] }),
-      list: async (request) => clients.audit.list(request),
-      getById: async (request) => {
-        const list = await clients.audit.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
-      update: async (request) => {
-        const list = await clients.audit.list({ page: 1, pageSize: 20 });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      }
+      create: createMutationFromDetailHandler(clients.audit),
+      list: createListHandler(clients.audit, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.audit),
+      update: createMutationFromDetailHandler(clients.audit)
     },
     waterQuality: {
-      create: async () => ({ ok: true, data: (await clients.waterQuality.list({ page: 1, pageSize: 20, pondId: "pond-1" })).data.items[0] }),
-      list: async (request) => clients.waterQuality.list(request),
-      getById: async (request) => {
-        const list = await clients.waterQuality.list({ page: 1, pageSize: 20, pondId: "pond-1" });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      },
-      update: async (request) => {
-        const list = await clients.waterQuality.list({ page: 1, pageSize: 20, pondId: "pond-1" });
-        return { ok: true, data: list.data.items.find((item) => item.id === request.id) ?? list.data.items[0] };
-      }
+      create: createMutationFromDetailHandler(clients.waterQuality),
+      list: createListHandler<
+        EndpointResponse<EndpointCatalog["waterQuality"]["getById"]>["data"],
+        EndpointRequest<EndpointCatalog["waterQuality"]["list"]>
+      >(clients.waterQuality, { page: 1, pageSize: 20, pondId: "pond-1" }),
+      getById: createDetailHandler(clients.waterQuality),
+      update: createMutationFromDetailHandler(clients.waterQuality)
     },
     ai: {
-      create: async () => ({ ok: true, data: { id: "ai-response-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", requestId: "ai-request-1", status: "completed", outputText: "Placeholder", model: "gpt-5.4" } }),
-      list: async () => ({ ok: true, data: { items: [], page: { page: 1, pageSize: 20, totalItems: 0, totalPages: 1 } } }),
-      getById: async () => ({ ok: true, data: { id: "ai-response-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", requestId: "ai-request-1", status: "completed", outputText: "Placeholder", model: "gpt-5.4" } }),
-      update: async () => ({ ok: true, data: { id: "ai-response-1", createdAt: "2026-04-13T00:00:00.000Z", updatedAt: "2026-04-13T00:00:00.000Z", requestId: "ai-request-1", status: "completed", outputText: "Placeholder", model: "gpt-5.4" } }),
+      create: createMutationFromDetailHandler(clients.ai),
+      list: createListHandler(clients.ai, { page: 1, pageSize: 20 }),
+      getById: createDetailHandler(clients.ai),
+      update: createMutationFromDetailHandler(clients.ai),
       explainAlert: async (request) => clients.alerts.explain(request),
       summarizePond: async (request) => clients.ponds.summarize(request),
       generateHandover: async (request) => clients.ai.generateHandover(request),
@@ -196,7 +212,7 @@ export function createEndpointHandlersFromClients(
   };
 }
 
-export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHandlers): MinimalAquaPulseClients {
+export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHandlers): AquaPulseApiClients {
   return {
     ponds: {
       list: (query) => handlers.ponds.list(query ?? { page: 1, pageSize: 20 }),
@@ -205,21 +221,36 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     },
     alerts: {
       list: (query) => handlers.alerts.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.alerts.getById({ id }),
       explain: (input) => handlers.alerts.explain(input)
     },
     tasks: {
-      list: (query) => handlers.tasks.list(query ?? { page: 1, pageSize: 20 })
+      list: (query) => handlers.tasks.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.tasks.getById({ id })
+    },
+    attachments: {
+      list: (query) => handlers.attachments.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.attachments.getById({ id })
     },
     batches: {
-      list: (query) => handlers.batches.list(query ?? { page: 1, pageSize: 20 })
+      list: (query) => handlers.batches.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.batches.getById({ id })
+    },
+    feed: {
+      list: (query) => handlers.feed.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.feed.getById({ id })
     },
     waterQuality: {
-      list: (query) => handlers.waterQuality.list(query)
+      list: (query) => handlers.waterQuality.list(query),
+      getById: (id) => handlers.waterQuality.getById({ id })
     },
     audit: {
-      list: (query) => handlers.audit.list(query ?? { page: 1, pageSize: 20 })
+      list: (query) => handlers.audit.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.audit.getById({ id })
     },
     ai: {
+      list: (query) => handlers.ai.list(query ?? { page: 1, pageSize: 20 }),
+      getById: (id) => handlers.ai.getById({ id }),
       rewriteText: (input) => handlers.ai.rewriteText(input),
       queryDashboard: (input) => handlers.ai.queryDashboard(input),
       generateHandover: (input) => handlers.ai.generateHandover(input),

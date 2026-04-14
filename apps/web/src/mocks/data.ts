@@ -1,4 +1,14 @@
-import type { AlertSummary, AuditEvent, BatchSummary, PondSummary, TaskSummary, WaterQualityReading } from "@aquapulse/types";
+import type {
+  AiResponseRecord,
+  AlertSummary,
+  AttachmentMetadata,
+  AuditEvent,
+  BatchSummary,
+  FeedEntry,
+  PondSummary,
+  TaskSummary,
+  WaterQualityReading
+} from "@aquapulse/types";
 
 const now = "2026-04-13T00:00:00.000Z";
 
@@ -19,4 +29,39 @@ export const mockTasks: TaskSummary[] = [
 ];
 export const mockAudit: AuditEvent[] = [
   { id: "audit-1", createdAt: now, updatedAt: now, action: "update", resourceType: "alert", resourceId: "alert-1", summary: "Placeholder audit event" }
+];
+export const mockAttachments: AttachmentMetadata[] = [
+  {
+    id: "attachment-1",
+    createdAt: now,
+    updatedAt: now,
+    resourceType: "alert",
+    resourceId: "alert-1",
+    fileName: "sample-photo.jpg",
+    mimeType: "image/jpeg",
+    sizeBytes: 102400
+  }
+];
+export const mockFeedEntries: FeedEntry[] = [
+  {
+    id: "feed-1",
+    createdAt: now,
+    updatedAt: now,
+    pondId: "pond-1",
+    batchId: "batch-1",
+    feedType: "Starter Feed",
+    quantityKg: 35,
+    fedAt: now
+  }
+];
+export const mockAiResponses: AiResponseRecord[] = [
+  {
+    id: "ai-response-1",
+    createdAt: now,
+    updatedAt: now,
+    requestId: "ai-request-1",
+    status: "completed",
+    outputText: "Placeholder AI output.",
+    model: "gpt-5.4"
+  }
 ];

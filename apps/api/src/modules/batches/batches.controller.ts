@@ -1,7 +1,10 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { EndpointResponse } from "@aquapulse/types";
+import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "./dto";
 import { BatchesApplicationService } from "./application/batches.application-service";
 import { toBatchesItemResponse, toBatchesListResponse, toCreateBatchesInput, toQueryBatchesInput, toUpdateBatchesInput } from "./mappers/batches.mapper";
@@ -18,29 +21,53 @@ export class BatchesController {
 
   // Collection handlers
   @Post()
-  async create(@Body() input: CreateBatchesDto) {
+  async create(
+    @Body() input: CreateBatchesDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.create>> {
     await this.batchesService.getPlaceholder();
-
-    const result = await this.batchesApplicationService.create(toCreateBatchesInput(input));
-    return toBatchesItemResponse(result.data);
+    return delegateCreate(
+      input,
+      toCreateBatchesInput,
+      (mappedInput) => this.batchesApplicationService.create(mappedInput),
+      toBatchesItemResponse
+    );
   }
 
   @Get()
-  async list(@Query() query: QueryBatchesDto) {
-    const result = await this.batchesApplicationService.list(toQueryBatchesInput(query));
-    return toBatchesListResponse(result.data);
+  async list(
+    @Query() query: QueryBatchesDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.list>> {
+    return delegateList(
+      query,
+      toQueryBatchesInput,
+      (mappedQuery) => this.batchesApplicationService.list(mappedQuery),
+      toBatchesListResponse
+    );
   }
 
   // Resource handlers
   @Patch(":id")
-  async update(@Param("id") id: string, @Body() input: UpdateBatchesDto) {
-    const result = await this.batchesApplicationService.update(id, toUpdateBatchesInput(input));
-    return toBatchesItemResponse(result.data);
+  async update(
+    @Param("id") id: string,
+    @Body() input: UpdateBatchesDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.update>> {
+    return delegateUpdate(
+      id,
+      input,
+      toUpdateBatchesInput,
+      (resourceId, mappedInput) => this.batchesApplicationService.update(resourceId, mappedInput),
+      toBatchesItemResponse
+    );
   }
 
   @Get(":id")
-  async getById(@Param("id") id: string) {
-    const result = await this.batchesApplicationService.getById(id);
-    return toBatchesItemResponse(result.data);
+  async getById(
+    @Param("id") id: string
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.getById>> {
+    return delegateGetById(
+      id,
+      (resourceId) => this.batchesApplicationService.getById(resourceId),
+      toBatchesItemResponse
+    );
   }
 }

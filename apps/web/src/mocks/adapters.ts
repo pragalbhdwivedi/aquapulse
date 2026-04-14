@@ -11,10 +11,14 @@ import {
   type AiApiClient,
   type AlertsApiClient,
   type AlertsListQuery,
+  type AttachmentsApiClient,
+  type AttachmentsListQuery,
   type AuditApiClient,
   type AuditListQuery,
   type BatchesApiClient,
   type BatchesListQuery,
+  type FeedApiClient,
+  type FeedListQuery,
   type PondsApiClient,
   type PondsListQuery,
   type TasksApiClient,
@@ -23,7 +27,17 @@ import {
   type WaterQualityListQuery
 } from "../contracts/api";
 import { list, ok } from "../lib/api-response";
-import { mockAlerts, mockAudit, mockBatches, mockPonds, mockTasks, mockWaterQuality } from "./data";
+import {
+  mockAiResponses,
+  mockAlerts,
+  mockAttachments,
+  mockAudit,
+  mockBatches,
+  mockFeedEntries,
+  mockPonds,
+  mockTasks,
+  mockWaterQuality
+} from "./data";
 
 function matchesSearch(value: string | undefined, search: string | undefined): boolean {
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
@@ -54,7 +68,8 @@ export const batchesMockAdapter: BatchesApiClient = {
         matchesSearch(`${item.name} ${item.species}`, query?.search)
     );
     return ok(list(items, normalizedQuery));
-  }
+  },
+  async getById(id: string) { return ok(mockBatches.find((item) => item.id === id) ?? mockBatches[0]); }
 };
 export const waterQualityMockAdapter: WaterQualityApiClient = {
   async list(query: WaterQualityListQuery) {
@@ -66,7 +81,8 @@ export const waterQualityMockAdapter: WaterQualityApiClient = {
           (normalizedQuery.metric === "temperatureC" ? item.temperatureC !== undefined : item.ph !== undefined))
     );
     return ok(list(items, normalizedQuery));
-  }
+  },
+  async getById(id: string) { return ok(mockWaterQuality.find((item) => item.id === id) ?? mockWaterQuality[0]); }
 };
 export const alertsMockAdapter: AlertsApiClient = {
   async list(query?: AlertsListQuery) {
@@ -81,6 +97,7 @@ export const alertsMockAdapter: AlertsApiClient = {
     );
     return ok(list(items, normalizedQuery));
   },
+  async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };
 export const tasksMockAdapter: TasksApiClient = {
@@ -94,7 +111,35 @@ export const tasksMockAdapter: TasksApiClient = {
         matchesSearch(item.title, query?.search)
     );
     return ok(list(items, normalizedQuery));
-  }
+  },
+  async getById(id: string) { return ok(mockTasks.find((item) => item.id === id) ?? mockTasks[0]); }
+};
+export const attachmentsMockAdapter: AttachmentsApiClient = {
+  async list(query?: AttachmentsListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
+    const items = mockAttachments.filter(
+      (item) =>
+        (!query?.resourceType || item.resourceType === query.resourceType) &&
+        (!query?.resourceId || item.resourceId === query.resourceId) &&
+        matchesSearch(item.fileName, query?.search)
+    );
+    return ok(list(items, normalizedQuery));
+  },
+  async getById(id: string) { return ok(mockAttachments.find((item) => item.id === id) ?? mockAttachments[0]); }
+};
+export const feedMockAdapter: FeedApiClient = {
+  async list(query?: FeedListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
+    const items = mockFeedEntries.filter(
+      (item) =>
+        (!query?.pondId || item.pondId === query.pondId) &&
+        (!query?.batchId || item.batchId === query.batchId) &&
+        (!query?.feedType || item.feedType === query.feedType) &&
+        matchesSearch(item.feedType, query?.search)
+    );
+    return ok(list(items, normalizedQuery));
+  },
+  async getById(id: string) { return ok(mockFeedEntries.find((item) => item.id === id) ?? mockFeedEntries[0]); }
 };
 export const auditMockAdapter: AuditApiClient = {
   async list(query?: AuditListQuery) {
@@ -107,9 +152,22 @@ export const auditMockAdapter: AuditApiClient = {
         matchesSearch(item.summary, query?.search)
     );
     return ok(list(items, normalizedQuery));
-  }
+  },
+  async getById(id: string) { return ok(mockAudit.find((item) => item.id === id) ?? mockAudit[0]); }
 };
 export const aiMockAdapter: AiApiClient = {
+  async list(query) {
+    const normalizedQuery = normalizeListQuery(query);
+    const items = mockAiResponses.filter(
+      (item) =>
+        (!query?.requestId || item.requestId === query.requestId) &&
+        (!query?.status || item.status === query.status) &&
+        (!query?.model || item.model === query.model) &&
+        matchesSearch(item.outputText, query?.search)
+    );
+    return ok(list(items, normalizedQuery));
+  },
+  async getById(id: string) { return ok(mockAiResponses.find((item) => item.id === id) ?? mockAiResponses[0]); },
   async rewriteText(input: AiTextRewriteRequest) { return ok({ rewrittenText: `[placeholder] ${input.text}` }); },
   async queryDashboard(_input: AiDashboardQueryRequest) { return ok({ answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] }); },
   async generateHandover(_input: AiHandoverGenerateRequest) { return ok({ summary: "Placeholder handover summary.", actionItems: ["Check alert queue.", "Confirm next feed run."] }); },
