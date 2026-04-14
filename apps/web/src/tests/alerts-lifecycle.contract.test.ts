@@ -9,14 +9,20 @@ describe("Alerts lifecycle flow", () => {
     const acknowledge = createAlertLifecycleSubmitter(repositories, "acknowledge")("alert-1");
     const resolve = createAlertLifecycleSubmitter(repositories, "resolve")("alert-1");
 
-    const acknowledged = await acknowledge({});
-    const resolved = await resolve({});
+    const acknowledged = await acknowledge({ note: "Checked dissolved oxygen meter." });
+    const resolved = await resolve({ note: "Values back in range." });
 
     expect(acknowledged.status).toBe("success");
     expect(resolved.status).toBe("success");
     if (acknowledged.status === "success" && resolved.status === "success") {
       expect(acknowledged.data.status).toBe("acknowledged");
       expect(resolved.data.status).toBe("resolved");
+      expect(resolved.data.latestNote).toBe("Values back in range.");
+      expect(resolved.data.actionHistory?.map((item) => item.action)).toEqual([
+        "created",
+        "acknowledged",
+        "resolved"
+      ]);
       expect(resolved.refreshedList?.items.find((item) => item.id === "alert-1")?.status).toBe("resolved");
     }
   });
@@ -27,19 +33,23 @@ describe("Alerts lifecycle flow", () => {
       enablePlaceholderHttp: true
     });
 
-    const acknowledged = await repositories.alerts.acknowledge("alert-1", {});
-    const resolved = await repositories.alerts.resolve("alert-1", {});
+    const acknowledged = await repositories.alerts.acknowledge("alert-1", { note: "Reviewed in HTTP mode." });
+    const resolved = await repositories.alerts.resolve("alert-1", { note: "Closed in HTTP mode." });
 
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(resolved.data.status).toBe("resolved");
+    expect(resolved.data.actionHistory?.at(-1)?.note).toBe("Closed in HTTP mode.");
   });
 
   it("keeps the public submit helper stable", async () => {
-    const result = await submitAlertLifecycleAction("acknowledge", "alert-1", {});
+    const result = await submitAlertLifecycleAction("acknowledge", "alert-1", {
+      note: "Operator follow-up."
+    });
 
     expect(result.status).toBe("success");
     if (result.status === "success") {
       expect(result.data.status).toBe("acknowledged");
+      expect(result.data.latestNote).toBe("Operator follow-up.");
     }
   });
 });

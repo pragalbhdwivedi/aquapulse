@@ -91,7 +91,15 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
     severity: decision.severity,
     source: decision.source,
     pondId: decision.pondId,
-    status: decision.status
+    status: decision.status,
+    latestNote: decision.summary,
+    actionHistory: [
+      {
+        action: "created",
+        note: decision.summary,
+        timestamp: decision.observedAt
+      }
+    ]
   };
   mockAlerts.push(created);
   return created;
@@ -178,6 +186,15 @@ export const alertsMockAdapter: AlertsApiClient = {
     const updated = {
       ...existing,
       status: "acknowledged" as const,
+      latestNote: _input.note ?? existing.latestNote,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "acknowledged" as const,
+          note: _input.note,
+          timestamp: "2026-04-15T10:10:00.000Z"
+        }
+      ],
       updatedAt: "2026-04-15T10:10:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -191,6 +208,15 @@ export const alertsMockAdapter: AlertsApiClient = {
     const updated = {
       ...existing,
       status: "resolved" as const,
+      latestNote: _input.note ?? existing.latestNote,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "resolved" as const,
+          note: _input.note,
+          timestamp: "2026-04-15T10:15:00.000Z"
+        }
+      ],
       updatedAt: "2026-04-15T10:15:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);

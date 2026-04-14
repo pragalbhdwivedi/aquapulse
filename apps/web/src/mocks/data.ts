@@ -22,7 +22,17 @@ export const mockWaterQuality: WaterQualityReading[] = [
   { id: "wq-1", createdAt: now, updatedAt: now, pondId: "pond-1", recordedAt: now, temperatureC: 28.4, ph: 7.6 }
 ];
 export const mockAlerts: AlertSummary[] = [
-  { id: "alert-1", createdAt: now, updatedAt: now, title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pondId: "pond-1", status: "open" }
+  {
+    id: "alert-1",
+    createdAt: now,
+    updatedAt: now,
+    title: "Low dissolved oxygen warning",
+    severity: "high",
+    source: "water-quality",
+    pondId: "pond-1",
+    status: "open",
+    actionHistory: [{ action: "created", timestamp: now }]
+  }
 ];
 export const mockTasks: TaskSummary[] = [
   { id: "task-1", createdAt: now, updatedAt: now, title: "Inspect aeration equipment", status: "todo", assigneeId: "user-1", pondId: "pond-1" }

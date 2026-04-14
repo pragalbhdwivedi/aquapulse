@@ -7,4 +7,5 @@ export class UpdateAlertsDto {
   source?: string;
   pondId?: string;
   status?: "open" | "acknowledged" | "resolved";
+  latestNote?: string;
 }

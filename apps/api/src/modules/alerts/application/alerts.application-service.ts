@@ -42,7 +42,8 @@ export class AlertsApplicationService {
           severity: decision.severity,
           source: decision.source,
           pondId: decision.pondId,
-          status: decision.status
+          status: decision.status,
+          latestNote: decision.summary
         })
       };
     }
@@ -54,7 +55,8 @@ export class AlertsApplicationService {
         severity: decision.severity,
         source: decision.source,
         pondId: decision.pondId,
-        status: decision.status
+        status: decision.status,
+        latestNote: decision.summary
       })
     };
   }

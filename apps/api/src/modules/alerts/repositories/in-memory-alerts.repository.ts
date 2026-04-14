@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import type { AlertLifecycleActionRequest, AlertSummary, ListResponse } from "@aquapulse/types";
+import type {
+  AlertActionHistoryItem,
+  AlertLifecycleActionRequest,
+  AlertSummary,
+  ListResponse
+} from "@aquapulse/types";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
@@ -12,7 +17,13 @@ const alert: AlertSummary = {
   severity: "high",
   source: "water-quality",
   pondId: "pond-1",
-  status: "open"
+  status: "open",
+  actionHistory: [
+    {
+      action: "created",
+      timestamp: "2026-04-13T00:00:00.000Z"
+    }
+  ]
 };
 
 const alertStore = new WeakMap<InMemoryAlertsRepository, AlertSummary[]>();
@@ -37,6 +48,7 @@ function applyAlertMutation(
   repository: InMemoryAlertsRepository,
   id: string,
   patch: Partial<AlertSummary>,
+  actionHistoryItem: AlertActionHistoryItem | undefined,
   updatedAt: string
 ): AlertSummary {
   const alerts = getAlerts(repository);
@@ -44,6 +56,10 @@ function applyAlertMutation(
   const updated: AlertSummary = {
     ...current,
     ...patch,
+    latestNote: actionHistoryItem?.note ?? patch.latestNote ?? current.latestNote,
+    actionHistory: actionHistoryItem
+      ? [...(current.actionHistory ?? []), actionHistoryItem]
+      : current.actionHistory,
     updatedAt
   };
   const index = alerts.findIndex((item) => item.id === id);
@@ -71,30 +87,48 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       severity: input.severity ?? "medium",
       source: input.source ?? "system",
       pondId: input.pondId,
-      status: input.status ?? "open"
+      status: input.status ?? "open",
+      actionHistory: [
+        {
+          action: "created",
+          note: input.latestNote,
+          timestamp: "2026-04-15T10:00:00.000Z"
+        }
+      ],
+      latestNote: input.latestNote
     };
     alerts.push(created);
     return created;
   }
 
   async update(id: string, input: UpdateAlertsDto): Promise<AlertSummary> {
-    return applyAlertMutation(this, id, input, "2026-04-15T10:05:00.000Z");
+    return applyAlertMutation(this, id, input, undefined, "2026-04-15T10:05:00.000Z");
   }
 
-  async acknowledge(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+  async acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<AlertSummary> {
     return applyAlertMutation(
       this,
       id,
       { status: "acknowledged" },
+      {
+        action: "acknowledged",
+        note: input.note,
+        timestamp: "2026-04-15T10:10:00.000Z"
+      },
       "2026-04-15T10:10:00.000Z"
     );
   }
 
-  async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+  async resolve(id: string, input: AlertLifecycleActionRequest): Promise<AlertSummary> {
     return applyAlertMutation(
       this,
       id,
       { status: "resolved" },
+      {
+        action: "resolved",
+        note: input.note,
+        timestamp: "2026-04-15T10:15:00.000Z"
+      },
       "2026-04-15T10:15:00.000Z"
     );
   }

@@ -41,6 +41,27 @@ describe("Alerts contracts", () => {
     expect(result.data.status).toBe("open");
   });
 
+  it("application service delegates lifecycle actions to the alerts repository port", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue({ ...alert, status: "acknowledged" as const }),
+      resolve: vi.fn().mockResolvedValue({ ...alert, status: "resolved" as const }),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const acknowledged = await service.acknowledge("alert-1", { note: "Checked sensor." });
+    const resolved = await service.resolve("alert-1", { note: "Restored." });
+
+    expect(repository.acknowledge).toHaveBeenCalledWith("alert-1", { note: "Checked sensor." });
+    expect(repository.resolve).toHaveBeenCalledWith("alert-1", { note: "Restored." });
+    expect(acknowledged.data.status).toBe("acknowledged");
+    expect(resolved.data.status).toBe("resolved");
+  });
+
   it("controller returns a standard item envelope", async () => {
     const placeholderService = { getPlaceholder: vi.fn().mockResolvedValue({ ok: true }) };
     const appService = {

@@ -15,6 +15,7 @@ interface AlertsActionListProps {
 export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
   const [alerts, setAlerts] = useState(initialAlerts);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [result, setResult] = useState<AlertLifecycleSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pageState = toMutationSyncPageState(result, isSubmitting);
@@ -22,10 +23,16 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
   async function handleAction(action: "acknowledge" | "resolve", alertId: string) {
     setActiveAlertId(alertId);
     setIsSubmitting(true);
-    const submission = await submitAlertLifecycleAction(action, alertId, {});
+    const submission = await submitAlertLifecycleAction(action, alertId, {
+      note: notes[alertId]?.trim() ? notes[alertId].trim() : undefined
+    });
     setResult(submission);
     if (submission.status === "success" && submission.refreshedList) {
       setAlerts(submission.refreshedList.items);
+      setNotes((current) => ({
+        ...current,
+        [alertId]: ""
+      }));
     }
     setIsSubmitting(false);
     setActiveAlertId(null);
@@ -49,6 +56,21 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
               <strong>{alert.title}</strong> [{alert.severity}] {alert.pondId ? `for ${alert.pondId}` : ""}
             </div>
             <div>Status: {alert.status}</div>
+            {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
+            <label style={{ display: "grid", gap: "0.35rem" }}>
+              <span>Review note</span>
+              <input
+                value={notes[alert.id] ?? ""}
+                onChange={(event) =>
+                  setNotes((current) => ({
+                    ...current,
+                    [alert.id]: event.target.value
+                  }))
+                }
+                placeholder="Optional operator note"
+                style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+              />
+            </label>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
                 type="button"
@@ -67,6 +89,16 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
                 {isSubmitting && activeAlertId === alert.id ? "Working..." : "Resolve"}
               </button>
             </div>
+            {alert.actionHistory?.length ? (
+              <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+                {alert.actionHistory.map((item, index) => (
+                  <li key={`${alert.id}-${item.action}-${item.timestamp}-${index}`}>
+                    {item.action} at {item.timestamp}
+                    {item.note ? ` - ${item.note}` : ""}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </li>
         ))}
       </ul>

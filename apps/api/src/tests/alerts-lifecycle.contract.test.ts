@@ -8,11 +8,17 @@ describe("Alerts lifecycle flow", () => {
     const repository = new InMemoryAlertsRepository();
     const service = new AlertsApplicationService(repository);
 
-    const acknowledged = await service.acknowledge("alert-1", {});
-    const resolved = await service.resolve("alert-1", {});
+    const acknowledged = await service.acknowledge("alert-1", { note: "Operator reviewed pond 1." });
+    const resolved = await service.resolve("alert-1", { note: "Issue cleared after retest." });
 
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(resolved.data.status).toBe("resolved");
+    expect(resolved.data.latestNote).toBe("Issue cleared after retest.");
+    expect(resolved.data.actionHistory?.map((item) => item.action)).toEqual([
+      "created",
+      "acknowledged",
+      "resolved"
+    ]);
   });
 
   it("keeps controller -> mapper -> service -> envelope delegation stable for lifecycle actions", async () => {
@@ -23,11 +29,12 @@ describe("Alerts lifecycle flow", () => {
       applicationService
     );
 
-    const acknowledged = await controller.acknowledge("alert-1", {});
-    const resolved = await controller.resolve("alert-1", {});
+    const acknowledged = await controller.acknowledge("alert-1", { note: "Checked aerator." });
+    const resolved = await controller.resolve("alert-1", { note: "Reading stabilized." });
 
     expect(acknowledged.ok).toBe(true);
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(resolved.data.status).toBe("resolved");
+    expect(resolved.data.latestNote).toBe("Reading stabilized.");
   });
 });

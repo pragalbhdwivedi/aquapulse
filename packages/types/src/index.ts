@@ -149,10 +149,18 @@ export interface AlertSummary extends BaseEntity {
   readonly source: string;
   readonly pondId?: EntityId;
   readonly status: "open" | "acknowledged" | "resolved";
+  readonly latestNote?: string;
+  readonly actionHistory?: AlertActionHistoryItem[];
 }
 
 export interface AlertLifecycleActionRequest {
   readonly note?: string;
+}
+
+export interface AlertActionHistoryItem {
+  readonly action: "created" | "acknowledged" | "resolved";
+  readonly note?: string;
+  readonly timestamp: ISODateString;
 }
 
 export interface OperationalAlertDecision {
