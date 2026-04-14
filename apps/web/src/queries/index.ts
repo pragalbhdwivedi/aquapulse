@@ -5,6 +5,7 @@ import type {
   AlertSummary,
   ApiSuccessEnvelope,
   AuditEvent,
+  FeedEntry,
   ListResponse,
   PondSummary,
   TaskSummary,
@@ -15,6 +16,7 @@ import {
   aiRepository,
   alertsRepository,
   auditRepository,
+  feedRepository,
   pondsRepository,
   tasksRepository,
   waterQualityRepository
@@ -158,6 +160,11 @@ export async function getReportsPageData(): Promise<{
 export async function getAuditPageData(): Promise<ListResponse<AuditEvent>> {
   const audit = await auditRepository.list(defaultAuditQuery);
   return audit.data;
+}
+
+export async function getFeedPageData(): Promise<ListResponse<FeedEntry>> {
+  const feed = await feedRepository.list({ page: 1, pageSize: 20 });
+  return feed.data;
 }
 
 export async function getTasksPageData(): Promise<ListResponse<TaskSummary>> {

@@ -23,6 +23,7 @@ import type {
   FeedListQueryRequest,
   AuditEvent,
   BatchSummary,
+  FeedCreateRequest,
   FeedEntry,
   ListResponse,
   PondsListQueryRequest,
@@ -98,6 +99,7 @@ export interface AttachmentsApiClient {
 }
 
 export interface FeedApiClient {
+  create(input: FeedCreateRequest): ApiItemContract<FeedEntry>;
   list(query?: FeedListQuery): ApiListContract<FeedEntry>;
   getById(id: string): ApiItemContract<FeedEntry>;
 }

@@ -16,9 +16,9 @@ import {
   type FeedRowPatch,
   type FeedRowWrite
 } from "@aquapulse/database";
-import type { FeedEntry, ListResponse } from "@aquapulse/types";
+import type { FeedCreateRequest, FeedEntry, ListResponse } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
-import type { CreateFeedDto, UpdateFeedDto } from "../dto";
+import type { UpdateFeedDto } from "../dto";
 import type { FeedRepositoryPort } from "../ports/feed-repository.port";
 import type { FeedListQueryContract } from "../query-contracts/feed-query.contract";
 
@@ -70,7 +70,7 @@ export class PostgresFeedRepository implements FeedRepositoryPort {
     return repository;
   }
 
-  async create(input: CreateFeedDto): Promise<FeedEntry> {
+  async create(input: FeedCreateRequest): Promise<FeedEntry> {
     const row = mapCreateFeedInputToRowWrite(input);
     return this.gateway.executeMappedMutation(
       buildCreateFeedQueryPlan(row),

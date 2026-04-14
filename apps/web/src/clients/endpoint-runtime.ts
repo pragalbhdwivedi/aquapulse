@@ -4,6 +4,7 @@ import type {
   EndpointRequest,
   EndpointResponse,
   ListResponse,
+  FeedCreateRequest,
   FeedEntry,
   TaskCreateRequest,
   WaterQualityReading
@@ -221,7 +222,15 @@ export function createEndpointHandlersFromClients(
       update: createMutationFromDetailHandler(clients.batches)
     },
     feed: {
-      create: createMutationFromValue(placeholderFeedEntry()),
+      create:
+        "create" in clients.feed
+          ? createCreateHandler(clients.feed as typeof clients.feed & {
+              create: (input: FeedCreateRequest) => Promise<{
+                ok: true;
+                data: FeedEntry;
+              }>;
+            })
+          : createMutationFromValue(placeholderFeedEntry()),
       list: createListHandler(clients.feed, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.feed),
       update: createMutationFromDetailHandler(clients.feed)
@@ -290,6 +299,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       getById: (id) => handlers.batches.getById({ id })
     },
     feed: {
+      create: (input) => handlers.feed.create(input),
       list: (query) => handlers.feed.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.feed.getById({ id })
     },

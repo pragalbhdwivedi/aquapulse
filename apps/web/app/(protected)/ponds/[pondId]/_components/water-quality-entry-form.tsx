@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import type { WaterQualityEntrySubmissionResult } from "@web/features/water-quality-entry";
 import { submitWaterQualityEntry } from "@web/features/water-quality-entry";
+import { toMutationPageState } from "@web/features/mutation-refresh";
 
 export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
   const [recordedAt, setRecordedAt] = useState("2026-04-14T08:00:00.000Z");
@@ -10,6 +11,7 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
   const [ph, setPh] = useState("7.6");
   const [result, setResult] = useState<WaterQualityEntrySubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const pageState = toMutationPageState(result, isSubmitting);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,17 +44,19 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
         pH
         <input value={ph} onChange={(event) => setPh(event.target.value)} />
       </label>
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving..." : "Save Entry"}
+      <button type="submit" disabled={pageState.isSubmitting}>
+        {pageState.isSubmitting ? "Saving..." : "Save Entry"}
       </button>
-      {result?.status === "success" ? (
-        <p>Saved reading {result.data.id} for pond {result.data.pondId}.</p>
+      {pageState.status === "success" ? (
+        <p>
+          Saved reading {pageState.data?.id} for pond {pageState.data?.pondId}. Refreshed readings: {pageState.refreshedList?.items.length ?? 0}.
+        </p>
       ) : null}
-      {result?.status === "validation_error" ? (
+      {pageState.status === "validation_error" ? (
         <p>
           Validation failed:
           {" "}
-          {Object.values(result.fieldErrors).filter(Boolean).join(", ")}
+          {Object.values(pageState.fieldErrors).filter(Boolean).join(", ")}
         </p>
       ) : null}
     </form>

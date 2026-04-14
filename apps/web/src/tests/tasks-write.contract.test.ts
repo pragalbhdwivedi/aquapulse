@@ -17,6 +17,7 @@ describe("Tasks write flow", () => {
     if (result.status === "success") {
       expect(result.data.title).toBe("Check inlet valve");
       expect(result.data.status).toBe("todo");
+      expect(result.refreshedList?.items[0]?.title).toBeTruthy();
     }
   });
 

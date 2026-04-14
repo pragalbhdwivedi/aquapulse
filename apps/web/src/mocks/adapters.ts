@@ -5,10 +5,15 @@ import type {
   AiIncidentsDraftRequest,
   AiPondsSummarizeRequest,
   AiTextRewriteRequest,
+  FeedCreateRequest,
   TaskCreateRequest,
   WaterQualityCreateRequest
 } from "@aquapulse/types";
-import { taskCreateSchema, waterQualityEntryCreateSchema } from "@aquapulse/validation";
+import {
+  feedEntryCreateSchema,
+  taskCreateSchema,
+  waterQualityEntryCreateSchema
+} from "@aquapulse/validation";
 import {
   normalizeListQuery,
   type AiApiClient,
@@ -168,6 +173,25 @@ export const attachmentsMockAdapter: AttachmentsApiClient = {
   async getById(id: string) { return ok(mockAttachments.find((item) => item.id === id) ?? mockAttachments[0]); }
 };
 export const feedMockAdapter: FeedApiClient = {
+  async create(input: FeedCreateRequest) {
+    const parsed = feedEntryCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const created = {
+      id: `feed-${mockFeedEntries.length + 1}`,
+      createdAt: parsed.data.fedAt,
+      updatedAt: parsed.data.fedAt,
+      pondId: parsed.data.pondId,
+      batchId: parsed.data.batchId,
+      feedType: parsed.data.feedType,
+      quantityKg: parsed.data.quantityKg,
+      fedAt: parsed.data.fedAt
+    };
+    mockFeedEntries.unshift(created);
+    return ok(created);
+  },
   async list(query?: FeedListQuery) {
     const normalizedQuery = normalizeListQuery(query);
     const items = mockFeedEntries.filter(

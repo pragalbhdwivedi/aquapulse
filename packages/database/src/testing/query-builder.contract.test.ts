@@ -117,7 +117,21 @@ describe("Shared query builders and write mappers", () => {
       updated_at: "2026-04-13T00:00:00.000Z"
     });
 
-    expect(mapCreateFeedInputToRowWrite({ id: "feed-77" }).id).toBe("feed-77");
+    expect(
+      mapCreateFeedInputToRowWrite({
+        pondId: "pond-77",
+        batchId: "batch-77",
+        feedType: "Grower Feed",
+        quantityKg: 42,
+        fedAt: "2026-04-14T06:00:00.000Z"
+      })
+    ).toMatchObject({
+      id: "feed-row-pond-77",
+      pond_id: "pond-77",
+      batch_id: "batch-77",
+      feed_type: "Grower Feed",
+      quantity_kg: 42
+    });
     expect(mapUpdateFeedInputToRowPatch("feed-77", {})).toEqual({
       id: "feed-77",
       updated_at: "2026-04-13T00:00:00.000Z"

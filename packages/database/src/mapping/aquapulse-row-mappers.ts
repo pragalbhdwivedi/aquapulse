@@ -2,6 +2,7 @@ import type { AlertSummary, PondSummary } from "@aquapulse/types";
 import type {
   AttachmentMetadata,
   BatchSummary,
+  FeedCreateRequest,
   FeedEntry,
   TaskCreateRequest,
   TaskSummary
@@ -430,8 +431,19 @@ export function mapUpdateBatchInputToRowPatch(id: string, _input: { readonly id?
   };
 }
 
-export function mapCreateFeedInputToRowWrite(input: { readonly id?: string }): FeedRowWrite {
-  return createPlaceholderFeedRow(input.id ? { id: input.id } : {});
+export function mapCreateFeedInputToRowWrite(input: FeedCreateRequest): FeedRowWrite {
+  const base = createPlaceholderFeedRow();
+
+  return {
+    id: `feed-row-${input.pondId}`,
+    pond_id: input.pondId,
+    batch_id: input.batchId,
+    feed_type: input.feedType,
+    quantity_kg: input.quantityKg,
+    fed_at: input.fedAt,
+    created_at: base.created_at,
+    updated_at: base.updated_at
+  };
 }
 
 export function mapUpdateFeedInputToRowPatch(id: string, _input: { readonly id?: string }): FeedRowPatch {

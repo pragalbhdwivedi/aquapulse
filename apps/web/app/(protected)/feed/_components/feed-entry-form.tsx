@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { submitTask } from "@web/features/task-create";
+import { submitFeedEntry, type FeedEntrySubmissionResult } from "@web/features/feed-entry";
 import { toMutationPageState } from "@web/features/mutation-refresh";
 
-interface TaskCreateFormProps {
+interface FeedEntryFormProps {
   readonly pondId?: string;
+  readonly batchId?: string;
 }
 
-export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
-  const [title, setTitle] = useState("");
-  const [assigneeId, setAssigneeId] = useState("user-1");
-  const [result, setResult] = useState<Awaited<ReturnType<typeof submitTask>> | null>(null);
+export function FeedEntryForm({
+  pondId = "pond-1",
+  batchId = "batch-1"
+}: FeedEntryFormProps) {
+  const [feedType, setFeedType] = useState("Starter Feed");
+  const [quantityKg, setQuantityKg] = useState("18");
+  const [fedAt, setFedAt] = useState("2026-04-14T06:00:00.000Z");
+  const [result, setResult] = useState<FeedEntrySubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pageState = toMutationPageState(result, isSubmitting);
 
@@ -21,16 +26,15 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
         event.preventDefault();
         setIsSubmitting(true);
 
-        const submission = await submitTask({
-          title,
-          assigneeId: assigneeId || undefined,
-          pondId
+        const submission = await submitFeedEntry({
+          pondId,
+          batchId,
+          feedType,
+          quantityKg: quantityKg ? Number(quantityKg) : 0,
+          fedAt
         });
+
         setResult(submission);
-        if (submission.status === "success") {
-          setAssigneeId(submission.data.assigneeId ?? "user-1");
-        }
-        setTitle("");
         setIsSubmitting(false);
       }}
       style={{
@@ -43,22 +47,28 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
         borderRadius: "0.75rem"
       }}
     >
-      <h2 style={{ margin: 0, fontSize: "1rem" }}>Create task</h2>
+      <h2 style={{ margin: 0, fontSize: "1rem" }}>Record feed entry</h2>
       <label style={{ display: "grid", gap: "0.35rem" }}>
-        <span>Title</span>
+        <span>Feed Type</span>
         <input
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="Inspect paddlewheel motor"
+          value={feedType}
+          onChange={(event) => setFeedType(event.target.value)}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <label style={{ display: "grid", gap: "0.35rem" }}>
-        <span>Assignee ID</span>
+        <span>Quantity (kg)</span>
         <input
-          value={assigneeId}
-          onChange={(event) => setAssigneeId(event.target.value)}
-          placeholder="user-1"
+          value={quantityKg}
+          onChange={(event) => setQuantityKg(event.target.value)}
+          style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+        />
+      </label>
+      <label style={{ display: "grid", gap: "0.35rem" }}>
+        <span>Fed At</span>
+        <input
+          value={fedAt}
+          onChange={(event) => setFedAt(event.target.value)}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -74,16 +84,16 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
           fontWeight: 600
         }}
       >
-        {pageState.isSubmitting ? "Saving..." : "Create task"}
+        {pageState.isSubmitting ? "Saving..." : "Save feed entry"}
       </button>
       {pageState.status === "validation_error" ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
-          {pageState.fieldErrors.title ?? "Please review the task details."}
+          {Object.values(pageState.fieldErrors).filter(Boolean).join(", ")}
         </p>
       ) : null}
       {pageState.status === "success" ? (
         <p style={{ margin: 0, color: "#86efac" }}>
-          Created task: {pageState.data?.title}. Refreshed tasks: {pageState.refreshedList?.items.length ?? 0}
+          Saved {pageState.data?.feedType}. Refreshed entries: {pageState.refreshedList?.items.length ?? 0}
         </p>
       ) : null}
     </form>

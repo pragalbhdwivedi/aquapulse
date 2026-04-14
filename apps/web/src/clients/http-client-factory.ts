@@ -2,6 +2,8 @@ import type {
   AlertSummary,
   ApiSuccessEnvelope,
   EndpointContract,
+  FeedCreateRequest,
+  FeedEntry,
   ListResponse,
   PondSummary,
   TaskCreateRequest,
@@ -47,7 +49,9 @@ async function invokeListEndpoint<
 
 async function invokeItemEndpoint<TItem>(
   executor: FetchExecutor,
-  invocation: (typeof endpointInvocationRegistry)["ponds"]["getById"],
+  invocation: EndpointInvocationConfig<
+    EndpointContract<{ readonly id: string }, ApiSuccessEnvelope<TItem>>
+  >,
   requestInput: { readonly id: string }
 ): Promise<ApiSuccessEnvelope<TItem>> {
   const request = buildHttpRequestFromInvocation(invocation, requestInput);
@@ -110,6 +114,26 @@ export function createHttpClientFactory({
           registry.alerts.list,
           query ?? { page: 1, pageSize: 20 }
         );
+      }
+    },
+    feed: {
+      ...baseClients.feed,
+      create(input: FeedCreateRequest) {
+        return invokeCreateEndpoint<FeedEntry, FeedCreateRequest>(
+          executor,
+          registry.feed.create,
+          input
+        );
+      },
+      list(query) {
+        return invokeListEndpoint<FeedEntry, NonNullable<typeof query> | { page: number; pageSize: number }>(
+          executor,
+          registry.feed.list,
+          query ?? { page: 1, pageSize: 20 }
+        );
+      },
+      getById(id) {
+        return invokeItemEndpoint<FeedEntry>(executor, registry.feed.getById, { id });
       }
     },
     tasks: {

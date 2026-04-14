@@ -137,7 +137,13 @@ describe("Postgres module rollout adapters", () => {
         batchesRepository.update("batch-write-2", {}),
         feedRepository.getById("feed-42"),
         feedRepository.list({ page: 1, pageSize: 20 }),
-        feedRepository.create({ id: "feed-write-1" }),
+        feedRepository.create({
+          pondId: "pond-1",
+          batchId: "batch-1",
+          feedType: "Starter Feed",
+          quantityKg: 18,
+          fedAt: "2026-04-14T06:00:00.000Z"
+        }),
         feedRepository.update("feed-write-2", {})
       ]);
 

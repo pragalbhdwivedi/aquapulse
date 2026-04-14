@@ -15,6 +15,8 @@ import type {
   ApiSuccessEnvelope,
   AuditEvent,
   BatchSummary,
+  FeedCreateRequest,
+  FeedEntry,
   ListResponse,
   PondSummary,
   TaskCreateRequest,
@@ -38,6 +40,7 @@ import type {
   AlertsListQuery,
   AuditListQuery,
   BatchesListQuery,
+  FeedListQuery,
   PondsListQuery,
   TasksListQuery,
   WaterQualityListQuery
@@ -76,6 +79,11 @@ export interface AuditRepository {
   list(query?: AuditListQuery): Promise<ApiSuccessEnvelope<ListResponse<AuditEvent>>>;
 }
 
+export interface FeedRepository {
+  create(input: FeedCreateRequest): Promise<ApiSuccessEnvelope<FeedEntry>>;
+  list(query?: FeedListQuery): Promise<ApiSuccessEnvelope<ListResponse<FeedEntry>>>;
+}
+
 export interface AiRepository {
   rewriteText(input: AiTextRewriteRequest): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>>;
   queryDashboard(input: AiDashboardQueryRequest): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>>;
@@ -89,6 +97,7 @@ export interface AquaPulseRepositories {
   waterQuality: WaterQualityRepository;
   alerts: AlertsRepository;
   tasks: TasksRepository;
+  feed: FeedRepository;
   audit: AuditRepository;
   ai: AiRepository;
 }
@@ -138,6 +147,14 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
         return clients.tasks.list(query);
       }
     },
+    feed: {
+      create(input: FeedCreateRequest) {
+        return clients.feed.create(input);
+      },
+      list(query?: FeedListQuery) {
+        return clients.feed.list(query);
+      }
+    },
     audit: {
       list(query?: AuditListQuery) {
         return clients.audit.list(query);
@@ -178,5 +195,6 @@ export const batchesRepository = repositories.batches;
 export const waterQualityRepository = repositories.waterQuality;
 export const alertsRepository = repositories.alerts;
 export const tasksRepository = repositories.tasks;
+export const feedRepository = repositories.feed;
 export const auditRepository = repositories.audit;
 export const aiRepository = repositories.ai;

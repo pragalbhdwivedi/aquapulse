@@ -25,7 +25,8 @@ export const feedEntryCreateSchema = z.object({
   pondId: z.string().min(1),
   feedType: z.string().min(2),
   quantityKg: z.number().positive(),
-  fedAt: z.string()
+  fedAt: z.string().min(1),
+  batchId: z.string().optional()
 });
 
 export const alertQueryFiltersSchema = z.object({
