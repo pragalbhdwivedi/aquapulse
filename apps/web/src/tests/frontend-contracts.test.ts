@@ -64,4 +64,18 @@ describe("Frontend contract boundaries", () => {
     expect(alerts.data.items[0]?.status).toBe("open");
     expect(tasks.data.items[0]?.assigneeId).toBe("user-1");
   });
+
+  it("keeps empty list and pagination semantics compatible with future HTTP-backed flows", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const ponds = await repositories.ponds.list({ page: 4, pageSize: 25, search: "missing-result" });
+    const audit = await repositories.audit.list({ page: 2, pageSize: 10, search: "missing-result" });
+
+    expect(ponds.data.items).toHaveLength(0);
+    expect(ponds.data.page.page).toBe(4);
+    expect(ponds.data.page.pageSize).toBe(25);
+    expect(ponds.data.page.totalItems).toBe(0);
+    expect(ponds.data.page.totalPages).toBe(1);
+    expect(audit.data.items).toHaveLength(0);
+    expect(audit.data.page.page).toBe(2);
+  });
 });

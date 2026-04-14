@@ -53,4 +53,15 @@ describe("Frontend query layer", () => {
     expect(audit.data.items[0]?.resourceType).toBe("alert");
     expect(tasks.data.items[0]?.status).toBe("todo");
   });
+
+  it("keeps list/detail/query helpers stable when repositories return empty filtered results", async () => {
+    const ponds = await pondsRepository.list({ page: 5, pageSize: 30, search: "not-found" });
+    const alerts = await alertsRepository.list({ page: 2, pageSize: 15, search: "not-found" });
+
+    expect(ponds.data.items).toHaveLength(0);
+    expect(ponds.data.page.page).toBe(5);
+    expect(ponds.data.page.pageSize).toBe(30);
+    expect(alerts.data.items).toHaveLength(0);
+    expect(alerts.data.page.page).toBe(2);
+  });
 });

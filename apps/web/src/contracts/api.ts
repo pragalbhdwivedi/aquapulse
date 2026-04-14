@@ -23,6 +23,18 @@ import type {
 import type { RepositoryListQuery } from "@aquapulse/database";
 
 export type ApiContract<TData> = Promise<ApiSuccessEnvelope<TData>>;
+export type ApiItemContract<TItem> = ApiContract<TItem>;
+export type ApiListContract<TItem> = ApiContract<ListResponse<TItem>>;
+
+export function normalizeListQuery<TQuery extends Partial<RepositoryListQuery>>(
+  query?: TQuery
+): RepositoryListQuery & TQuery {
+  return {
+    page: query?.page ?? 1,
+    pageSize: query?.pageSize ?? 20,
+    ...(query ?? {})
+  } as RepositoryListQuery & TQuery;
+}
 
 export interface PondsListQuery extends RepositoryListQuery {
   readonly farmId?: string;
@@ -66,35 +78,35 @@ export interface WaterQualityListQuery extends RepositoryListQuery {
 }
 
 export interface PondsApiClient {
-  list(query?: PondsListQuery): ApiContract<ListResponse<PondSummary>>;
-  getById(id: string): ApiContract<PondSummary>;
-  summarize(input: AiPondsSummarizeRequest): ApiContract<AiPondsSummarizeResponse>;
+  list(query?: PondsListQuery): ApiListContract<PondSummary>;
+  getById(id: string): ApiItemContract<PondSummary>;
+  summarize(input: AiPondsSummarizeRequest): ApiItemContract<AiPondsSummarizeResponse>;
 }
 
 export interface BatchesApiClient {
-  list(query?: BatchesListQuery): ApiContract<ListResponse<BatchSummary>>;
+  list(query?: BatchesListQuery): ApiListContract<BatchSummary>;
 }
 
 export interface WaterQualityApiClient {
-  list(query: WaterQualityListQuery): ApiContract<ListResponse<WaterQualityReading>>;
+  list(query: WaterQualityListQuery): ApiListContract<WaterQualityReading>;
 }
 
 export interface AlertsApiClient {
-  list(query?: AlertsListQuery): ApiContract<ListResponse<AlertSummary>>;
-  explain(input: AiAlertsExplainRequest): ApiContract<AiAlertsExplainResponse>;
+  list(query?: AlertsListQuery): ApiListContract<AlertSummary>;
+  explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
 }
 
 export interface TasksApiClient {
-  list(query?: TasksListQuery): ApiContract<ListResponse<TaskSummary>>;
+  list(query?: TasksListQuery): ApiListContract<TaskSummary>;
 }
 
 export interface AuditApiClient {
-  list(query?: AuditListQuery): ApiContract<ListResponse<AuditEvent>>;
+  list(query?: AuditListQuery): ApiListContract<AuditEvent>;
 }
 
 export interface AiApiClient {
-  rewriteText(input: AiTextRewriteRequest): ApiContract<AiTextRewriteResponse>;
-  queryDashboard(input: AiDashboardQueryRequest): ApiContract<AiDashboardQueryResponse>;
-  generateHandover(input: AiHandoverGenerateRequest): ApiContract<AiHandoverGenerateResponse>;
-  draftIncident(input: AiIncidentsDraftRequest): ApiContract<AiIncidentsDraftResponse>;
+  rewriteText(input: AiTextRewriteRequest): ApiItemContract<AiTextRewriteResponse>;
+  queryDashboard(input: AiDashboardQueryRequest): ApiItemContract<AiDashboardQueryResponse>;
+  generateHandover(input: AiHandoverGenerateRequest): ApiItemContract<AiHandoverGenerateResponse>;
+  draftIncident(input: AiIncidentsDraftRequest): ApiItemContract<AiIncidentsDraftResponse>;
 }

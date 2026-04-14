@@ -1,6 +1,15 @@
 import type { ApiErrorEnvelope, ApiSuccessEnvelope, ListResponse, PageMeta } from "@aquapulse/types";
 import type { RequestMetadata } from "../request-metadata.interface";
 
+export function normalizePageMeta(page: PageMeta): PageMeta {
+  return {
+    page: page.page,
+    pageSize: page.pageSize,
+    totalItems: page.totalItems,
+    totalPages: Math.max(1, page.totalPages)
+  };
+}
+
 export function createResponseMeta(
   requestMetadata?: RequestMetadata,
   meta?: Record<string, unknown>
@@ -34,7 +43,7 @@ export function createListResponse<TItem>(
   items: TItem[],
   page: PageMeta
 ): ApiSuccessEnvelope<ListResponse<TItem>> {
-  return createSuccessResponse({ items, page });
+  return createSuccessResponse({ items, page: normalizePageMeta(page) });
 }
 
 export function createEmptyResponse(message = "No results available"): ApiSuccessEnvelope<{ message: string }> {
@@ -43,6 +52,15 @@ export function createEmptyResponse(message = "No results available"): ApiSucces
 
 export function createEmptyStateResponse(message = "No results available") {
   return createEmptyResponse(message);
+}
+
+export function createEmptyListResponse(page: Pick<PageMeta, "page" | "pageSize">): ApiSuccessEnvelope<ListResponse<never>> {
+  return createListResponse([], {
+    page: page.page,
+    pageSize: page.pageSize,
+    totalItems: 0,
+    totalPages: 1
+  });
 }
 
 export function createValidationErrorResponse(

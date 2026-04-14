@@ -6,20 +6,21 @@ import type {
   AiPondsSummarizeRequest,
   AiTextRewriteRequest
 } from "@aquapulse/types";
-import type {
-  AiApiClient,
-  AlertsApiClient,
-  AlertsListQuery,
-  AuditApiClient,
-  AuditListQuery,
-  BatchesApiClient,
-  BatchesListQuery,
-  PondsApiClient,
-  PondsListQuery,
-  TasksApiClient,
-  TasksListQuery,
-  WaterQualityApiClient,
-  WaterQualityListQuery
+import {
+  normalizeListQuery,
+  type AiApiClient,
+  type AlertsApiClient,
+  type AlertsListQuery,
+  type AuditApiClient,
+  type AuditListQuery,
+  type BatchesApiClient,
+  type BatchesListQuery,
+  type PondsApiClient,
+  type PondsListQuery,
+  type TasksApiClient,
+  type TasksListQuery,
+  type WaterQualityApiClient,
+  type WaterQualityListQuery
 } from "../contracts/api";
 import { list, ok } from "../lib/api-response";
 import { mockAlerts, mockAudit, mockBatches, mockPonds, mockTasks, mockWaterQuality } from "./data";
@@ -30,6 +31,7 @@ function matchesSearch(value: string | undefined, search: string | undefined): b
 
 export const pondsMockAdapter: PondsApiClient = {
   async list(query?: PondsListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockPonds.filter(
       (item) =>
         (!query?.farmId || item.farmId === query.farmId) &&
@@ -37,34 +39,38 @@ export const pondsMockAdapter: PondsApiClient = {
         (!query?.kind || item.kind === query.kind) &&
         matchesSearch(`${item.name} ${item.code}`, query?.search)
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   },
   async getById(id: string) { return ok(mockPonds.find((item) => item.id === id) ?? mockPonds[0]); },
   async summarize(_input: AiPondsSummarizeRequest) { return ok({ summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] }); }
 };
 export const batchesMockAdapter: BatchesApiClient = {
   async list(query?: BatchesListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockBatches.filter(
       (item) =>
         (!query?.pondId || item.pondId === query.pondId) &&
         (!query?.lifecycleStage || item.lifecycleStage === query.lifecycleStage) &&
         matchesSearch(`${item.name} ${item.species}`, query?.search)
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   }
 };
 export const waterQualityMockAdapter: WaterQualityApiClient = {
   async list(query: WaterQualityListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockWaterQuality.filter(
       (item) =>
-        (!query.pondId || item.pondId === query.pondId) &&
-        (!query.metric || (query.metric === "temperatureC" ? item.temperatureC !== undefined : item.ph !== undefined))
+        (!normalizedQuery.pondId || item.pondId === normalizedQuery.pondId) &&
+        (!normalizedQuery.metric ||
+          (normalizedQuery.metric === "temperatureC" ? item.temperatureC !== undefined : item.ph !== undefined))
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   }
 };
 export const alertsMockAdapter: AlertsApiClient = {
   async list(query?: AlertsListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockAlerts.filter(
       (item) =>
         (!query?.pondId || item.pondId === query.pondId) &&
@@ -73,12 +79,13 @@ export const alertsMockAdapter: AlertsApiClient = {
         (!query?.source || item.source === query.source) &&
         matchesSearch(item.title, query?.search)
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   },
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };
 export const tasksMockAdapter: TasksApiClient = {
   async list(query?: TasksListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockTasks.filter(
       (item) =>
         (!query?.assigneeId || item.assigneeId === query.assigneeId) &&
@@ -86,11 +93,12 @@ export const tasksMockAdapter: TasksApiClient = {
         (!query?.status || item.status === query.status) &&
         matchesSearch(item.title, query?.search)
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   }
 };
 export const auditMockAdapter: AuditApiClient = {
   async list(query?: AuditListQuery) {
+    const normalizedQuery = normalizeListQuery(query);
     const items = mockAudit.filter(
       (item) =>
         (!query?.resourceType || item.resourceType === query.resourceType) &&
@@ -98,7 +106,7 @@ export const auditMockAdapter: AuditApiClient = {
         (!query?.action || item.action === query.action) &&
         matchesSearch(item.summary, query?.search)
     );
-    return ok(list(items, query));
+    return ok(list(items, normalizedQuery));
   }
 };
 export const aiMockAdapter: AiApiClient = {
