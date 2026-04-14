@@ -21,6 +21,13 @@ import {
   waterQualityMockAdapter
 } from "../mocks/adapters";
 import { createHttpPlaceholderClients as createDelegatedHttpPlaceholderClients } from "./http-placeholder";
+import {
+  getDefaultClientRuntimeConfig,
+  parseClientRuntimeConfig,
+  type AquaPulseClientRuntimeConfig,
+  type AquaPulseClientRuntimeEnv,
+  type AquaPulseClientRuntimeMode
+} from "./runtime-config";
 
 export interface AquaPulseApiClients {
   ponds: PondsApiClient;
@@ -34,7 +41,7 @@ export interface AquaPulseApiClients {
   audit: AuditApiClient;
 }
 
-export type AquaPulseClientSource = "mock" | "http";
+export type AquaPulseClientSource = AquaPulseClientRuntimeMode;
 
 export function createMockApiClients(): AquaPulseApiClients {
   return {
@@ -71,4 +78,16 @@ export function createApiClients(source: AquaPulseClientSource = "mock"): AquaPu
   return registry[source]();
 }
 
-export const apiClients = createApiClients();
+export function createApiClientsFromConfig(
+  config: AquaPulseClientRuntimeConfig
+): AquaPulseApiClients {
+  return createApiClients(config.mode);
+}
+
+export function createApiClientsFromEnv(
+  env: AquaPulseClientRuntimeEnv = {}
+): AquaPulseApiClients {
+  return createApiClientsFromConfig(parseClientRuntimeConfig(env));
+}
+
+export const apiClients = createApiClientsFromConfig(getDefaultClientRuntimeConfig());

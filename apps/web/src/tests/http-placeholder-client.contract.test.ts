@@ -40,7 +40,11 @@ describe("HTTP placeholder client", () => {
     const execute = createFetchPlaceholderExecutor(handlers);
     const endpoint = aquaPulseEndpointCatalog.alerts.list;
     const request = adaptEndpointRequestToHttp(endpoint, { page: 1, pageSize: 20, status: "open" });
-    const response = await execute(request, { page: 1, pageSize: 20, status: "open" });
+    const response = await execute<typeof endpoint>(request, {
+      page: 1,
+      pageSize: 20,
+      status: "open"
+    });
 
     expect(response.status).toBe(200);
     expect(response.body.data.items[0]?.id).toBe("alert-1");

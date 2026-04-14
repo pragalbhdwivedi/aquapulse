@@ -10,86 +10,38 @@ import {
   createEndpointHandlersFromClients
 } from "./endpoint-runtime";
 import {
-  adaptEndpointRequestToHttp,
-  adaptHttpResponseToEndpoint,
-  createPlaceholderHttpResponse,
-  type PlaceholderHttpRequest
-} from "./http-adapters";
+  endpointInvocationRegistry,
+  flattenEndpointInvocationRegistry
+} from "./invocation-registry";
+import { createPlaceholderHttpTransportRegistry } from "./http-transport-registry";
 
 type EndpointHandlers = ReturnType<typeof createEndpointHandlersFromClients>;
 
-function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
-  return {
-    [aquaPulseEndpointCatalog.ponds.create.id]: handlers.ponds.create,
-    [aquaPulseEndpointCatalog.ponds.list.id]: handlers.ponds.list,
-    [aquaPulseEndpointCatalog.ponds.getById.id]: handlers.ponds.getById,
-    [aquaPulseEndpointCatalog.ponds.update.id]: handlers.ponds.update,
-    [aquaPulseEndpointCatalog.ponds.summarize.id]: handlers.ponds.summarize,
-    [aquaPulseEndpointCatalog.alerts.create.id]: handlers.alerts.create,
-    [aquaPulseEndpointCatalog.alerts.list.id]: handlers.alerts.list,
-    [aquaPulseEndpointCatalog.alerts.getById.id]: handlers.alerts.getById,
-    [aquaPulseEndpointCatalog.alerts.update.id]: handlers.alerts.update,
-    [aquaPulseEndpointCatalog.alerts.explain.id]: handlers.alerts.explain,
-    [aquaPulseEndpointCatalog.tasks.create.id]: handlers.tasks.create,
-    [aquaPulseEndpointCatalog.tasks.list.id]: handlers.tasks.list,
-    [aquaPulseEndpointCatalog.tasks.getById.id]: handlers.tasks.getById,
-    [aquaPulseEndpointCatalog.tasks.update.id]: handlers.tasks.update,
-    [aquaPulseEndpointCatalog.attachments.create.id]: handlers.attachments.create,
-    [aquaPulseEndpointCatalog.attachments.list.id]: handlers.attachments.list,
-    [aquaPulseEndpointCatalog.attachments.getById.id]: handlers.attachments.getById,
-    [aquaPulseEndpointCatalog.attachments.update.id]: handlers.attachments.update,
-    [aquaPulseEndpointCatalog.batches.create.id]: handlers.batches.create,
-    [aquaPulseEndpointCatalog.batches.list.id]: handlers.batches.list,
-    [aquaPulseEndpointCatalog.batches.getById.id]: handlers.batches.getById,
-    [aquaPulseEndpointCatalog.batches.update.id]: handlers.batches.update,
-    [aquaPulseEndpointCatalog.feed.create.id]: handlers.feed.create,
-    [aquaPulseEndpointCatalog.feed.list.id]: handlers.feed.list,
-    [aquaPulseEndpointCatalog.feed.getById.id]: handlers.feed.getById,
-    [aquaPulseEndpointCatalog.feed.update.id]: handlers.feed.update,
-    [aquaPulseEndpointCatalog.audit.create.id]: handlers.audit.create,
-    [aquaPulseEndpointCatalog.audit.list.id]: handlers.audit.list,
-    [aquaPulseEndpointCatalog.audit.getById.id]: handlers.audit.getById,
-    [aquaPulseEndpointCatalog.audit.update.id]: handlers.audit.update,
-    [aquaPulseEndpointCatalog.waterQuality.create.id]: handlers.waterQuality.create,
-    [aquaPulseEndpointCatalog.waterQuality.list.id]: handlers.waterQuality.list,
-    [aquaPulseEndpointCatalog.waterQuality.getById.id]: handlers.waterQuality.getById,
-    [aquaPulseEndpointCatalog.waterQuality.update.id]: handlers.waterQuality.update,
-    [aquaPulseEndpointCatalog.ai.create.id]: handlers.ai.create,
-    [aquaPulseEndpointCatalog.ai.list.id]: handlers.ai.list,
-    [aquaPulseEndpointCatalog.ai.getById.id]: handlers.ai.getById,
-    [aquaPulseEndpointCatalog.ai.update.id]: handlers.ai.update,
-    [aquaPulseEndpointCatalog.ai.explainAlert.id]: handlers.ai.explainAlert,
-    [aquaPulseEndpointCatalog.ai.summarizePond.id]: handlers.ai.summarizePond,
-    [aquaPulseEndpointCatalog.ai.generateHandover.id]: handlers.ai.generateHandover,
-    [aquaPulseEndpointCatalog.ai.rewriteText.id]: handlers.ai.rewriteText,
-    [aquaPulseEndpointCatalog.ai.queryDashboard.id]: handlers.ai.queryDashboard,
-    [aquaPulseEndpointCatalog.ai.draftIncident.id]: handlers.ai.draftIncident
-  } as const;
-}
-
 export function createFetchPlaceholderExecutor(handlers: EndpointHandlers) {
-  const registry = createEndpointHandlerRegistry(handlers);
-
-  return async function execute<TEndpoint extends EndpointContract<unknown, unknown>>(
-    request: PlaceholderHttpRequest<TEndpoint>,
-    input: EndpointRequest<TEndpoint>
-  ) {
-    const handler = registry[request.endpointId] as unknown as (
-      input: EndpointRequest<TEndpoint>
-    ) => Promise<EndpointResponse<TEndpoint>>;
-    const response = await handler(input);
-    return createPlaceholderHttpResponse(response);
-  };
+  return createPlaceholderHttpTransportRegistry(handlers, endpointInvocationRegistry).invoke;
 }
 
 function createFetchDelegatedHandler<TEndpoint extends EndpointContract<unknown, unknown>>(
   endpoint: TEndpoint,
   execute: ReturnType<typeof createFetchPlaceholderExecutor>
 ) {
+  const flattenedRegistry = flattenEndpointInvocationRegistry(endpointInvocationRegistry) as Record<
+    string,
+    {
+      adaptRequest: (request: unknown) => unknown;
+      adaptResponse: (response: unknown) => unknown;
+    }
+  >;
+
   return async (request: EndpointRequest<TEndpoint>): Promise<EndpointResponse<TEndpoint>> => {
-    const httpRequest = adaptEndpointRequestToHttp(endpoint, request);
+    const invocation = flattenedRegistry[endpoint.id];
+    if (!invocation) {
+      throw new Error(`Missing invocation config for endpoint ${endpoint.id}`);
+    }
+
+    const httpRequest = invocation.adaptRequest(request) as Parameters<typeof execute>[0];
     const httpResponse = await execute(httpRequest, request);
-    return adaptHttpResponseToEndpoint(endpoint, httpResponse);
+    return invocation.adaptResponse(httpResponse) as EndpointResponse<TEndpoint>;
   };
 }
 
