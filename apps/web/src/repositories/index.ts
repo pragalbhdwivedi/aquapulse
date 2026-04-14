@@ -20,8 +20,18 @@ import type {
   TaskSummary,
   WaterQualityReading
 } from "@aquapulse/types";
-import type { AquaPulseApiClients } from "../clients";
-import { apiClients } from "../clients";
+import type {
+  AquaPulseApiClients
+} from "../clients";
+import {
+  apiClients,
+  createApiClientsFromConfig,
+  createApiClientsFromEnv
+} from "../clients";
+import type {
+  AquaPulseClientRuntimeConfig,
+  AquaPulseClientRuntimeEnv
+} from "../clients/runtime-config";
 import type {
   AlertsListQuery,
   AuditListQuery,
@@ -138,6 +148,18 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       }
     }
   };
+}
+
+export function createRepositoriesFromConfig(
+  config: AquaPulseClientRuntimeConfig
+): AquaPulseRepositories {
+  return createRepositories(createApiClientsFromConfig(config));
+}
+
+export function createRepositoriesFromEnv(
+  env: AquaPulseClientRuntimeEnv = {}
+): AquaPulseRepositories {
+  return createRepositories(createApiClientsFromEnv(env));
 }
 
 export const repositories = createRepositories(apiClients);

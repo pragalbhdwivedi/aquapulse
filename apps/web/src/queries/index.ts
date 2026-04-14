@@ -19,6 +19,7 @@ import {
   tasksRepository,
   waterQualityRepository
 } from "../repositories";
+import type { AquaPulseRepositories } from "../repositories";
 
 type EnvelopeData<TEnvelope> = TEnvelope extends ApiSuccessEnvelope<infer TData> ? TData : never;
 type WaterQualityList = EnvelopeData<Awaited<ReturnType<typeof waterQualityRepository.listByPond>>>;
@@ -28,30 +29,92 @@ const defaultAlertsQuery: AlertsListQuery = { page: 1, pageSize: 20 };
 const defaultTasksQuery: TasksListQuery = { page: 1, pageSize: 20 };
 const defaultAuditQuery: AuditListQuery = { page: 1, pageSize: 20 };
 
+export function createReadonlyQueries(repositories: Pick<
+  AquaPulseRepositories,
+  "ponds" | "alerts" | "tasks" | "ai" | "waterQuality"
+>) {
+  return {
+    async getDashboardPageData(): Promise<{
+      ponds: ListResponse<PondSummary>;
+      alerts: ListResponse<AlertSummary>;
+      tasks: ListResponse<TaskSummary>;
+      answer: AiDashboardQueryResponse;
+    }> {
+      const [ponds, alerts, tasks, answer] = await Promise.all([
+        repositories.ponds.list(defaultPondsQuery),
+        repositories.alerts.list(defaultAlertsQuery),
+        repositories.tasks.list(defaultTasksQuery),
+        repositories.ai.queryDashboard({ question: "What needs attention today?" })
+      ]);
+
+      return {
+        ponds: ponds.data,
+        alerts: alerts.data,
+        tasks: tasks.data,
+        answer: answer.data
+      };
+    },
+    async getPondsPageData(): Promise<ListResponse<PondSummary>> {
+      const ponds = await repositories.ponds.list(defaultPondsQuery);
+      return ponds.data;
+    },
+    async getPondDetailPageData(pondId: string): Promise<{
+      pond: PondSummary;
+      waterQuality: WaterQualityList;
+      summary: AiPondsSummarizeResponse;
+    }> {
+      const [pond, waterQuality, summary] = await Promise.all([
+        repositories.ponds.getById(pondId),
+        repositories.waterQuality.listByPond(pondId, { page: 1, pageSize: 20 }),
+        repositories.ponds.summarize({ pondId })
+      ]);
+
+      return {
+        pond: pond.data,
+        waterQuality: waterQuality.data,
+        summary: summary.data
+      };
+    },
+    async getAlertsPageData(): Promise<{
+      alerts: ListResponse<AlertSummary>;
+      explanation: string;
+    }> {
+      const alerts = await repositories.alerts.list(defaultAlertsQuery);
+      const explanation = await repositories.alerts.explain({
+        alertId: alerts.data.items[0]?.id ?? "alert-1"
+      });
+
+      return {
+        alerts: alerts.data,
+        explanation: explanation.data.explanation
+      };
+    },
+    async getTasksPageData(): Promise<ListResponse<TaskSummary>> {
+      const tasks = await repositories.tasks.list(defaultTasksQuery);
+      return tasks.data;
+    }
+  };
+}
+
+const readonlyQueries = createReadonlyQueries({
+  ponds: pondsRepository,
+  alerts: alertsRepository,
+  tasks: tasksRepository,
+  ai: aiRepository,
+  waterQuality: waterQualityRepository
+});
+
 export async function getDashboardPageData(): Promise<{
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   tasks: ListResponse<TaskSummary>;
   answer: AiDashboardQueryResponse;
 }> {
-  const [ponds, alerts, tasks, answer] = await Promise.all([
-    pondsRepository.list(defaultPondsQuery),
-    alertsRepository.list(defaultAlertsQuery),
-    tasksRepository.list(defaultTasksQuery),
-    aiRepository.queryDashboard({ question: "What needs attention today?" })
-  ]);
-
-  return {
-    ponds: ponds.data,
-    alerts: alerts.data,
-    tasks: tasks.data,
-    answer: answer.data
-  };
+  return readonlyQueries.getDashboardPageData();
 }
 
 export async function getPondsPageData(): Promise<ListResponse<PondSummary>> {
-  const ponds = await pondsRepository.list(defaultPondsQuery);
-  return ponds.data;
+  return readonlyQueries.getPondsPageData();
 }
 
 export async function getPondDetailPageData(pondId: string): Promise<{
@@ -59,17 +122,7 @@ export async function getPondDetailPageData(pondId: string): Promise<{
   waterQuality: WaterQualityList;
   summary: AiPondsSummarizeResponse;
 }> {
-  const [pond, waterQuality, summary] = await Promise.all([
-    pondsRepository.getById(pondId),
-    waterQualityRepository.listByPond(pondId, { page: 1, pageSize: 20 }),
-    pondsRepository.summarize({ pondId })
-  ]);
-
-  return {
-    pond: pond.data,
-    waterQuality: waterQuality.data,
-    summary: summary.data
-  };
+  return readonlyQueries.getPondDetailPageData(pondId);
 }
 
 export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
@@ -81,13 +134,7 @@ export async function getAlertsPageData(): Promise<{
   alerts: ListResponse<AlertSummary>;
   explanation: string;
 }> {
-  const alerts = await alertsRepository.list(defaultAlertsQuery);
-  const explanation = await alertsRepository.explain({ alertId: alerts.data.items[0]?.id ?? "alert-1" });
-
-  return {
-    alerts: alerts.data,
-    explanation: explanation.data.explanation
-  };
+  return readonlyQueries.getAlertsPageData();
 }
 
 export async function getReportsPageData(): Promise<{
@@ -114,6 +161,5 @@ export async function getAuditPageData(): Promise<ListResponse<AuditEvent>> {
 }
 
 export async function getTasksPageData(): Promise<ListResponse<TaskSummary>> {
-  const tasks = await tasksRepository.list(defaultTasksQuery);
-  return tasks.data;
+  return readonlyQueries.getTasksPageData();
 }
