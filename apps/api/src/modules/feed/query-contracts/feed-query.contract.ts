@@ -1,7 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
+import type { FeedListQueryRequest } from "@aquapulse/types";
 
-export interface FeedListQueryContract extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly batchId?: string;
-  readonly feedType?: string;
-}
+export interface FeedListQueryContract extends FeedListQueryRequest {}

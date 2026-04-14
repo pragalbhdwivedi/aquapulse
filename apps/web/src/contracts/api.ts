@@ -1,6 +1,7 @@
 import type {
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AiResponseLogListQueryRequest,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
   AiHandoverGenerateRequest,
@@ -12,70 +13,49 @@ import type {
   AiTextRewriteRequest,
   AiTextRewriteResponse,
   AlertSummary,
+  AlertsListQueryRequest,
   ApiSuccessEnvelope,
+  AttachmentsListQueryRequest,
+  AuditListQueryRequest,
+  BatchesListQueryRequest,
+  FeedListQueryRequest,
   AuditEvent,
   BatchSummary,
   ListResponse,
+  PondsListQueryRequest,
   PondSummary,
+  TasksListQueryRequest,
   TaskSummary,
+  WaterQualityListQueryRequest,
   WaterQualityReading
 } from "@aquapulse/types";
-import type { RepositoryListQuery } from "@aquapulse/database";
+import { aquaPulseEndpointCatalog } from "@aquapulse/types";
+import type { ListQueryRequest } from "@aquapulse/types";
 
 export type ApiContract<TData> = Promise<ApiSuccessEnvelope<TData>>;
 export type ApiItemContract<TItem> = ApiContract<TItem>;
 export type ApiListContract<TItem> = ApiContract<ListResponse<TItem>>;
 
-export function normalizeListQuery<TQuery extends Partial<RepositoryListQuery>>(
+export function normalizeListQuery<TQuery extends Partial<ListQueryRequest>>(
   query?: TQuery
-): RepositoryListQuery & TQuery {
+): ListQueryRequest & TQuery {
   return {
     page: query?.page ?? 1,
     pageSize: query?.pageSize ?? 20,
     ...(query ?? {})
-  } as RepositoryListQuery & TQuery;
+  } as ListQueryRequest & TQuery;
 }
 
-export interface PondsListQuery extends RepositoryListQuery {
-  readonly farmId?: string;
-  readonly status?: "active" | "maintenance" | "inactive";
-  readonly kind?: "pond" | "tank" | "cage";
-}
+export type PondsListQuery = PondsListQueryRequest;
+export type AlertsListQuery = AlertsListQueryRequest;
+export type TasksListQuery = TasksListQueryRequest;
+export type AuditListQuery = AuditListQueryRequest;
+export type BatchesListQuery = BatchesListQueryRequest;
+export type FeedListQuery = FeedListQueryRequest;
+export type WaterQualityListQuery = WaterQualityListQueryRequest;
+export type AiListQuery = AiResponseLogListQueryRequest;
 
-export interface AlertsListQuery extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly severity?: AlertSummary["severity"];
-  readonly status?: AlertSummary["status"];
-  readonly source?: string;
-}
-
-export interface TasksListQuery extends RepositoryListQuery {
-  readonly assigneeId?: string;
-  readonly pondId?: string;
-  readonly status?: TaskSummary["status"];
-}
-
-export interface AuditListQuery extends RepositoryListQuery {
-  readonly resourceType?: string;
-  readonly resourceId?: string;
-  readonly action?: AuditEvent["action"];
-}
-
-export interface BatchesListQuery extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly lifecycleStage?: BatchSummary["lifecycleStage"];
-}
-
-export interface FeedListQuery extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly batchId?: string;
-  readonly feedType?: string;
-}
-
-export interface WaterQualityListQuery extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly metric?: "temperatureC" | "ph";
-}
+export const endpointCatalog = aquaPulseEndpointCatalog;
 
 export interface PondsApiClient {
   list(query?: PondsListQuery): ApiListContract<PondSummary>;

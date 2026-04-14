@@ -1,7 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
-import type { BatchSummary } from "@aquapulse/types";
+import type { BatchesListQueryRequest } from "@aquapulse/types";
 
-export interface BatchesListQueryContract extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly lifecycleStage?: BatchSummary["lifecycleStage"];
-}
+export interface BatchesListQueryContract extends BatchesListQueryRequest {}

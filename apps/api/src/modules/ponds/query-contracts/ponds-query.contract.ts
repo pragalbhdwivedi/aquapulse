@@ -1,7 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
+import type { PondsListQueryRequest } from "@aquapulse/types";
 
-export interface PondListQueryContract extends RepositoryListQuery {
-  readonly farmId?: string;
-  readonly status?: "active" | "maintenance" | "inactive";
-  readonly kind?: "pond" | "tank" | "cage";
-}
+export interface PondListQueryContract extends PondsListQueryRequest {}

@@ -1,7 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
+import type { AuditListQueryRequest } from "@aquapulse/types";
 
-export interface AuditListQueryContract extends RepositoryListQuery {
-  readonly resourceType?: string;
-  readonly resourceId?: string;
-  readonly action?: "create" | "update" | "delete" | "view" | "export";
-}
+export interface AuditListQueryContract extends AuditListQueryRequest {}

@@ -1,6 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
+import type { WaterQualityListQueryRequest } from "@aquapulse/types";
 
-export interface WaterQualityListQueryContract extends RepositoryListQuery {
-  readonly pondId?: string;
-  readonly metric?: "temperatureC" | "ph";
-}
+export interface WaterQualityListQueryContract extends WaterQualityListQueryRequest {}

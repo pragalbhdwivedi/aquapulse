@@ -1,6 +1,3 @@
-import type { RepositoryListQuery } from "@aquapulse/database";
+import type { AttachmentsListQueryRequest } from "@aquapulse/types";
 
-export interface AttachmentsListQueryContract extends RepositoryListQuery {
-  readonly resourceType?: string;
-  readonly resourceId?: string;
-}
+export interface AttachmentsListQueryContract extends AttachmentsListQueryRequest {}
