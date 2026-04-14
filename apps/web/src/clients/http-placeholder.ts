@@ -5,6 +5,7 @@ import type {
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "./index";
+import { createHttpClientFactory } from "./http-client-factory";
 import {
   createClientsFromEndpointHandlers,
   createEndpointHandlersFromClients
@@ -14,11 +15,13 @@ import {
   flattenEndpointInvocationRegistry
 } from "./invocation-registry";
 import { createPlaceholderHttpTransportRegistry } from "./http-transport-registry";
+import type { FetchExecutor } from "./fetch-executor";
+import type { AquaPulseClientRuntimeConfig } from "./runtime-config";
 
 type EndpointHandlers = ReturnType<typeof createEndpointHandlersFromClients>;
 
 export function createFetchPlaceholderExecutor(handlers: EndpointHandlers) {
-  return createPlaceholderHttpTransportRegistry(handlers, endpointInvocationRegistry).invoke;
+  return createPlaceholderHttpTransportRegistry(handlers, endpointInvocationRegistry).execute;
 }
 
 function createFetchDelegatedHandler<TEndpoint extends EndpointContract<unknown, unknown>>(
@@ -40,7 +43,7 @@ function createFetchDelegatedHandler<TEndpoint extends EndpointContract<unknown,
     }
 
     const httpRequest = invocation.adaptRequest(request) as Parameters<typeof execute>[0];
-    const httpResponse = await execute(httpRequest, request);
+    const httpResponse = await execute(httpRequest);
     return invocation.adaptResponse(httpResponse) as EndpointResponse<TEndpoint>;
   };
 }
@@ -115,6 +118,21 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
   };
 }
 
-export function createHttpPlaceholderClients(clients: AquaPulseApiClients): AquaPulseApiClients {
-  return createClientsFromEndpointHandlers(createHttpPlaceholderEndpointHandlers(clients));
+export function createHttpPlaceholderClients(
+  clients: AquaPulseApiClients,
+  config: AquaPulseClientRuntimeConfig = {
+    mode: "http",
+    enablePlaceholderHttp: true
+  },
+  executor: FetchExecutor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(clients))
+): AquaPulseApiClients {
+  return createHttpClientFactory({
+    config,
+    baseClients: {
+      ...clients,
+      ...createClientsFromEndpointHandlers(createHttpPlaceholderEndpointHandlers(clients))
+    },
+    executor,
+    registry: endpointInvocationRegistry
+  });
 }

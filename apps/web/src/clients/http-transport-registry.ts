@@ -1,5 +1,6 @@
 import type { EndpointContract, EndpointRequest, EndpointResponse } from "@aquapulse/types";
 import type { AquaPulseEndpointHandlers } from "./endpoint-runtime";
+import type { FetchExecutor } from "./fetch-executor";
 import {
   endpointInvocationRegistry,
   flattenEndpointInvocationRegistry,
@@ -70,19 +71,26 @@ export function createPlaceholderHttpTransportRegistry(
   >;
   const handlerRegistry = createEndpointHandlerRegistry(handlers);
 
+  const invoke: FetchExecutor = async <TBody = unknown>(
+    request: import("./fetch-executor").HttpExecutorRequest
+  ) => {
+    const invocation = flattenedRegistry[request.endpointId];
+    const handler = handlerRegistry[request.endpointId] as unknown as (
+      input: unknown
+    ) => Promise<unknown>;
+    const input = request.method === "GET" ? request.query ?? {} : request.body;
+    const output = await handler(input);
+    return createPlaceholderHttpResponse(
+      invocation.adaptResponse(createPlaceholderHttpResponse(output)) as TBody
+    );
+  };
+
   return {
     async invoke<TEndpoint extends EndpointContract<unknown, unknown>>(
-      request: PlaceholderHttpRequest<TEndpoint>,
-      input: EndpointRequest<TEndpoint>
+      request: PlaceholderHttpRequest<TEndpoint>
     ) {
-      const invocation = flattenedRegistry[request.endpointId];
-      const handler = handlerRegistry[request.endpointId] as unknown as (
-        input: EndpointRequest<TEndpoint>
-      ) => Promise<EndpointResponse<TEndpoint>>;
-      const output = await handler(input);
-      return createPlaceholderHttpResponse(
-        invocation.adaptResponse(createPlaceholderHttpResponse(output)) as EndpointResponse<TEndpoint>
-      );
-    }
+      return invoke<EndpointResponse<TEndpoint>>(request);
+    },
+    execute: invoke
   };
 }

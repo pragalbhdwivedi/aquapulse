@@ -1,3 +1,4 @@
+import type { AlertSummary, ApiSuccessEnvelope, ListResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { describe, expect, it } from "vitest";
 import { createFetchPlaceholderExecutor } from "../clients/http-placeholder";
@@ -40,11 +41,7 @@ describe("HTTP placeholder client", () => {
     const execute = createFetchPlaceholderExecutor(handlers);
     const endpoint = aquaPulseEndpointCatalog.alerts.list;
     const request = adaptEndpointRequestToHttp(endpoint, { page: 1, pageSize: 20, status: "open" });
-    const response = await execute<typeof endpoint>(request, {
-      page: 1,
-      pageSize: 20,
-      status: "open"
-    });
+    const response = await execute<ApiSuccessEnvelope<ListResponse<AlertSummary>>>(request);
 
     expect(response.status).toBe(200);
     expect(response.body.data.items[0]?.id).toBe("alert-1");

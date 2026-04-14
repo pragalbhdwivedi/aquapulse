@@ -3,19 +3,22 @@ import type {
   EndpointRequest,
   EndpointResponse
 } from "@aquapulse/types";
+import type {
+  HttpExecutorRequest,
+  HttpExecutorResponse,
+  HttpQueryValue
+} from "./fetch-executor";
 
-export interface PlaceholderHttpRequest<TEndpoint extends EndpointContract<unknown, unknown>> {
+export interface PlaceholderHttpRequest<TEndpoint extends EndpointContract<unknown, unknown>>
+  extends HttpExecutorRequest {
   readonly endpointId: TEndpoint["id"];
   readonly method: TEndpoint["method"];
   readonly path: string;
   readonly body?: unknown;
-  readonly query?: Record<string, unknown>;
+  readonly query?: Record<string, HttpQueryValue>;
 }
 
-export interface PlaceholderHttpResponse<TResponse> {
-  readonly status: number;
-  readonly body: TResponse;
-}
+export interface PlaceholderHttpResponse<TResponse> extends HttpExecutorResponse<TResponse> {}
 
 function interpolatePath(
   template: string,
@@ -33,6 +36,20 @@ export function adaptEndpointRequestToHttp<TEndpoint extends EndpointContract<un
 ): PlaceholderHttpRequest<TEndpoint> {
   const requestObject =
     request && typeof request === "object" ? (request as Record<string, unknown>) : {};
+  const normalizedQuery = Object.fromEntries(
+    Object.entries(requestObject).map(([key, value]) => {
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean" ||
+        value == null
+      ) {
+        return [key, value];
+      }
+
+      return [key, JSON.stringify(value)];
+    })
+  ) as Record<string, HttpQueryValue>;
   const path = interpolatePath(endpoint.path, requestObject);
   const isGet = endpoint.method === "GET";
 
@@ -40,7 +57,7 @@ export function adaptEndpointRequestToHttp<TEndpoint extends EndpointContract<un
     endpointId: endpoint.id,
     method: endpoint.method,
     path,
-    query: isGet ? requestObject : undefined,
+    query: isGet ? normalizedQuery : undefined,
     body: isGet ? undefined : request
   };
 }
