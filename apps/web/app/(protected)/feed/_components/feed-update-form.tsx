@@ -1,31 +1,32 @@
 "use client";
 
 import { useState } from "react";
-import type { TaskStatus, TaskSummary } from "@aquapulse/types";
+import type { FeedEntry } from "@aquapulse/types";
 import {
   cancelInlineEdit,
   completeInlineEdit,
   createInlineEditState,
   failInlineEdit,
   patchInlineEditDraft,
-  startInlineEdit,
+  startInlineEdit
 } from "@web/features/inline-edit";
-import { submitTaskUpdate } from "@web/features/task-update";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
+import { submitFeedUpdate } from "@web/features/feed-update";
 
-interface TaskUpdateFormProps {
-  readonly task: TaskSummary;
+interface FeedUpdateFormProps {
+  readonly feedEntry: FeedEntry;
 }
 
-export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
+export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
   const [inlineEdit, setInlineEdit] = useState(() =>
     createInlineEditState({
-      title: task.title,
-      status: task.status,
-      assigneeId: task.assigneeId ?? ""
+      feedType: feedEntry.feedType,
+      quantityKg: String(feedEntry.quantityKg),
+      fedAt: feedEntry.fedAt,
+      batchId: feedEntry.batchId ?? ""
     })
   );
-  const [result, setResult] = useState<Awaited<ReturnType<typeof submitTaskUpdate>> | null>(null);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof submitFeedUpdate>> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
@@ -36,11 +37,11 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
         event.preventDefault();
         setIsSubmitting(true);
 
-        const submission = await submitTaskUpdate(task.id, {
-          title: draft.title,
-          status: draft.status,
-          assigneeId: draft.assigneeId || undefined,
-          pondId: task.pondId
+        const submission = await submitFeedUpdate(feedEntry.id, {
+          feedType: draft.feedType,
+          quantityKg: draft.quantityKg ? Number(draft.quantityKg) : 0,
+          fedAt: draft.fedAt,
+          batchId: draft.batchId || undefined
         });
 
         setResult(submission);
@@ -49,15 +50,16 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
             completeInlineEdit(
               state,
               {
-                title: submission.data.title,
-                status: submission.data.status,
-                assigneeId: submission.data.assigneeId ?? ""
+                feedType: submission.data.feedType,
+                quantityKg: String(submission.data.quantityKg),
+                fedAt: submission.data.fedAt,
+                batchId: submission.data.batchId ?? ""
               },
-              "Task updated."
+              "Feed entry updated."
             )
           );
         } else if (submission.status === "validation_error") {
-          setInlineEdit((state) => failInlineEdit(state, "Please review the task details."));
+          setInlineEdit((state) => failInlineEdit(state, "Please review the feed entry details."));
         }
         setIsSubmitting(false);
       }}
@@ -71,7 +73,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
         borderRadius: "0.75rem"
       }}
     >
-      <h2 style={{ margin: 0, fontSize: "1rem" }}>Update first task</h2>
+      <h2 style={{ margin: 0, fontSize: "1rem" }}>Update latest feed entry</h2>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
@@ -90,40 +92,44 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
         </button>
       </div>
       <label style={{ display: "grid", gap: "0.35rem" }}>
-        <span>Title</span>
+        <span>Feed Type</span>
         <input
-          value={draft.title}
+          value={draft.feedType}
           onChange={(event) =>
-            setInlineEdit((state) => patchInlineEditDraft(state, { title: event.target.value }))
+            setInlineEdit((state) => patchInlineEditDraft(state, { feedType: event.target.value }))
           }
           disabled={!inlineEdit.isEditing}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <label style={{ display: "grid", gap: "0.35rem" }}>
-        <span>Status</span>
-        <select
-          value={draft.status}
+        <span>Quantity (kg)</span>
+        <input
+          value={draft.quantityKg}
           onChange={(event) =>
-            setInlineEdit((state) =>
-              patchInlineEditDraft(state, { status: event.target.value as TaskStatus })
-            )
+            setInlineEdit((state) => patchInlineEditDraft(state, { quantityKg: event.target.value }))
           }
           disabled={!inlineEdit.isEditing}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-        >
-          <option value="todo">Todo</option>
-          <option value="in_progress">In Progress</option>
-          <option value="done">Done</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        />
       </label>
       <label style={{ display: "grid", gap: "0.35rem" }}>
-        <span>Assignee ID</span>
+        <span>Fed At</span>
         <input
-          value={draft.assigneeId}
+          value={draft.fedAt}
           onChange={(event) =>
-            setInlineEdit((state) => patchInlineEditDraft(state, { assigneeId: event.target.value }))
+            setInlineEdit((state) => patchInlineEditDraft(state, { fedAt: event.target.value }))
+          }
+          disabled={!inlineEdit.isEditing}
+          style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+        />
+      </label>
+      <label style={{ display: "grid", gap: "0.35rem" }}>
+        <span>Batch ID</span>
+        <input
+          value={draft.batchId}
+          onChange={(event) =>
+            setInlineEdit((state) => patchInlineEditDraft(state, { batchId: event.target.value }))
           }
           disabled={!inlineEdit.isEditing}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
@@ -141,7 +147,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           fontWeight: 600
         }}
       >
-        {pageState.isSubmitting ? "Saving..." : "Update task"}
+        {pageState.isSubmitting ? "Saving..." : "Update feed entry"}
       </button>
       {inlineEdit.feedback ? (
         <p style={{ margin: 0, color: inlineEdit.feedback.tone === "success" ? "#86efac" : "#fca5a5" }}>
@@ -155,7 +161,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
       ) : null}
       {pageState.status === "success" ? (
         <p style={{ margin: 0, color: "#86efac" }}>
-          Updated task: {pageState.data?.title}. Refreshed tasks: {pageState.refreshedList?.items.length ?? 0}. Synced detail: {pageState.refreshedDetail?.status ?? "n/a"}.
+          Updated feed: {pageState.data?.feedType}. Refreshed entries: {pageState.refreshedList?.items.length ?? 0}. Synced detail: {pageState.refreshedDetail?.id ?? "n/a"}.
         </p>
       ) : null}
     </form>

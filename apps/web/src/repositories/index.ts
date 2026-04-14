@@ -17,6 +17,7 @@ import type {
   BatchSummary,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   ListResponse,
   PondSummary,
   TaskCreateRequest,
@@ -84,6 +85,8 @@ export interface AuditRepository {
 
 export interface FeedRepository {
   create(input: FeedCreateRequest): Promise<ApiSuccessEnvelope<FeedEntry>>;
+  update(id: string, input: FeedUpdateRequest): Promise<ApiSuccessEnvelope<FeedEntry>>;
+  getById(id: string): Promise<ApiSuccessEnvelope<FeedEntry>>;
   list(query?: FeedListQuery): Promise<ApiSuccessEnvelope<ListResponse<FeedEntry>>>;
 }
 
@@ -159,6 +162,12 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
     feed: {
       create(input: FeedCreateRequest) {
         return clients.feed.create(input);
+      },
+      update(id: string, input: FeedUpdateRequest) {
+        return clients.feed.update(id, input);
+      },
+      getById(id: string) {
+        return clients.feed.getById(id);
       },
       list(query?: FeedListQuery) {
         return clients.feed.list(query);

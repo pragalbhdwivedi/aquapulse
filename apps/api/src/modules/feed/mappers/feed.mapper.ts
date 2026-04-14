@@ -2,6 +2,7 @@ import type {
   ApiSuccessEnvelope,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   ListResponse
 } from "@aquapulse/types";
 import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
@@ -19,8 +20,13 @@ export function toCreateFeedInput(input: CreateFeedDto): FeedCreateRequest {
   };
 }
 
-export function toUpdateFeedInput(input: UpdateFeedDto): UpdateFeedDto {
-  return input;
+export function toUpdateFeedInput(input: UpdateFeedDto): FeedUpdateRequest {
+  return {
+    batchId: input.batchId,
+    feedType: input.feedType,
+    quantityKg: input.quantityKg,
+    fedAt: input.fedAt
+  };
 }
 
 export function toQueryFeedInput(input: QueryFeedDto): FeedListQueryContract {

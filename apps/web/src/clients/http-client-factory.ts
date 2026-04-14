@@ -4,6 +4,7 @@ import type {
   EndpointContract,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   ListResponse,
   PondSummary,
   TaskCreateRequest,
@@ -135,6 +136,13 @@ export function createHttpClientFactory({
       },
       getById(id) {
         return invokeItemEndpoint<FeedEntry>(executor, registry.feed.getById, { id });
+      },
+      update(id: string, input: FeedUpdateRequest) {
+        return invokeCreateEndpoint<FeedEntry, { readonly id: string; readonly body: FeedUpdateRequest }>(
+          executor,
+          registry.feed.update,
+          { id, body: input }
+        );
       }
     },
     tasks: {

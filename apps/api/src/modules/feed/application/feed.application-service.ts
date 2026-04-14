@@ -3,9 +3,9 @@ import type {
   ApiSuccessEnvelope,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   ListResponse
 } from "@aquapulse/types";
-import type { UpdateFeedDto } from "../dto";
 import { FEED_REPOSITORY, type FeedRepositoryPort } from "../ports/feed-repository.port";
 import type { FeedListQueryContract } from "../query-contracts/feed-query.contract";
 
@@ -16,7 +16,7 @@ export class FeedApplicationService {
   ) {}
 
   async create(input: FeedCreateRequest): Promise<ApiSuccessEnvelope<FeedEntry>> { return { ok: true, data: await this.feedRepository.create(input) }; }
-  async update(_id: string, _input: UpdateFeedDto): Promise<ApiSuccessEnvelope<FeedEntry>> { return { ok: true, data: await this.feedRepository.update(_id, _input) }; }
+  async update(id: string, input: FeedUpdateRequest): Promise<ApiSuccessEnvelope<FeedEntry>> { return { ok: true, data: await this.feedRepository.update(id, input) }; }
   async list(_query: FeedListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<FeedEntry>>> { return { ok: true, data: await this.feedRepository.list(_query) }; }
   async getById(_id: string): Promise<ApiSuccessEnvelope<FeedEntry>> { return { ok: true, data: await this.feedRepository.getById(_id) }; }
 }

@@ -1,6 +1,7 @@
 import { getFeedPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 import { FeedEntryForm } from "./_components/feed-entry-form";
+import { FeedUpdateForm } from "./_components/feed-update-form";
 
 export default async function FeedPage() {
   const feed = await getFeedPageData();
@@ -16,6 +17,7 @@ export default async function FeedPage() {
         ))}
       </ul>
       <FeedEntryForm pondId={feed.items[0]?.pondId} batchId={feed.items[0]?.batchId} />
+      {feed.items[0] ? <FeedUpdateForm feedEntry={feed.items[0]} /> : null}
     </PageShell>
   );
 }

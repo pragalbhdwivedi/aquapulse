@@ -25,6 +25,7 @@ import type {
   BatchSummary,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   ListResponse,
   PondsListQueryRequest,
   PondSummary,
@@ -102,6 +103,7 @@ export interface AttachmentsApiClient {
 
 export interface FeedApiClient {
   create(input: FeedCreateRequest): ApiItemContract<FeedEntry>;
+  update(id: string, input: FeedUpdateRequest): ApiItemContract<FeedEntry>;
   list(query?: FeedListQuery): ApiListContract<FeedEntry>;
   getById(id: string): ApiItemContract<FeedEntry>;
 }

@@ -29,6 +29,13 @@ export const feedEntryCreateSchema = z.object({
   batchId: z.string().optional()
 });
 
+export const feedEntryUpdateSchema = z.object({
+  feedType: z.string().min(2).optional(),
+  quantityKg: z.number().positive().optional(),
+  fedAt: z.string().min(1).optional(),
+  batchId: z.string().optional()
+});
+
 export const alertQueryFiltersSchema = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]).optional(),
   status: z.enum(["open", "acknowledged", "resolved"]).optional(),

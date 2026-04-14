@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMockApiClients } from "../clients";
 import { createFeedEntrySubmitter } from "../features/feed-entry";
+import { createFeedUpdateSubmitter } from "../features/feed-update";
 import { toMutationPageState } from "../features/mutation-refresh";
 import { createTaskSubmitter } from "../features/task-create";
 import { createTaskUpdateSubmitter } from "../features/task-update";
@@ -68,19 +69,36 @@ describe("Shared mutation refresh helper", () => {
 
   it("syncs both list and detail state for update flows", async () => {
     const repositories = createRepositories(createMockApiClients());
-    const created = await repositories.tasks.create({
+    const createdTask = await repositories.tasks.create({
       title: "Check inlet sensor",
       assigneeId: "user-3",
       pondId: "pond-1"
     });
-    const result = await createTaskUpdateSubmitter(repositories)(created.data.id)({
-      title: "Check inlet sensor complete",
-      status: "done"
+    const createdFeed = await repositories.feed.create({
+      pondId: "pond-1",
+      batchId: "batch-1",
+      feedType: "Starter Feed",
+      quantityKg: 18,
+      fedAt: "2026-04-14T06:00:00.000Z"
     });
-    const state = toMutationPageState(result, false);
+    const [taskResult, feedResult] = await Promise.all([
+      createTaskUpdateSubmitter(repositories)(createdTask.data.id)({
+        title: "Check inlet sensor complete",
+        status: "done"
+      }),
+      createFeedUpdateSubmitter(repositories)(createdFeed.data.id)({
+        feedType: "Grower Feed",
+        quantityKg: 24
+      })
+    ]);
+    const taskState = toMutationPageState(taskResult, false);
+    const feedState = toMutationPageState(feedResult, false);
 
-    expect(state.status).toBe("success");
-    expect(state.refreshedList?.items[0]?.id).toBe(created.data.id);
-    expect(state.refreshedDetail?.status).toBe("done");
+    expect(taskState.status).toBe("success");
+    expect(taskState.refreshedList?.items[0]?.id).toBe(createdTask.data.id);
+    expect(taskState.refreshedDetail?.status).toBe("done");
+    expect(feedState.status).toBe("success");
+    expect(feedState.refreshedList?.items[0]?.id).toBe(createdFeed.data.id);
+    expect(feedState.refreshedDetail?.quantityKg).toBe(24);
   });
 });

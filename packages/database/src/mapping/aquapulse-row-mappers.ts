@@ -4,6 +4,7 @@ import type {
   BatchSummary,
   FeedCreateRequest,
   FeedEntry,
+  FeedUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary
@@ -451,9 +452,13 @@ export function mapCreateFeedInputToRowWrite(input: FeedCreateRequest): FeedRowW
   };
 }
 
-export function mapUpdateFeedInputToRowPatch(id: string, _input: { readonly id?: string }): FeedRowPatch {
+export function mapUpdateFeedInputToRowPatch(id: string, input: FeedUpdateRequest): FeedRowPatch {
   return {
     id,
-    updated_at: createPlaceholderFeedRow({ id }).updated_at
+    updated_at: createPlaceholderFeedRow({ id }).updated_at,
+    batch_id: input.batchId,
+    feed_type: input.feedType,
+    quantity_kg: input.quantityKg,
+    fed_at: input.fedAt
   };
 }

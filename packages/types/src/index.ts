@@ -111,6 +111,13 @@ export interface FeedCreateRequest {
   readonly fedAt: ISODateString;
 }
 
+export interface FeedUpdateRequest {
+  readonly batchId?: EntityId;
+  readonly feedType?: string;
+  readonly quantityKg?: number;
+  readonly fedAt?: ISODateString;
+}
+
 export interface TaskSummary extends BaseEntity {
   readonly title: string;
   readonly status: TaskStatus;
@@ -495,7 +502,7 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/feed/:id",
       semantics: "detail"
     }),
-    update: defineEndpoint<{ readonly id: EntityId; readonly body?: PlaceholderMutationRequest }, ApiSuccessEnvelope<FeedEntry>>({
+    update: defineEndpoint<{ readonly id: EntityId; readonly body: FeedUpdateRequest }, ApiSuccessEnvelope<FeedEntry>>({
       id: "feed.update",
       method: "PATCH",
       path: "/api/feed/:id",

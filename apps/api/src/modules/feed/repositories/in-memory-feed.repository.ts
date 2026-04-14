@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { FeedCreateRequest, FeedEntry, ListResponse } from "@aquapulse/types";
-import type { UpdateFeedDto } from "../dto";
+import type { FeedCreateRequest, FeedEntry, FeedUpdateRequest, ListResponse } from "@aquapulse/types";
 import type { FeedRepositoryPort } from "../ports/feed-repository.port";
 import type { FeedListQueryContract } from "../query-contracts/feed-query.contract";
 
@@ -55,7 +54,7 @@ export class InMemoryFeedRepository implements FeedRepositoryPort {
     return created;
   }
 
-  async update(id: string, input: UpdateFeedDto): Promise<FeedEntry> {
+  async update(id: string, input: FeedUpdateRequest): Promise<FeedEntry> {
     const entries = getFeedEntries(this);
     const current = entries.find((item) => item.id === id) ?? entries[0];
     const updated: FeedEntry = {
