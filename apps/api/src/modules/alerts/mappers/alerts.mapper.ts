@@ -36,7 +36,9 @@ export function toQueryAlertsInput(input: QueryAlertsDto): AlertsListQueryContra
     pondId: input.pondId,
     severity: input.severity,
     status: input.status,
-    source: input.source
+    source: input.source,
+    hasLatestNote: input.hasLatestNote,
+    sortBy: input.sortBy
   });
 }
 

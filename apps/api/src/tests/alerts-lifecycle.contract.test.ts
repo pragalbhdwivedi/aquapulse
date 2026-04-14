@@ -37,4 +37,36 @@ describe("Alerts lifecycle flow", () => {
     expect(resolved.data.status).toBe("resolved");
     expect(resolved.data.latestNote).toBe("Reading stabilized.");
   });
+
+  it("supports review-queue filtering and deterministic ordering", async () => {
+    const repository = new InMemoryAlertsRepository();
+    const service = new AlertsApplicationService(repository);
+
+    await service.acknowledge("alert-1", { note: "Needs daytime follow-up." });
+    await service.create({
+      title: "Feed quantity anomaly detected",
+      severity: "medium",
+      source: "feed",
+      pondId: "pond-1",
+      status: "open",
+      latestNote: "Auto-generated from feed input."
+    });
+
+    const acknowledged = await service.list({
+      page: 1,
+      pageSize: 20,
+      status: "acknowledged",
+      sortBy: "updatedAt_desc",
+      hasLatestNote: true
+    });
+    const newestCreated = await service.list({
+      page: 1,
+      pageSize: 20,
+      sortBy: "createdAt_desc"
+    });
+
+    expect(acknowledged.data.items[0]?.status).toBe("acknowledged");
+    expect(acknowledged.data.items[0]?.latestNote).toBeTruthy();
+    expect(newestCreated.data.items[0]?.title).toBe("Feed quantity anomaly detected");
+  });
 });

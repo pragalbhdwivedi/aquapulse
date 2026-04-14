@@ -7,4 +7,6 @@ export class QueryAlertsDto extends QueryFilterBaseDto implements AlertsListQuer
   severity?: AlertSeverity;
   status?: "open" | "acknowledged" | "resolved";
   source?: string;
+  hasLatestNote?: boolean;
+  sortBy?: "updatedAt_desc" | "updatedAt_asc" | "createdAt_desc" | "createdAt_asc";
 }

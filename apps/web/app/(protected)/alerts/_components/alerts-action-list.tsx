@@ -1,24 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { AlertSummary } from "@aquapulse/types";
+import { createApiClients } from "@web/clients";
 import {
   submitAlertLifecycleAction,
   type AlertLifecycleSubmissionResult
 } from "@web/features/alert-lifecycle";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
+import { createRepositories } from "@web/repositories";
+import type { AlertsListQuery } from "@web/contracts/api";
 
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
 }
 
 export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
+  const repositories = useMemo(() => createRepositories(createApiClients()), []);
   const [alerts, setAlerts] = useState(initialAlerts);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [statusFilter, setStatusFilter] = useState<AlertsListQuery["status"] | "all">("all");
+  const [sortBy, setSortBy] = useState<NonNullable<AlertsListQuery["sortBy"]>>("updatedAt_desc");
+  const [hasLatestNoteOnly, setHasLatestNoteOnly] = useState(false);
+  const [pondIdFilter, setPondIdFilter] = useState("");
   const [result, setResult] = useState<AlertLifecycleSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pageState = toMutationSyncPageState(result, isSubmitting);
+  const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
+
+  const reviewQueueQuery = useMemo<AlertsListQuery>(
+    () => ({
+      page: 1,
+      pageSize: 20,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      hasLatestNote: hasLatestNoteOnly ? true : undefined,
+      pondId: pondIdFilter.trim() || undefined,
+      sortBy
+    }),
+    [hasLatestNoteOnly, pondIdFilter, sortBy, statusFilter]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refreshQueue() {
+      setIsRefreshingQueue(true);
+      const response = await repositories.alerts.list(reviewQueueQuery);
+      if (!cancelled) {
+        setAlerts(response.data.items);
+        setIsRefreshingQueue(false);
+      }
+    }
+
+    void refreshQueue();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [repositories, reviewQueueQuery]);
 
   async function handleAction(action: "acknowledge" | "resolve", alertId: string) {
     setActiveAlertId(alertId);
@@ -27,8 +67,9 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
       note: notes[alertId]?.trim() ? notes[alertId].trim() : undefined
     });
     setResult(submission);
-    if (submission.status === "success" && submission.refreshedList) {
-      setAlerts(submission.refreshedList.items);
+    if (submission.status === "success") {
+      const refreshed = await repositories.alerts.list(reviewQueueQuery);
+      setAlerts(refreshed.data.items);
       setNotes((current) => ({
         ...current,
         [alertId]: ""
@@ -40,6 +81,69 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
 
   return (
     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
+      <div
+        style={{
+          display: "grid",
+          gap: "0.75rem",
+          padding: "0.9rem",
+          border: "1px solid rgba(148, 163, 184, 0.3)",
+          borderRadius: "0.75rem"
+        }}
+      >
+        <strong>Review Queue</strong>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Status</span>
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as AlertsListQuery["status"] | "all")
+              }
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              <option value="all">All</option>
+              <option value="open">Open</option>
+              <option value="acknowledged">Acknowledged</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Sort</span>
+            <select
+              value={sortBy}
+              onChange={(event) =>
+                setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>)
+              }
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              <option value="updatedAt_desc">Newest updated</option>
+              <option value="updatedAt_asc">Oldest updated</option>
+              <option value="createdAt_desc">Newest created</option>
+              <option value="createdAt_asc">Oldest created</option>
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Pond</span>
+            <input
+              value={pondIdFilter}
+              onChange={(event) => setPondIdFilter(event.target.value)}
+              placeholder="pond-1"
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            />
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}>
+            <input
+              type="checkbox"
+              checked={hasLatestNoteOnly}
+              onChange={(event) => setHasLatestNoteOnly(event.target.checked)}
+            />
+            <span>With notes only</span>
+          </label>
+        </div>
+        <p style={{ margin: 0, color: "#94a3b8" }}>
+          {isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}`}
+        </p>
+      </div>
       <ul style={{ display: "grid", gap: "0.75rem", padding: 0, margin: 0, listStyle: "none" }}>
         {alerts.map((alert) => (
           <li

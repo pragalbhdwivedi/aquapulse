@@ -44,6 +44,26 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
   };
 }
 
+function sortAlerts(items: AlertSummary[], sortBy: AlertsListQueryContract["sortBy"]) {
+  const sorted = [...items];
+  switch (sortBy) {
+    case "createdAt_asc":
+      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      break;
+    case "updatedAt_asc":
+      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
+      break;
+    case "createdAt_desc":
+      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      break;
+    case "updatedAt_desc":
+    default:
+      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      break;
+  }
+  return sorted;
+}
+
 function applyAlertMutation(
   repository: InMemoryAlertsRepository,
   id: string,
@@ -144,9 +164,11 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
         (!query.severity || item.severity === query.severity) &&
         (!query.status || item.status === query.status) &&
         (!query.source || item.source === query.source) &&
+        (query.hasLatestNote === undefined ||
+          (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
         (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
     );
-    return createPage(filtered, query.page, query.pageSize);
+    return createPage(sortAlerts(filtered, query.sortBy), query.page, query.pageSize);
   }
 
   async listOpen(): Promise<ListResponse<AlertSummary>> {

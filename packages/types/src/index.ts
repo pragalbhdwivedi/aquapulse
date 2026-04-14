@@ -298,6 +298,8 @@ export interface AlertsListQueryRequest extends ListQueryRequest {
   readonly severity?: AlertSummary["severity"];
   readonly status?: AlertSummary["status"];
   readonly source?: string;
+  readonly hasLatestNote?: boolean;
+  readonly sortBy?: "updatedAt_desc" | "updatedAt_asc" | "createdAt_desc" | "createdAt_asc";
 }
 
 export interface TasksListQueryRequest extends ListQueryRequest {

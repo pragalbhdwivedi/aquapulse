@@ -43,7 +43,7 @@ describe("Frontend query layer", () => {
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {
     const [ponds, alerts, audit, tasks] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 5, search: "North" }),
-      alertsRepository.list({ page: 1, pageSize: 5, status: "open" }),
+      alertsRepository.list({ page: 1, pageSize: 5, status: "open", sortBy: "updatedAt_desc" }),
       auditRepository.list({ page: 1, pageSize: 5, resourceType: "alert" }),
       tasksRepository.list({ page: 1, pageSize: 5, status: "todo" })
     ]);
@@ -56,12 +56,25 @@ describe("Frontend query layer", () => {
 
   it("keeps list/detail/query helpers stable when repositories return empty filtered results", async () => {
     const ponds = await pondsRepository.list({ page: 5, pageSize: 30, search: "not-found" });
-    const alerts = await alertsRepository.list({ page: 2, pageSize: 15, search: "not-found" });
+    const alerts = await alertsRepository.list({ page: 2, pageSize: 15, search: "not-found", hasLatestNote: true });
 
     expect(ponds.data.items).toHaveLength(0);
     expect(ponds.data.page.page).toBe(5);
     expect(ponds.data.page.pageSize).toBe(30);
     expect(alerts.data.items).toHaveLength(0);
     expect(alerts.data.page.page).toBe(2);
+  });
+
+  it("accepts review-queue style alert filters through the shared query path", async () => {
+    const alerts = await getAlertsPageData({
+      page: 1,
+      pageSize: 20,
+      status: "open",
+      hasLatestNote: true,
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(alerts.alerts.page.page).toBe(1);
+    expect(alerts.alerts.items.every((item) => item.status === "open")).toBe(true);
   });
 });

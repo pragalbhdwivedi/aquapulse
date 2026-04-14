@@ -32,6 +32,8 @@ describe("Query contract normalization", () => {
       pageSize: 10,
       severity: "high" as const,
       source: "water-quality",
+      hasLatestNote: true,
+      sortBy: "updatedAt_desc" as const,
       filters: [{ field: "status", value: "open" as const }]
     });
     const tasks = Object.assign(new QueryTasksDto(), {
@@ -62,7 +64,9 @@ describe("Query contract normalization", () => {
       pondId: undefined,
       severity: "high",
       status: undefined,
-      source: "water-quality"
+      source: "water-quality",
+      hasLatestNote: true,
+      sortBy: "updatedAt_desc"
     });
     expect(toQueryTasksInput(tasks)).toEqual({
       page: 1,

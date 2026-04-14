@@ -52,4 +52,34 @@ describe("Alerts lifecycle flow", () => {
       expect(result.data.latestNote).toBe("Operator follow-up.");
     }
   });
+
+  it("supports review-queue filtering and sorting through the frontend repository path", async () => {
+    const repositories = createRepositories(createMockApiClients());
+
+    await repositories.alerts.acknowledge("alert-1", { note: "Queue review note." });
+    await repositories.feed.create({
+      pondId: "pond-1",
+      batchId: "batch-1",
+      feedType: "Emergency Feed",
+      quantityKg: 95,
+      fedAt: "2026-04-15T11:00:00.000Z"
+    });
+
+    const acknowledged = await repositories.alerts.list({
+      page: 1,
+      pageSize: 20,
+      status: "acknowledged",
+      hasLatestNote: true,
+      sortBy: "updatedAt_desc"
+    });
+    const newest = await repositories.alerts.list({
+      page: 1,
+      pageSize: 20,
+      sortBy: "createdAt_desc"
+    });
+
+    expect(acknowledged.data.items[0]?.status).toBe("acknowledged");
+    expect(acknowledged.data.items[0]?.latestNote).toBeTruthy();
+    expect(newest.data.items[0]?.updatedAt >= newest.data.items.at(-1)?.updatedAt!).toBe(true);
+  });
 });

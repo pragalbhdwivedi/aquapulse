@@ -63,6 +63,26 @@ function matchesSearch(value: string | undefined, search: string | undefined): b
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
 }
 
+function sortMockAlerts(items: AlertSummary[], sortBy: AlertsListQuery["sortBy"]) {
+  const sorted = [...items];
+  switch (sortBy) {
+    case "createdAt_asc":
+      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      break;
+    case "updatedAt_asc":
+      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
+      break;
+    case "createdAt_desc":
+      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      break;
+    case "updatedAt_desc":
+    default:
+      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      break;
+  }
+  return sorted;
+}
+
 function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
   const existing = findMatchingOperationalAlert(mockAlerts, decision);
 
@@ -176,9 +196,11 @@ export const alertsMockAdapter: AlertsApiClient = {
         (!query?.severity || item.severity === query.severity) &&
         (!query?.status || item.status === query.status) &&
         (!query?.source || item.source === query.source) &&
+        (query?.hasLatestNote === undefined ||
+          (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
         matchesSearch(item.title, query?.search)
     );
-    return ok(list(items, normalizedQuery));
+    return ok(list(sortMockAlerts(items, query?.sortBy), normalizedQuery));
   },
   async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
   async acknowledge(id: string, _input: AlertLifecycleActionRequest) {

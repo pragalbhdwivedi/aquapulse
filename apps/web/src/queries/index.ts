@@ -27,7 +27,7 @@ type EnvelopeData<TEnvelope> = TEnvelope extends ApiSuccessEnvelope<infer TData>
 type WaterQualityList = EnvelopeData<Awaited<ReturnType<typeof waterQualityRepository.listByPond>>>;
 
 const defaultPondsQuery: PondsListQuery = { page: 1, pageSize: 20 };
-const defaultAlertsQuery: AlertsListQuery = { page: 1, pageSize: 20 };
+const defaultAlertsQuery: AlertsListQuery = { page: 1, pageSize: 20, sortBy: "updatedAt_desc" };
 const defaultTasksQuery: TasksListQuery = { page: 1, pageSize: 20 };
 const defaultAuditQuery: AuditListQuery = { page: 1, pageSize: 20 };
 
@@ -77,11 +77,11 @@ export function createReadonlyQueries(repositories: Pick<
         summary: summary.data
       };
     },
-    async getAlertsPageData(): Promise<{
+    async getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
       alerts: ListResponse<AlertSummary>;
       explanation: string;
     }> {
-      const alerts = await repositories.alerts.list(defaultAlertsQuery);
+      const alerts = await repositories.alerts.list(query);
       const explanation = await repositories.alerts.explain({
         alertId: alerts.data.items[0]?.id ?? "alert-1"
       });
@@ -132,11 +132,11 @@ export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
   return ponds.data;
 }
 
-export async function getAlertsPageData(): Promise<{
+export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
   alerts: ListResponse<AlertSummary>;
   explanation: string;
 }> {
-  return readonlyQueries.getAlertsPageData();
+  return readonlyQueries.getAlertsPageData(query);
 }
 
 export async function getReportsPageData(): Promise<{
