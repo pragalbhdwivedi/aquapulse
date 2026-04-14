@@ -5,6 +5,7 @@ import type {
   EndpointResponse,
   ListResponse,
   FeedEntry,
+  TaskCreateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
@@ -163,6 +164,18 @@ function placeholderWaterQualityReading(): WaterQualityReading {
   };
 }
 
+function placeholderTaskSummary() {
+  return {
+    id: "task-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    title: "Inspect aeration equipment",
+    status: "todo" as const,
+    assigneeId: "user-1",
+    pondId: "pond-1"
+  };
+}
+
 export function createEndpointHandlersFromClients(
   clients: AquaPulseApiClients
 ): AquaPulseEndpointHandlers {
@@ -182,7 +195,15 @@ export function createEndpointHandlersFromClients(
       explain: async (request) => clients.alerts.explain(request)
     },
     tasks: {
-      create: createMutationFromDetailHandler(clients.tasks),
+      create:
+        "create" in clients.tasks
+          ? createCreateHandler(clients.tasks as typeof clients.tasks & {
+              create: (input: TaskCreateRequest) => Promise<{
+                ok: true;
+                data: EndpointResponse<EndpointCatalog["tasks"]["getById"]>["data"];
+              }>;
+            })
+          : createMutationFromValue(placeholderTaskSummary()),
       list: createListHandler(clients.tasks, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.tasks),
       update: createMutationFromDetailHandler(clients.tasks)
@@ -256,6 +277,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       explain: (input) => handlers.alerts.explain(input)
     },
     tasks: {
+      create: (input) => handlers.tasks.create(input),
       list: (query) => handlers.tasks.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.tasks.getById({ id })
     },

@@ -5,9 +5,10 @@ import type {
   AiIncidentsDraftRequest,
   AiPondsSummarizeRequest,
   AiTextRewriteRequest,
+  TaskCreateRequest,
   WaterQualityCreateRequest
 } from "@aquapulse/types";
-import { waterQualityEntryCreateSchema } from "@aquapulse/validation";
+import { taskCreateSchema, waterQualityEntryCreateSchema } from "@aquapulse/validation";
 import {
   normalizeListQuery,
   type AiApiClient,
@@ -121,6 +122,25 @@ export const alertsMockAdapter: AlertsApiClient = {
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };
 export const tasksMockAdapter: TasksApiClient = {
+  async create(input: TaskCreateRequest) {
+    const parsed = taskCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const createdAt = "2026-04-14T11:00:00.000Z";
+    const created = {
+      id: `task-${mockTasks.length + 1}`,
+      createdAt,
+      updatedAt: createdAt,
+      title: parsed.data.title,
+      status: "todo" as const,
+      assigneeId: parsed.data.assigneeId,
+      pondId: parsed.data.pondId
+    };
+    mockTasks.unshift(created);
+    return ok(created);
+  },
   async list(query?: TasksListQuery) {
     const normalizedQuery = normalizeListQuery(query);
     const items = mockTasks.filter(

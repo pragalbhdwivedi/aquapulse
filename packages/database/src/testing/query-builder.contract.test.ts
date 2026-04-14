@@ -92,7 +92,14 @@ describe("Shared query builders and write mappers", () => {
       updated_at: "2026-04-13T00:00:00.000Z"
     });
 
-    expect(mapCreateTaskInputToRowWrite({ id: "task-77" }).id).toBe("task-77");
+    expect(
+      mapCreateTaskInputToRowWrite({ title: "Inspect intake", pondId: "pond-77", assigneeId: "user-77" })
+    ).toMatchObject({
+      id: "task-row-pond-77",
+      title: "Inspect intake",
+      pond_id: "pond-77",
+      assignee_id: "user-77"
+    });
     expect(mapUpdateTaskInputToRowPatch("task-77", {})).toEqual({
       id: "task-77",
       updated_at: "2026-04-13T00:00:00.000Z"

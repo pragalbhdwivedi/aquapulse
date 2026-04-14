@@ -16,9 +16,9 @@ import {
   type TaskRowPatch,
   type TaskRowWrite
 } from "@aquapulse/database";
-import type { ListResponse, TaskSummary } from "@aquapulse/types";
+import type { ListResponse, TaskCreateRequest, TaskSummary } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
-import type { CreateTasksDto, UpdateTasksDto } from "../dto";
+import type { UpdateTasksDto } from "../dto";
 import type { TasksRepositoryPort } from "../ports/tasks-repository.port";
 import type { TasksListQueryContract } from "../query-contracts/tasks-query.contract";
 
@@ -77,7 +77,7 @@ export class PostgresTasksRepository implements TasksRepositoryPort {
     return repository;
   }
 
-  async create(input: CreateTasksDto): Promise<TaskSummary> {
+  async create(input: TaskCreateRequest): Promise<TaskSummary> {
     const row = mapCreateTaskInputToRowWrite(input);
     return this.gateway.executeMappedMutation(
       buildCreateTaskQueryPlan(row),

@@ -1,11 +1,20 @@
-import type { ApiSuccessEnvelope, ListResponse, TaskSummary } from "@aquapulse/types";
+import type {
+  ApiSuccessEnvelope,
+  ListResponse,
+  TaskCreateRequest,
+  TaskSummary
+} from "@aquapulse/types";
 import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
 import type { CreateTasksDto, QueryTasksDto, UpdateTasksDto } from "../dto";
 import type { TasksListQueryContract } from "../query-contracts/tasks-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
-export function toCreateTasksInput(input: CreateTasksDto): CreateTasksDto {
-  return input;
+export function toCreateTasksInput(input: CreateTasksDto): TaskCreateRequest {
+  return {
+    title: input.title,
+    assigneeId: input.assigneeId,
+    pondId: input.pondId
+  };
 }
 
 export function toUpdateTasksInput(input: UpdateTasksDto): UpdateTasksDto {

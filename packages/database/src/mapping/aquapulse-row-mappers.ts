@@ -1,5 +1,11 @@
 import type { AlertSummary, PondSummary } from "@aquapulse/types";
-import type { AttachmentMetadata, BatchSummary, FeedEntry, TaskSummary } from "@aquapulse/types";
+import type {
+  AttachmentMetadata,
+  BatchSummary,
+  FeedEntry,
+  TaskCreateRequest,
+  TaskSummary
+} from "@aquapulse/types";
 import type { RowMapper } from "./row-mapper.js";
 
 export interface PondRow {
@@ -376,8 +382,18 @@ export function mapUpdateAlertInputToRowPatch(
   };
 }
 
-export function mapCreateTaskInputToRowWrite(input: { readonly id?: string }): TaskRowWrite {
-  return createPlaceholderTaskRow(input.id ? { id: input.id } : {});
+export function mapCreateTaskInputToRowWrite(input: TaskCreateRequest): TaskRowWrite {
+  const base = createPlaceholderTaskRow();
+
+  return {
+    id: `task-row-${input.pondId ?? "new"}`,
+    title: input.title,
+    status: "todo",
+    assignee_id: input.assigneeId,
+    pond_id: input.pondId,
+    created_at: base.created_at,
+    updated_at: base.updated_at
+  };
 }
 
 export function mapUpdateTaskInputToRowPatch(id: string, _input: { readonly id?: string }): TaskRowPatch {

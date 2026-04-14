@@ -4,6 +4,7 @@ import type {
   EndpointContract,
   ListResponse,
   PondSummary,
+  TaskCreateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
   WaterQualityReading
@@ -113,6 +114,13 @@ export function createHttpClientFactory({
     },
     tasks: {
       ...baseClients.tasks,
+      create(input: TaskCreateRequest) {
+        return invokeCreateEndpoint<TaskSummary, TaskCreateRequest>(
+          executor,
+          registry.tasks.create,
+          input
+        );
+      },
       list(query) {
         return invokeListEndpoint<TaskSummary, NonNullable<typeof query> | { page: number; pageSize: number }>(
           executor,

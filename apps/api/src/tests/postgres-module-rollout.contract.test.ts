@@ -63,7 +63,7 @@ describe("Postgres module rollout adapters", () => {
       await Promise.all([
         tasksRepository.getById("task-42"),
         tasksRepository.list({ page: 1, pageSize: 20, status: "todo" }),
-        tasksRepository.create({ id: "task-write-1" }),
+        tasksRepository.create({ title: "Task write placeholder", pondId: "pond-1" }),
         tasksRepository.update("task-write-2", {}),
         attachmentsRepository.getById("attachment-42"),
         attachmentsRepository.listByResource("alert", "alert-42"),

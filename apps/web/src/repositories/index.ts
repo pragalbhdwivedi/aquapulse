@@ -17,6 +17,7 @@ import type {
   BatchSummary,
   ListResponse,
   PondSummary,
+  TaskCreateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
   WaterQualityReading
@@ -67,6 +68,7 @@ export interface AlertsRepository {
 }
 
 export interface TasksRepository {
+  create(input: TaskCreateRequest): Promise<ApiSuccessEnvelope<TaskSummary>>;
   list(query?: TasksListQuery): Promise<ApiSuccessEnvelope<ListResponse<TaskSummary>>>;
 }
 
@@ -129,6 +131,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       }
     },
     tasks: {
+      create(input: TaskCreateRequest) {
+        return clients.tasks.create(input);
+      },
       list(query?: TasksListQuery) {
         return clients.tasks.list(query);
       }
