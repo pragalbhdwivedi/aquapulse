@@ -104,6 +104,21 @@ describe("Shared query builders and write mappers", () => {
       id: "task-77",
       updated_at: "2026-04-13T00:00:00.000Z"
     });
+    expect(
+      mapUpdateTaskInputToRowPatch("task-78", {
+        title: "Updated title",
+        status: "done",
+        assigneeId: "user-78",
+        pondId: "pond-78"
+      })
+    ).toEqual({
+      id: "task-78",
+      updated_at: "2026-04-13T00:00:00.000Z",
+      title: "Updated title",
+      status: "done",
+      assignee_id: "user-78",
+      pond_id: "pond-78"
+    });
 
     expect(mapCreateAttachmentInputToRowWrite({ id: "attachment-77" }).id).toBe("attachment-77");
     expect(mapUpdateAttachmentInputToRowPatch("attachment-77", {})).toEqual({

@@ -29,6 +29,7 @@ import type {
   PondsListQueryRequest,
   PondSummary,
   TaskCreateRequest,
+  TaskUpdateRequest,
   TasksListQueryRequest,
   TaskSummary,
   WaterQualityCreateRequest,
@@ -89,6 +90,7 @@ export interface AlertsApiClient {
 
 export interface TasksApiClient {
   create(input: TaskCreateRequest): ApiItemContract<TaskSummary>;
+  update(id: string, input: TaskUpdateRequest): ApiItemContract<TaskSummary>;
   list(query?: TasksListQuery): ApiListContract<TaskSummary>;
   getById(id: string): ApiItemContract<TaskSummary>;
 }

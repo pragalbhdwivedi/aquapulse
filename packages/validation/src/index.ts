@@ -41,6 +41,13 @@ export const taskCreateSchema = z.object({
   pondId: z.string().optional()
 });
 
+export const taskUpdateSchema = z.object({
+  title: z.string().min(2).optional(),
+  status: z.enum(["todo", "in_progress", "done", "cancelled"]).optional(),
+  assigneeId: z.string().optional(),
+  pondId: z.string().optional()
+});
+
 export const attachmentMetadataCreateSchema = z.object({
   resourceType: z.string().min(1),
   resourceId: z.string().min(1),

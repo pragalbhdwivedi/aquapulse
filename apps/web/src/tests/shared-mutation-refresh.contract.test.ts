@@ -3,6 +3,7 @@ import { createMockApiClients } from "../clients";
 import { createFeedEntrySubmitter } from "../features/feed-entry";
 import { toMutationPageState } from "../features/mutation-refresh";
 import { createTaskSubmitter } from "../features/task-create";
+import { createTaskUpdateSubmitter } from "../features/task-update";
 import { createWaterQualityEntrySubmitter } from "../features/water-quality-entry";
 import { createRepositories } from "../repositories";
 
@@ -63,5 +64,23 @@ describe("Shared mutation refresh helper", () => {
     expect(successState.refreshedList?.items.length).toBeGreaterThan(0);
     expect(validationState.status).toBe("validation_error");
     expect(validationState.fieldErrors.feedType).toBeTruthy();
+  });
+
+  it("syncs both list and detail state for update flows", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const created = await repositories.tasks.create({
+      title: "Check inlet sensor",
+      assigneeId: "user-3",
+      pondId: "pond-1"
+    });
+    const result = await createTaskUpdateSubmitter(repositories)(created.data.id)({
+      title: "Check inlet sensor complete",
+      status: "done"
+    });
+    const state = toMutationPageState(result, false);
+
+    expect(state.status).toBe("success");
+    expect(state.refreshedList?.items[0]?.id).toBe(created.data.id);
+    expect(state.refreshedDetail?.status).toBe("done");
   });
 });

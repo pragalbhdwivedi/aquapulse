@@ -1,6 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { ListResponse, TaskCreateRequest, TaskSummary } from "@aquapulse/types";
-import type { UpdateTasksDto } from "../dto";
+import type { ListResponse, TaskCreateRequest, TaskSummary, TaskUpdateRequest } from "@aquapulse/types";
 import type { TasksRepositoryPort } from "../ports/tasks-repository.port";
 import type { TasksListQueryContract } from "../query-contracts/tasks-query.contract";
 
@@ -54,7 +53,7 @@ export class InMemoryTasksRepository implements TasksRepositoryPort {
     return created;
   }
 
-  async update(id: string, input: UpdateTasksDto): Promise<TaskSummary> {
+  async update(id: string, input: TaskUpdateRequest): Promise<TaskSummary> {
     const tasks = getTasks(this);
     const current = tasks.find((item) => item.id === id) ?? tasks[0];
     const updated: TaskSummary = {

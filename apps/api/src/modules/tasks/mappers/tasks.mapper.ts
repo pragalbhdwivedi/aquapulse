@@ -2,6 +2,7 @@ import type {
   ApiSuccessEnvelope,
   ListResponse,
   TaskCreateRequest,
+  TaskUpdateRequest,
   TaskSummary
 } from "@aquapulse/types";
 import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
@@ -17,8 +18,13 @@ export function toCreateTasksInput(input: CreateTasksDto): TaskCreateRequest {
   };
 }
 
-export function toUpdateTasksInput(input: UpdateTasksDto): UpdateTasksDto {
-  return input;
+export function toUpdateTasksInput(input: UpdateTasksDto): TaskUpdateRequest {
+  return {
+    title: input.title,
+    status: input.status,
+    assigneeId: input.assigneeId,
+    pondId: input.pondId
+  };
 }
 
 export function toQueryTasksInput(input: QueryTasksDto): TasksListQueryContract {

@@ -5,6 +5,7 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   TaskCreateRequest,
+  TaskUpdateRequest,
   TaskSummary
 } from "@aquapulse/types";
 import type { RowMapper } from "./row-mapper.js";
@@ -397,10 +398,14 @@ export function mapCreateTaskInputToRowWrite(input: TaskCreateRequest): TaskRowW
   };
 }
 
-export function mapUpdateTaskInputToRowPatch(id: string, _input: { readonly id?: string }): TaskRowPatch {
+export function mapUpdateTaskInputToRowPatch(id: string, input: TaskUpdateRequest): TaskRowPatch {
   return {
     id,
-    updated_at: createPlaceholderTaskRow({ id }).updated_at
+    updated_at: createPlaceholderTaskRow({ id }).updated_at,
+    title: input.title,
+    status: input.status,
+    assignee_id: input.assigneeId,
+    pond_id: input.pondId
   };
 }
 

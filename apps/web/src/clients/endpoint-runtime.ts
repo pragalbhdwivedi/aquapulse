@@ -7,6 +7,7 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   TaskCreateRequest,
+  TaskUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
@@ -28,6 +29,10 @@ type DetailCapableClient<TItem> = {
 
 type CreateCapableClient<TItem, TInput> = {
   create: (input: TInput) => Promise<{ ok: true; data: TItem }>;
+};
+
+type UpdateCapableClient<TItem, TInput> = {
+  update: (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>;
 };
 
 function createListHandler<TItem, TQuery>(
@@ -60,6 +65,13 @@ function createCreateHandler<TItem, TInput>(
   client: CreateCapableClient<TItem, TInput>
 ) {
   return async (request: TInput) => client.create(request);
+}
+
+function createUpdateHandler<TItem, TInput>(
+  client: UpdateCapableClient<TItem, TInput>
+) {
+  return async (request: { readonly id: string; readonly body: TInput }) =>
+    client.update(request.id, request.body);
 }
 
 export interface AquaPulseEndpointHandlers {
@@ -207,7 +219,15 @@ export function createEndpointHandlersFromClients(
           : createMutationFromValue(placeholderTaskSummary()),
       list: createListHandler(clients.tasks, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.tasks),
-      update: createMutationFromDetailHandler(clients.tasks)
+      update:
+        "update" in clients.tasks
+          ? createUpdateHandler(clients.tasks as typeof clients.tasks & {
+              update: (id: string, input: TaskUpdateRequest) => Promise<{
+                ok: true;
+                data: EndpointResponse<EndpointCatalog["tasks"]["getById"]>["data"];
+              }>;
+            })
+          : createMutationFromDetailHandler(clients.tasks)
     },
     attachments: {
       create: createMutationFromValue(placeholderAttachment()),
@@ -288,7 +308,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     tasks: {
       create: (input) => handlers.tasks.create(input),
       list: (query) => handlers.tasks.list(query ?? { page: 1, pageSize: 20 }),
-      getById: (id) => handlers.tasks.getById({ id })
+      getById: (id) => handlers.tasks.getById({ id }),
+      update: (id, input) => handlers.tasks.update({ id, body: input })
     },
     attachments: {
       list: (query) => handlers.attachments.list(query ?? { page: 1, pageSize: 20 }),

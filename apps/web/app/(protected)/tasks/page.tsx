@@ -1,6 +1,7 @@
 import { getTasksPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 import { TaskCreateForm } from "./_components/task-create-form";
+import { TaskUpdateForm } from "./_components/task-update-form";
 
 export default async function TasksPage() {
   const tasks = await getTasksPageData();
@@ -16,6 +17,7 @@ export default async function TasksPage() {
         ))}
       </ul>
       <TaskCreateForm pondId={tasks.items[0]?.pondId} />
+      {tasks.items[0] ? <TaskUpdateForm task={tasks.items[0]} /> : null}
     </PageShell>
   );
 }

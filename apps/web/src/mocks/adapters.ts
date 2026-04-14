@@ -7,13 +7,10 @@ import type {
   AiTextRewriteRequest,
   FeedCreateRequest,
   TaskCreateRequest,
+  TaskUpdateRequest,
   WaterQualityCreateRequest
 } from "@aquapulse/types";
-import {
-  feedEntryCreateSchema,
-  taskCreateSchema,
-  waterQualityEntryCreateSchema
-} from "@aquapulse/validation";
+import { feedEntryCreateSchema, taskCreateSchema, taskUpdateSchema, waterQualityEntryCreateSchema } from "@aquapulse/validation";
 import {
   normalizeListQuery,
   type AiApiClient,
@@ -145,6 +142,26 @@ export const tasksMockAdapter: TasksApiClient = {
     };
     mockTasks.unshift(created);
     return ok(created);
+  },
+  async update(id: string, input: TaskUpdateRequest) {
+    const parsed = taskUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const existing = mockTasks.find((item) => item.id === id) ?? mockTasks[0];
+    const updated = {
+      ...existing,
+      ...parsed.data,
+      updatedAt: "2026-04-15T08:00:00.000Z"
+    };
+    const index = mockTasks.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockTasks[index] = updated;
+    } else {
+      mockTasks.unshift(updated);
+    }
+    return ok(updated);
   },
   async list(query?: TasksListQuery) {
     const normalizedQuery = normalizeListQuery(query);

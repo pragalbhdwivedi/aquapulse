@@ -30,6 +30,19 @@ export type MutationSubmissionResult<
   TDetail = never
 > = SubmissionValidationError<TFields> | MutationSuccess<TData, TList, TDetail>;
 
+export type MutationSyncSuccess<TData, TList = never, TDetail = never> = MutationSuccess<
+  TData,
+  TList,
+  TDetail
+>;
+
+export type MutationSyncSubmissionResult<
+  TData,
+  TFields extends string,
+  TList = never,
+  TDetail = never
+> = MutationSubmissionResult<TData, TFields, TList, TDetail>;
+
 export interface MutationPageState<
   TData,
   TFields extends string,
@@ -43,6 +56,13 @@ export interface MutationPageState<
   readonly refreshedList?: TList;
   readonly refreshedDetail?: TDetail;
 }
+
+export type MutationSyncPageState<
+  TData,
+  TFields extends string,
+  TList = never,
+  TDetail = never
+> = MutationPageState<TData, TFields, TList, TDetail>;
 
 function createValidationError<TInput extends object>(
   fieldErrors: Partial<Record<Extract<keyof TInput, string>, string[] | undefined>>,
@@ -99,6 +119,8 @@ export function createMutationSubmitter<
   };
 }
 
+export const createMutationSyncSubmitter = createMutationSubmitter;
+
 export function toMutationPageState<
   TData,
   TFields extends string,
@@ -141,3 +163,5 @@ export function toMutationPageState<
     refreshedDetail: result.refreshedDetail
   };
 }
+
+export const toMutationSyncPageState = toMutationPageState;

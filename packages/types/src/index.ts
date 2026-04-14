@@ -124,6 +124,13 @@ export interface TaskCreateRequest {
   readonly pondId?: EntityId;
 }
 
+export interface TaskUpdateRequest {
+  readonly title?: string;
+  readonly status?: TaskStatus;
+  readonly assigneeId?: EntityId;
+  readonly pondId?: EntityId;
+}
+
 export interface AlertSummary extends BaseEntity {
   readonly title: string;
   readonly severity: AlertSeverity;
@@ -410,7 +417,7 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/tasks/:id",
       semantics: "detail"
     }),
-    update: defineEndpoint<{ readonly id: EntityId; readonly body?: PlaceholderMutationRequest }, ApiSuccessEnvelope<TaskSummary>>({
+    update: defineEndpoint<{ readonly id: EntityId; readonly body: TaskUpdateRequest }, ApiSuccessEnvelope<TaskSummary>>({
       id: "tasks.update",
       method: "PATCH",
       path: "/api/tasks/:id",

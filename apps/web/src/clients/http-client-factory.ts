@@ -7,6 +7,7 @@ import type {
   ListResponse,
   PondSummary,
   TaskCreateRequest,
+  TaskUpdateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
   WaterQualityReading
@@ -150,6 +151,13 @@ export function createHttpClientFactory({
           executor,
           registry.tasks.list,
           query ?? { page: 1, pageSize: 20 }
+        );
+      },
+      update(id: string, input: TaskUpdateRequest) {
+        return invokeCreateEndpoint<TaskSummary, { readonly id: string; readonly body: TaskUpdateRequest }>(
+          executor,
+          registry.tasks.update,
+          { id, body: input }
         );
       }
     }
