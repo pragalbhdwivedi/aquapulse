@@ -151,6 +151,10 @@ export interface AlertSummary extends BaseEntity {
   readonly status: "open" | "acknowledged" | "resolved";
 }
 
+export interface AlertLifecycleActionRequest {
+  readonly note?: string;
+}
+
 export interface OperationalAlertDecision {
   readonly ruleCode: OperationalAlertRuleCode;
   readonly title: string;
@@ -414,6 +418,24 @@ export const aquaPulseEndpointCatalog = {
       method: "PATCH",
       path: "/api/alerts/:id",
       semantics: "update"
+    }),
+    acknowledge: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertLifecycleActionRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.acknowledge",
+      method: "POST",
+      path: "/api/alerts/:id/acknowledge",
+      semantics: "action"
+    }),
+    resolve: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertLifecycleActionRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.resolve",
+      method: "POST",
+      path: "/api/alerts/:id/resolve",
+      semantics: "action"
     }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({
       id: "ai.alerts.explain",

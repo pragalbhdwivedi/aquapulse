@@ -1,6 +1,17 @@
-import type { AlertSummary, ApiSuccessEnvelope, ListResponse } from "@aquapulse/types";
+import type {
+  AlertLifecycleActionRequest,
+  AlertSummary,
+  ApiSuccessEnvelope,
+  ListResponse
+} from "@aquapulse/types";
 import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapper";
-import type { CreateAlertsDto, QueryAlertsDto, UpdateAlertsDto } from "../dto";
+import type {
+  AcknowledgeAlertDto,
+  CreateAlertsDto,
+  QueryAlertsDto,
+  ResolveAlertDto,
+  UpdateAlertsDto
+} from "../dto";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
 import { createItemResponse, createListResponse } from "../../../common/api/response-mapper";
 
@@ -9,6 +20,14 @@ export function toCreateAlertsInput(input: CreateAlertsDto): CreateAlertsDto {
 }
 
 export function toUpdateAlertsInput(input: UpdateAlertsDto): UpdateAlertsDto {
+  return input;
+}
+
+export function toAcknowledgeAlertInput(input: AcknowledgeAlertDto): AlertLifecycleActionRequest {
+  return input;
+}
+
+export function toResolveAlertInput(input: ResolveAlertDto): AlertLifecycleActionRequest {
   return input;
 }
 

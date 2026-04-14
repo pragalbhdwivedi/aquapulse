@@ -4,6 +4,7 @@ import {
   findMatchingOperationalAlert
 } from "@aquapulse/types";
 import type {
+  AlertLifecycleActionRequest,
   AiAlertsExplainRequest,
   AiDashboardQueryRequest,
   AiHandoverGenerateRequest,
@@ -172,6 +173,32 @@ export const alertsMockAdapter: AlertsApiClient = {
     return ok(list(items, normalizedQuery));
   },
   async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
+  async acknowledge(id: string, _input: AlertLifecycleActionRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const updated = {
+      ...existing,
+      status: "acknowledged" as const,
+      updatedAt: "2026-04-15T10:10:00.000Z"
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
+  },
+  async resolve(id: string, _input: AlertLifecycleActionRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const updated = {
+      ...existing,
+      status: "resolved" as const,
+      updatedAt: "2026-04-15T10:15:00.000Z"
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
+  },
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };
 export const tasksMockAdapter: TasksApiClient = {

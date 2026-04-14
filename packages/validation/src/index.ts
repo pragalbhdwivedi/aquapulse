@@ -42,6 +42,10 @@ export const alertQueryFiltersSchema = z.object({
   pondId: z.string().optional()
 });
 
+export const alertLifecycleActionSchema = z.object({
+  note: z.string().min(1).optional()
+});
+
 export const taskCreateSchema = z.object({
   title: z.string().min(2),
   assigneeId: z.string().optional(),

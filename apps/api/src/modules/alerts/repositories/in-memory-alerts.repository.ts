@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { AlertSummary, ListResponse } from "@aquapulse/types";
+import type { AlertLifecycleActionRequest, AlertSummary, ListResponse } from "@aquapulse/types";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
@@ -33,6 +33,28 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
   };
 }
 
+function applyAlertMutation(
+  repository: InMemoryAlertsRepository,
+  id: string,
+  patch: Partial<AlertSummary>,
+  updatedAt: string
+): AlertSummary {
+  const alerts = getAlerts(repository);
+  const current = alerts.find((item) => item.id === id) ?? alerts[0];
+  const updated: AlertSummary = {
+    ...current,
+    ...patch,
+    updatedAt
+  };
+  const index = alerts.findIndex((item) => item.id === id);
+  if (index >= 0) {
+    alerts[index] = updated;
+  } else {
+    alerts.push(updated);
+  }
+  return updated;
+}
+
 @Injectable()
 export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   constructor() {
@@ -56,20 +78,25 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   }
 
   async update(id: string, input: UpdateAlertsDto): Promise<AlertSummary> {
-    const alerts = getAlerts(this);
-    const current = alerts.find((item) => item.id === id) ?? alerts[0];
-    const updated: AlertSummary = {
-      ...current,
-      ...input,
-      updatedAt: "2026-04-15T10:05:00.000Z"
-    };
-    const index = alerts.findIndex((item) => item.id === id);
-    if (index >= 0) {
-      alerts[index] = updated;
-    } else {
-      alerts.push(updated);
-    }
-    return updated;
+    return applyAlertMutation(this, id, input, "2026-04-15T10:05:00.000Z");
+  }
+
+  async acknowledge(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+    return applyAlertMutation(
+      this,
+      id,
+      { status: "acknowledged" },
+      "2026-04-15T10:10:00.000Z"
+    );
+  }
+
+  async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+    return applyAlertMutation(
+      this,
+      id,
+      { status: "resolved" },
+      "2026-04-15T10:15:00.000Z"
+    );
   }
 
   async getById(id: string): Promise<AlertSummary> {

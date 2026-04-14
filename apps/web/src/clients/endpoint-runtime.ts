@@ -1,4 +1,5 @@
 import type {
+  AlertLifecycleActionRequest,
   ApiSuccessEnvelope,
   AttachmentMetadata,
   EndpointRequest,
@@ -34,6 +35,11 @@ type CreateCapableClient<TItem, TInput> = {
 
 type UpdateCapableClient<TItem, TInput> = {
   update: (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>;
+};
+
+type AlertActionCapableClient<TItem, TInput> = {
+  acknowledge: (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>;
+  resolve: (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>;
 };
 
 function createListHandler<TItem, TQuery>(
@@ -75,6 +81,14 @@ function createUpdateHandler<TItem, TInput>(
     client.update(request.id, request.body);
 }
 
+function createAlertActionHandler<TItem, TInput>(
+  client: AlertActionCapableClient<TItem, TInput>,
+  action: "acknowledge" | "resolve"
+) {
+  return async (request: { readonly id: string; readonly body: TInput }) =>
+    client[action](request.id, request.body);
+}
+
 export interface AquaPulseEndpointHandlers {
   ponds: {
     create: EndpointHandler<EndpointCatalog["ponds"]["create"]>;
@@ -88,6 +102,8 @@ export interface AquaPulseEndpointHandlers {
     list: EndpointHandler<EndpointCatalog["alerts"]["list"]>;
     getById: EndpointHandler<EndpointCatalog["alerts"]["getById"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
+    acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
+    resolve: EndpointHandler<EndpointCatalog["alerts"]["resolve"]>;
     explain: EndpointHandler<EndpointCatalog["alerts"]["explain"]>;
   };
   tasks: {
@@ -206,6 +222,20 @@ export function createEndpointHandlersFromClients(
       list: createListHandler(clients.alerts, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.alerts),
       update: createMutationFromDetailHandler(clients.alerts),
+      acknowledge:
+        "acknowledge" in clients.alerts
+          ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertActionCapableClient<
+              EndpointResponse<EndpointCatalog["alerts"]["getById"]>["data"],
+              AlertLifecycleActionRequest
+            >, "acknowledge")
+          : createMutationFromDetailHandler(clients.alerts),
+      resolve:
+        "resolve" in clients.alerts
+          ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertActionCapableClient<
+              EndpointResponse<EndpointCatalog["alerts"]["getById"]>["data"],
+              AlertLifecycleActionRequest
+            >, "resolve")
+          : createMutationFromDetailHandler(clients.alerts),
       explain: async (request) => clients.alerts.explain(request)
     },
     tasks: {
@@ -312,6 +342,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     alerts: {
       list: (query) => handlers.alerts.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.alerts.getById({ id }),
+      acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
+      resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),
       explain: (input) => handlers.alerts.explain(input)
     },
     tasks: {

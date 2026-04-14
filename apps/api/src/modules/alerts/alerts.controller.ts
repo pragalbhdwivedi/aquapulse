@@ -7,8 +7,22 @@ import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AlertsApplicationService } from "./application/alerts.application-service";
 import { AlertsService } from "./alerts.service";
-import { CreateAlertsDto, QueryAlertsDto, UpdateAlertsDto } from "./dto";
-import { toAlertsItemResponse, toAlertsListResponse, toCreateAlertsInput, toQueryAlertsInput, toUpdateAlertsInput } from "./mappers/alerts.mapper";
+import {
+  AcknowledgeAlertDto,
+  CreateAlertsDto,
+  QueryAlertsDto,
+  ResolveAlertDto,
+  UpdateAlertsDto
+} from "./dto";
+import {
+  toAcknowledgeAlertInput,
+  toAlertsItemResponse,
+  toAlertsListResponse,
+  toCreateAlertsInput,
+  toQueryAlertsInput,
+  toResolveAlertInput,
+  toUpdateAlertsInput
+} from "./mappers/alerts.mapper";
 
 @Controller("alerts")
 @UseGuards(PlaceholderAuthGuard, PlaceholderRoleGuard)
@@ -56,6 +70,34 @@ export class AlertsController {
       input,
       toUpdateAlertsInput,
       (resourceId, mappedInput) => this.alertsApplicationService.update(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Post(":id/acknowledge")
+  async acknowledge(
+    @Param("id") id: string,
+    @Body() input: AcknowledgeAlertDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.acknowledge>> {
+    return delegateUpdate(
+      id,
+      input,
+      toAcknowledgeAlertInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.acknowledge(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Post(":id/resolve")
+  async resolve(
+    @Param("id") id: string,
+    @Body() input: ResolveAlertDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.resolve>> {
+    return delegateUpdate(
+      id,
+      input,
+      toResolveAlertInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.resolve(resourceId, mappedInput),
       toAlertsItemResponse
     );
   }

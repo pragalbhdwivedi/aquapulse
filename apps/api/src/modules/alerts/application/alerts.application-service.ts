@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type {
+  AlertLifecycleActionRequest,
   AlertSummary,
   ApiSuccessEnvelope,
   ListResponse,
@@ -18,6 +19,12 @@ export class AlertsApplicationService {
 
   async create(_input: CreateAlertsDto): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.create(_input) }; }
   async update(_id: string, _input: UpdateAlertsDto): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.update(_id, _input) }; }
+  async acknowledge(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.acknowledge(_id, _input) };
+  }
+  async resolve(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.resolve(_id, _input) };
+  }
   async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
   async getById(_id: string): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.getById(_id) }; }
 

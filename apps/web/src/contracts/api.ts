@@ -1,4 +1,5 @@
 import type {
+  AlertLifecycleActionRequest,
   AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
@@ -86,6 +87,8 @@ export interface WaterQualityApiClient {
 export interface AlertsApiClient {
   list(query?: AlertsListQuery): ApiListContract<AlertSummary>;
   getById(id: string): ApiItemContract<AlertSummary>;
+  acknowledge(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
+  resolve(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
 }
 

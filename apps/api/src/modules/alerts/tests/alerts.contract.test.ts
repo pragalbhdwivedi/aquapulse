@@ -27,6 +27,8 @@ describe("Alerts contracts", () => {
     const repository: AlertsRepositoryPort = {
       create: vi.fn().mockResolvedValue(alert),
       update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      resolve: vi.fn().mockResolvedValue(alert),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       listOpen: vi.fn().mockResolvedValue(alertList)

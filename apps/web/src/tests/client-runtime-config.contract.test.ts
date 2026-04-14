@@ -33,10 +33,14 @@ describe("Client runtime config and invocation registry", () => {
       AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP: "true"
     });
     const clients = createApiClientsFromConfig(config);
-    const response = await clients.alerts.list({ page: 1, pageSize: 20, status: "open" });
+    const [response, acknowledged] = await Promise.all([
+      clients.alerts.list({ page: 1, pageSize: 20, status: "open" }),
+      clients.alerts.acknowledge("alert-1", {})
+    ]);
 
     expect(config.mode).toBe("http");
     expect(response.data.items[0]?.id).toBe("alert-1");
+    expect(acknowledged.data.status).toBe("acknowledged");
   });
 
   it("keeps the invocation registry aligned with the endpoint catalog", () => {

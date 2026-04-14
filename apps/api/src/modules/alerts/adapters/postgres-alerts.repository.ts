@@ -17,7 +17,7 @@ import {
   type DatabaseConfig,
   type DatabaseConnectionFactory
 } from "@aquapulse/database";
-import type { AlertSummary, ListResponse } from "@aquapulse/types";
+import type { AlertLifecycleActionRequest, AlertSummary, ListResponse } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
@@ -104,6 +104,14 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
       alertRowMapper,
       createPlaceholderAlertRow({ id })
     );
+  }
+
+  async acknowledge(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+    return this.update(id, { status: "acknowledged" });
+  }
+
+  async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
+    return this.update(id, { status: "resolved" });
   }
 
   async getById(id: string): Promise<AlertSummary> {

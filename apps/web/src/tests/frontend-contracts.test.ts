@@ -28,9 +28,11 @@ describe("Frontend contract boundaries", () => {
     const repositories: AquaPulseRepositories = createRepositories(createMockApiClients());
     const ponds = await repositories.ponds.list({ page: 2, pageSize: 10, status: "active" });
     const explanation = await repositories.alerts.explain({ alertId: "alert-1" });
+    const alertDetail = await repositories.alerts.getById("alert-1");
 
     expect(ponds.data.items).toHaveLength(1);
     expect(explanation.data.explanation).toContain("Placeholder");
+    expect(alertDetail.data.id).toBe("alert-1");
 
     expectTypeOf(repositories.ponds).toMatchTypeOf<PondsRepository>();
     expectTypeOf(repositories.alerts).toMatchTypeOf<AlertsRepository>();

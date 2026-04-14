@@ -21,6 +21,8 @@ export function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
     [endpointInvocationRegistry.alerts.list.endpointId]: handlers.alerts.list,
     [endpointInvocationRegistry.alerts.getById.endpointId]: handlers.alerts.getById,
     [endpointInvocationRegistry.alerts.update.endpointId]: handlers.alerts.update,
+    [endpointInvocationRegistry.alerts.acknowledge.endpointId]: handlers.alerts.acknowledge,
+    [endpointInvocationRegistry.alerts.resolve.endpointId]: handlers.alerts.resolve,
     [endpointInvocationRegistry.alerts.explain.endpointId]: handlers.alerts.explain,
     [endpointInvocationRegistry.tasks.create.endpointId]: handlers.tasks.create,
     [endpointInvocationRegistry.tasks.list.endpointId]: handlers.tasks.list,

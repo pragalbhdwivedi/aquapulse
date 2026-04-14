@@ -1,4 +1,5 @@
 import type {
+  AlertLifecycleActionRequest,
   AlertSummary,
   ApiSuccessEnvelope,
   EndpointContract,
@@ -115,6 +116,23 @@ export function createHttpClientFactory({
           executor,
           registry.alerts.list,
           query ?? { page: 1, pageSize: 20 }
+        );
+      },
+      getById(id) {
+        return invokeItemEndpoint<AlertSummary>(executor, registry.alerts.getById, { id });
+      },
+      acknowledge(id: string, input: AlertLifecycleActionRequest) {
+        return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertLifecycleActionRequest }>(
+          executor,
+          registry.alerts.acknowledge,
+          { id, body: input }
+        );
+      },
+      resolve(id: string, input: AlertLifecycleActionRequest) {
+        return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertLifecycleActionRequest }>(
+          executor,
+          registry.alerts.resolve,
+          { id, body: input }
         );
       }
     },
