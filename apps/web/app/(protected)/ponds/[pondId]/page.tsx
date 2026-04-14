@@ -1,5 +1,6 @@
 import { getPondDetailPageData } from "@web/queries";
 import { PageShell } from "../../_components/page-shell";
+import { WaterQualityEntryForm } from "./_components/water-quality-entry-form";
 
 export default async function PondDetailPage({ params }: { params: Promise<{ pondId: string }> }) {
   const { pondId } = await params;
@@ -12,6 +13,7 @@ export default async function PondDetailPage({ params }: { params: Promise<{ pon
       <p>Type: {detail.pond.kind}</p>
       <p>Water-quality readings: {detail.waterQuality.items.length}</p>
       <p>AI summary: {detail.summary.summary}</p>
+      <WaterQualityEntryForm pondId={detail.pond.id} />
     </PageShell>
   );
 }

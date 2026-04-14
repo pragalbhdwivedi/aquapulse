@@ -88,6 +88,13 @@ export interface WaterQualityReading extends BaseEntity {
   readonly ph?: number;
 }
 
+export interface WaterQualityCreateRequest {
+  readonly pondId: EntityId;
+  readonly recordedAt: ISODateString;
+  readonly temperatureC?: number;
+  readonly ph?: number;
+}
+
 export interface FeedEntry extends BaseEntity {
   readonly pondId: EntityId;
   readonly batchId?: EntityId;
@@ -501,7 +508,7 @@ export const aquaPulseEndpointCatalog = {
     })
   },
   waterQuality: {
-    create: defineEndpoint<PlaceholderMutationRequest, ApiSuccessEnvelope<WaterQualityReading>>({
+    create: defineEndpoint<WaterQualityCreateRequest, ApiSuccessEnvelope<WaterQualityReading>>({
       id: "waterQuality.create",
       method: "POST",
       path: "/api/water-quality",

@@ -16,7 +16,7 @@ export const batchCreateSchema = z.object({
 
 export const waterQualityEntryCreateSchema = z.object({
   pondId: z.string().min(1),
-  recordedAt: z.string(),
+  recordedAt: z.string().min(1),
   temperatureC: z.number().optional(),
   ph: z.number().optional()
 });

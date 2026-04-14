@@ -4,7 +4,8 @@ import type {
   EndpointRequest,
   EndpointResponse,
   ListResponse,
-  FeedEntry
+  FeedEntry,
+  WaterQualityReading
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "./index";
@@ -21,6 +22,10 @@ type ListCapableClient<TItem, TQuery> = {
 
 type DetailCapableClient<TItem> = {
   getById: (id: string) => Promise<{ ok: true; data: TItem }>;
+};
+
+type CreateCapableClient<TItem, TInput> = {
+  create: (input: TInput) => Promise<{ ok: true; data: TItem }>;
 };
 
 function createListHandler<TItem, TQuery>(
@@ -47,6 +52,12 @@ function createMutationFromValue<TRequest, TItem>(
   value: TItem
 ) {
   return async (_request: TRequest) => ({ ok: true as const, data: value });
+}
+
+function createCreateHandler<TItem, TInput>(
+  client: CreateCapableClient<TItem, TInput>
+) {
+  return async (request: TInput) => client.create(request);
 }
 
 export interface AquaPulseEndpointHandlers {
@@ -140,6 +151,18 @@ function placeholderFeedEntry(): FeedEntry {
   };
 }
 
+function placeholderWaterQualityReading(): WaterQualityReading {
+  return {
+    id: "wq-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    pondId: "pond-1",
+    recordedAt: "2026-04-13T00:00:00.000Z",
+    temperatureC: 28.4,
+    ph: 7.6
+  };
+}
+
 export function createEndpointHandlersFromClients(
   clients: AquaPulseApiClients
 ): AquaPulseEndpointHandlers {
@@ -189,7 +212,15 @@ export function createEndpointHandlersFromClients(
       update: createMutationFromDetailHandler(clients.audit)
     },
     waterQuality: {
-      create: createMutationFromDetailHandler(clients.waterQuality),
+      create:
+        "create" in clients.waterQuality
+          ? createCreateHandler(clients.waterQuality as typeof clients.waterQuality & {
+              create: (input: EndpointRequest<EndpointCatalog["waterQuality"]["create"]>) => Promise<{
+                ok: true;
+                data: WaterQualityReading;
+              }>;
+            })
+          : createMutationFromValue(placeholderWaterQualityReading()),
       list: createListHandler<
         EndpointResponse<EndpointCatalog["waterQuality"]["getById"]>["data"],
         EndpointRequest<EndpointCatalog["waterQuality"]["list"]>
@@ -241,6 +272,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       getById: (id) => handlers.feed.getById({ id })
     },
     waterQuality: {
+      create: (input) => handlers.waterQuality.create(input),
       list: (query) => handlers.waterQuality.list(query),
       getById: (id) => handlers.waterQuality.getById({ id })
     },

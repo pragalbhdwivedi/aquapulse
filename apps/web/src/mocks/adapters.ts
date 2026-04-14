@@ -4,8 +4,10 @@ import type {
   AiHandoverGenerateRequest,
   AiIncidentsDraftRequest,
   AiPondsSummarizeRequest,
-  AiTextRewriteRequest
+  AiTextRewriteRequest,
+  WaterQualityCreateRequest
 } from "@aquapulse/types";
+import { waterQualityEntryCreateSchema } from "@aquapulse/validation";
 import {
   normalizeListQuery,
   type AiApiClient,
@@ -72,6 +74,24 @@ export const batchesMockAdapter: BatchesApiClient = {
   async getById(id: string) { return ok(mockBatches.find((item) => item.id === id) ?? mockBatches[0]); }
 };
 export const waterQualityMockAdapter: WaterQualityApiClient = {
+  async create(input: WaterQualityCreateRequest) {
+    const parsed = waterQualityEntryCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const created = {
+      id: `wq-${mockWaterQuality.length + 1}`,
+      createdAt: parsed.data.recordedAt,
+      updatedAt: parsed.data.recordedAt,
+      pondId: parsed.data.pondId,
+      recordedAt: parsed.data.recordedAt,
+      temperatureC: parsed.data.temperatureC,
+      ph: parsed.data.ph
+    };
+    mockWaterQuality.unshift(created);
+    return ok(created);
+  },
   async list(query: WaterQualityListQuery) {
     const normalizedQuery = normalizeListQuery(query);
     const items = mockWaterQuality.filter(

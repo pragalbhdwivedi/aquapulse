@@ -4,7 +4,9 @@ import type {
   EndpointContract,
   ListResponse,
   PondSummary,
-  TaskSummary
+  TaskSummary,
+  WaterQualityCreateRequest,
+  WaterQualityReading
 } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "./index";
 import type { FetchExecutor } from "./fetch-executor";
@@ -52,6 +54,18 @@ async function invokeItemEndpoint<TItem>(
   return normalizeItemResponse(response);
 }
 
+async function invokeCreateEndpoint<TItem, TInput>(
+  executor: FetchExecutor,
+  invocation: EndpointInvocationConfig<
+    EndpointContract<TInput, ApiSuccessEnvelope<TItem>>
+  >,
+  input: TInput
+): Promise<ApiSuccessEnvelope<TItem>> {
+  const request = buildHttpRequestFromInvocation(invocation, input);
+  const response = await executor<ApiSuccessEnvelope<TItem>>(request);
+  return normalizeItemResponse(response);
+}
+
 export function createHttpClientFactory({
   config,
   baseClients,
@@ -75,6 +89,16 @@ export function createHttpClientFactory({
       },
       getById(id) {
         return invokeItemEndpoint<PondSummary>(executor, registry.ponds.getById, { id });
+      }
+    },
+    waterQuality: {
+      ...baseClients.waterQuality,
+      create(input: WaterQualityCreateRequest) {
+        return invokeCreateEndpoint<WaterQualityReading, WaterQualityCreateRequest>(
+          executor,
+          registry.waterQuality.create,
+          input
+        );
       }
     },
     alerts: {
