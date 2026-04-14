@@ -1,30 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { AlertSummary } from "@aquapulse/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { AlertReviewState, AlertSummary } from "@aquapulse/types";
 import { createApiClients } from "@web/clients";
+import type { AlertsListQuery } from "@web/contracts/api";
+import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
 import {
-  submitAlertLifecycleAction,
-  type AlertLifecycleSubmissionResult
-} from "@web/features/alert-lifecycle";
+  submitAlertTriageAction,
+  type AlertAssignSubmissionResult,
+  type AlertReviewStateSubmissionResult,
+  type AlertUnassignSubmissionResult
+} from "@web/features/alert-triage";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
 import { createRepositories } from "@web/repositories";
-import type { AlertsListQuery } from "@web/contracts/api";
 
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
 }
+
+type AlertQueueSubmissionResult =
+  | AlertLifecycleSubmissionResult
+  | AlertAssignSubmissionResult
+  | AlertUnassignSubmissionResult
+  | AlertReviewStateSubmissionResult;
+
+const reviewStateOptions: AlertReviewState[] = [
+  "unreviewed",
+  "under_review",
+  "reviewed",
+  "deferred"
+];
 
 export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
   const repositories = useMemo(() => createRepositories(createApiClients()), []);
   const [alerts, setAlerts] = useState(initialAlerts);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
+  const [reviewLabels, setReviewLabels] = useState<Record<string, string>>({});
+  const [reviewStates, setReviewStates] = useState<Record<string, AlertReviewState>>({});
   const [statusFilter, setStatusFilter] = useState<AlertsListQuery["status"] | "all">("all");
   const [sortBy, setSortBy] = useState<NonNullable<AlertsListQuery["sortBy"]>>("updatedAt_desc");
   const [hasLatestNoteOnly, setHasLatestNoteOnly] = useState(false);
   const [pondIdFilter, setPondIdFilter] = useState("");
-  const [result, setResult] = useState<AlertLifecycleSubmissionResult | null>(null);
+  const [assignedToFilter, setAssignedToFilter] = useState("");
+  const [reviewStateFilter, setReviewStateFilter] = useState<AlertReviewState | "all">("all");
+  const [result, setResult] = useState<AlertQueueSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
@@ -36,15 +57,24 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
       status: statusFilter === "all" ? undefined : statusFilter,
       hasLatestNote: hasLatestNoteOnly ? true : undefined,
       pondId: pondIdFilter.trim() || undefined,
+      assignedTo: assignedToFilter.trim() || undefined,
+      reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter,
       sortBy
     }),
-    [hasLatestNoteOnly, pondIdFilter, sortBy, statusFilter]
+    [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]
   );
+
+  const refreshQueue = useCallback(async () => {
+    setIsRefreshingQueue(true);
+    const response = await repositories.alerts.list(reviewQueueQuery);
+    setAlerts(response.data.items);
+    setIsRefreshingQueue(false);
+  }, [repositories, reviewQueueQuery]);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function refreshQueue() {
+    async function runRefresh() {
       setIsRefreshingQueue(true);
       const response = await repositories.alerts.list(reviewQueueQuery);
       if (!cancelled) {
@@ -53,14 +83,14 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
       }
     }
 
-    void refreshQueue();
+    void runRefresh();
 
     return () => {
       cancelled = true;
     };
   }, [repositories, reviewQueueQuery]);
 
-  async function handleAction(action: "acknowledge" | "resolve", alertId: string) {
+  async function handleLifecycleAction(action: "acknowledge" | "resolve", alertId: string) {
     setActiveAlertId(alertId);
     setIsSubmitting(true);
     const submission = await submitAlertLifecycleAction(action, alertId, {
@@ -68,12 +98,54 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
     });
     setResult(submission);
     if (submission.status === "success") {
-      const refreshed = await repositories.alerts.list(reviewQueueQuery);
-      setAlerts(refreshed.data.items);
-      setNotes((current) => ({
-        ...current,
-        [alertId]: ""
-      }));
+      await refreshQueue();
+      setNotes((current) => ({ ...current, [alertId]: "" }));
+    }
+    setIsSubmitting(false);
+    setActiveAlertId(null);
+  }
+
+  async function handleAssign(alertId: string) {
+    setActiveAlertId(alertId);
+    setIsSubmitting(true);
+    const submission = await submitAlertTriageAction("assign", alertId, {
+      assignedTo: ownerInputs[alertId]?.trim() ?? "",
+      note: notes[alertId]?.trim() || undefined
+    });
+    setResult(submission);
+    if (submission.status === "success") {
+      await refreshQueue();
+    }
+    setIsSubmitting(false);
+    setActiveAlertId(null);
+  }
+
+  async function handleUnassign(alertId: string) {
+    setActiveAlertId(alertId);
+    setIsSubmitting(true);
+    const submission = await submitAlertTriageAction("unassign", alertId, {
+      note: notes[alertId]?.trim() || undefined
+    });
+    setResult(submission);
+    if (submission.status === "success") {
+      await refreshQueue();
+      setOwnerInputs((current) => ({ ...current, [alertId]: "" }));
+    }
+    setIsSubmitting(false);
+    setActiveAlertId(null);
+  }
+
+  async function handleReviewState(alertId: string) {
+    setActiveAlertId(alertId);
+    setIsSubmitting(true);
+    const submission = await submitAlertTriageAction("setReviewState", alertId, {
+      reviewState: reviewStates[alertId] ?? "under_review",
+      reviewLabel: reviewLabels[alertId]?.trim() || undefined,
+      note: notes[alertId]?.trim() || undefined
+    });
+    setResult(submission);
+    if (submission.status === "success") {
+      await refreshQueue();
     }
     setIsSubmitting(false);
     setActiveAlertId(null);
@@ -108,6 +180,23 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
             </select>
           </label>
           <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Review state</span>
+            <select
+              value={reviewStateFilter}
+              onChange={(event) =>
+                setReviewStateFilter(event.target.value as AlertReviewState | "all")
+              }
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              <option value="all">All</option>
+              {reviewStateOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
             <span>Sort</span>
             <select
               value={sortBy}
@@ -128,6 +217,15 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
               value={pondIdFilter}
               onChange={(event) => setPondIdFilter(event.target.value)}
               placeholder="pond-1"
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Owner</span>
+            <input
+              value={assignedToFilter}
+              onChange={(event) => setAssignedToFilter(event.target.value)}
+              placeholder="user-1"
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             />
           </label>
@@ -160,6 +258,9 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
               <strong>{alert.title}</strong> [{alert.severity}] {alert.pondId ? `for ${alert.pondId}` : ""}
             </div>
             <div>Status: {alert.status}</div>
+            <div>Owner: {alert.assignedTo ?? "Unassigned"}</div>
+            <div>Review state: {alert.reviewState ?? "unreviewed"}</div>
+            {alert.reviewLabel ? <div>Review label: {alert.reviewLabel}</div> : null}
             {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
             <label style={{ display: "grid", gap: "0.35rem" }}>
               <span>Review note</span>
@@ -175,11 +276,90 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
                 style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
               />
             </label>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
+            <div style={{ display: "grid", gap: "0.5rem" }}>
+              <label style={{ display: "grid", gap: "0.35rem" }}>
+                <span>Assign owner</span>
+                <input
+                  value={ownerInputs[alert.id] ?? alert.assignedTo ?? ""}
+                  onChange={(event) =>
+                    setOwnerInputs((current) => ({
+                      ...current,
+                      [alert.id]: event.target.value
+                    }))
+                  }
+                  placeholder="user-1"
+                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleAssign(alert.id)}
+                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                >
+                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Assign"}
+                </button>
+                <button
+                  type="button"
+                  disabled={isSubmitting || !alert.assignedTo}
+                  onClick={() => handleUnassign(alert.id)}
+                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                >
+                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Unassign"}
+                </button>
+              </div>
+            </div>
+            <div style={{ display: "grid", gap: "0.5rem" }}>
+              <label style={{ display: "grid", gap: "0.35rem" }}>
+                <span>Review state</span>
+                <select
+                  value={reviewStates[alert.id] ?? alert.reviewState ?? "unreviewed"}
+                  onChange={(event) =>
+                    setReviewStates((current) => ({
+                      ...current,
+                      [alert.id]: event.target.value as AlertReviewState
+                    }))
+                  }
+                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                >
+                  {reviewStateOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ display: "grid", gap: "0.35rem" }}>
+                <span>Review label</span>
+                <input
+                  value={reviewLabels[alert.id] ?? alert.reviewLabel ?? ""}
+                  onChange={(event) =>
+                    setReviewLabels((current) => ({
+                      ...current,
+                      [alert.id]: event.target.value
+                    }))
+                  }
+                  placeholder="water-quality, feed, urgent..."
+                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                />
+              </label>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  disabled={isSubmitting}
+                  onClick={() => handleReviewState(alert.id)}
+                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+                >
+                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Apply review state"}
+                </button>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
               <button
                 type="button"
                 disabled={isSubmitting || alert.status !== "open"}
-                onClick={() => handleAction("acknowledge", alert.id)}
+                onClick={() => handleLifecycleAction("acknowledge", alert.id)}
                 style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
               >
                 {isSubmitting && activeAlertId === alert.id ? "Working..." : "Acknowledge"}
@@ -187,7 +367,7 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
               <button
                 type="button"
                 disabled={isSubmitting || alert.status === "resolved"}
-                onClick={() => handleAction("resolve", alert.id)}
+                onClick={() => handleLifecycleAction("resolve", alert.id)}
                 style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
               >
                 {isSubmitting && activeAlertId === alert.id ? "Working..." : "Resolve"}
@@ -198,6 +378,9 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
                 {alert.actionHistory.map((item, index) => (
                   <li key={`${alert.id}-${item.action}-${item.timestamp}-${index}`}>
                     {item.action} at {item.timestamp}
+                    {item.assignedTo ? ` by/for ${item.assignedTo}` : ""}
+                    {item.reviewState ? ` [${item.reviewState}]` : ""}
+                    {item.reviewLabel ? ` (${item.reviewLabel})` : ""}
                     {item.note ? ` - ${item.note}` : ""}
                   </li>
                 ))}

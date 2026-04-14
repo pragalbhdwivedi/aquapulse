@@ -60,6 +60,9 @@ export const endpointInvocationRegistry = {
     update: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.update),
     acknowledge: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.acknowledge),
     resolve: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.resolve),
+    assign: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.assign),
+    unassign: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.unassign),
+    setReviewState: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.setReviewState),
     explain: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.explain)
   },
   tasks: {
@@ -127,6 +130,9 @@ export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRe
     [registry.alerts.update.endpointId]: registry.alerts.update,
     [registry.alerts.acknowledge.endpointId]: registry.alerts.acknowledge,
     [registry.alerts.resolve.endpointId]: registry.alerts.resolve,
+    [registry.alerts.assign.endpointId]: registry.alerts.assign,
+    [registry.alerts.unassign.endpointId]: registry.alerts.unassign,
+    [registry.alerts.setReviewState.endpointId]: registry.alerts.setReviewState,
     [registry.alerts.explain.endpointId]: registry.alerts.explain,
     [registry.tasks.create.endpointId]: registry.tasks.create,
     [registry.tasks.list.endpointId]: registry.tasks.list,

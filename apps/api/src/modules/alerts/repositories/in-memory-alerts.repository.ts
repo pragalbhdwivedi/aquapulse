@@ -1,8 +1,11 @@
 import { Injectable } from "@nestjs/common";
 import type {
+  AlertAssignActionRequest,
   AlertActionHistoryItem,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
   AlertSummary,
+  AlertUnassignActionRequest,
   ListResponse
 } from "@aquapulse/types";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
@@ -18,6 +21,7 @@ const alert: AlertSummary = {
   source: "water-quality",
   pondId: "pond-1",
   status: "open",
+  reviewState: "unreviewed",
   actionHistory: [
     {
       action: "created",
@@ -108,6 +112,9 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       source: input.source ?? "system",
       pondId: input.pondId,
       status: input.status ?? "open",
+      assignedTo: input.assignedTo,
+      reviewState: input.reviewState ?? "unreviewed",
+      reviewLabel: input.reviewLabel,
       actionHistory: [
         {
           action: "created",
@@ -153,6 +160,60 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
     );
   }
 
+  async assign(id: string, input: AlertAssignActionRequest): Promise<AlertSummary> {
+    return applyAlertMutation(
+      this,
+      id,
+      {
+        assignedTo: input.assignedTo,
+        reviewState: "under_review"
+      },
+      {
+        action: "assigned",
+        note: input.note,
+        assignedTo: input.assignedTo,
+        reviewState: "under_review",
+        timestamp: "2026-04-15T10:20:00.000Z"
+      },
+      "2026-04-15T10:20:00.000Z"
+    );
+  }
+
+  async unassign(id: string, input: AlertUnassignActionRequest): Promise<AlertSummary> {
+    return applyAlertMutation(
+      this,
+      id,
+      {
+        assignedTo: undefined
+      },
+      {
+        action: "unassigned",
+        note: input.note,
+        timestamp: "2026-04-15T10:25:00.000Z"
+      },
+      "2026-04-15T10:25:00.000Z"
+    );
+  }
+
+  async setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<AlertSummary> {
+    return applyAlertMutation(
+      this,
+      id,
+      {
+        reviewState: input.reviewState,
+        reviewLabel: input.reviewLabel
+      },
+      {
+        action: "review_state_changed",
+        note: input.note,
+        reviewState: input.reviewState,
+        reviewLabel: input.reviewLabel,
+        timestamp: "2026-04-15T10:30:00.000Z"
+      },
+      "2026-04-15T10:30:00.000Z"
+    );
+  }
+
   async getById(id: string): Promise<AlertSummary> {
     return getAlerts(this).find((item) => item.id === id) ?? getAlerts(this)[0];
   }
@@ -164,6 +225,8 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
         (!query.severity || item.severity === query.severity) &&
         (!query.status || item.status === query.status) &&
         (!query.source || item.source === query.source) &&
+        (!query.assignedTo || item.assignedTo === query.assignedTo) &&
+        (!query.reviewState || item.reviewState === query.reviewState) &&
         (query.hasLatestNote === undefined ||
           (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
         (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))

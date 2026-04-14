@@ -67,6 +67,9 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
       update: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.update, execute),
       acknowledge: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.acknowledge, execute),
       resolve: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.resolve, execute),
+      assign: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.assign, execute),
+      unassign: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.unassign, execute),
+      setReviewState: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.setReviewState, execute),
       explain: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.explain, execute)
     },
     tasks: {

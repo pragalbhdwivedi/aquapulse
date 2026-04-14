@@ -69,4 +69,41 @@ describe("Alerts lifecycle flow", () => {
     expect(acknowledged.data.items[0]?.latestNote).toBeTruthy();
     expect(newestCreated.data.items[0]?.title).toBe("Feed quantity anomaly detected");
   });
+
+  it("supports assignment and review-state transitions with deterministic history", async () => {
+    const repository = new InMemoryAlertsRepository();
+    const service = new AlertsApplicationService(repository);
+
+    const assigned = await service.assign("alert-1", {
+      assignedTo: "operator-1",
+      note: "Assigned for triage."
+    });
+    const reviewed = await service.setReviewState("alert-1", {
+      reviewState: "reviewed",
+      reviewLabel: "oxygen-check",
+      note: "Review completed."
+    });
+    const unassigned = await service.unassign("alert-1", {
+      note: "Returning to general queue."
+    });
+    const filtered = await service.list({
+      page: 1,
+      pageSize: 20,
+      reviewState: "reviewed",
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(assigned.data.assignedTo).toBe("operator-1");
+    expect(assigned.data.reviewState).toBe("under_review");
+    expect(reviewed.data.reviewState).toBe("reviewed");
+    expect(reviewed.data.reviewLabel).toBe("oxygen-check");
+    expect(unassigned.data.assignedTo).toBeUndefined();
+    expect(unassigned.data.actionHistory?.map((item) => item.action)).toEqual([
+      "created",
+      "assigned",
+      "review_state_changed",
+      "unassigned"
+    ]);
+    expect(filtered.data.items[0]?.reviewState).toBe("reviewed");
+  });
 });

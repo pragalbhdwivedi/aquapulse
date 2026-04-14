@@ -1,6 +1,7 @@
 export type EntityId = string;
 export type ISODateString = string;
 export type AlertSeverity = "low" | "medium" | "high" | "critical";
+export type AlertReviewState = "unreviewed" | "under_review" | "reviewed" | "deferred";
 export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type SortDirection = "asc" | "desc";
 export type OperationalAlertSource = "water-quality" | "feed";
@@ -149,6 +150,9 @@ export interface AlertSummary extends BaseEntity {
   readonly source: string;
   readonly pondId?: EntityId;
   readonly status: "open" | "acknowledged" | "resolved";
+  readonly assignedTo?: EntityId;
+  readonly reviewState?: AlertReviewState;
+  readonly reviewLabel?: string;
   readonly latestNote?: string;
   readonly actionHistory?: AlertActionHistoryItem[];
 }
@@ -157,10 +161,34 @@ export interface AlertLifecycleActionRequest {
   readonly note?: string;
 }
 
+export interface AlertAssignActionRequest {
+  readonly assignedTo: EntityId;
+  readonly note?: string;
+}
+
+export interface AlertUnassignActionRequest {
+  readonly note?: string;
+}
+
+export interface AlertReviewStateActionRequest {
+  readonly reviewState: AlertReviewState;
+  readonly reviewLabel?: string;
+  readonly note?: string;
+}
+
 export interface AlertActionHistoryItem {
-  readonly action: "created" | "acknowledged" | "resolved";
+  readonly action:
+    | "created"
+    | "acknowledged"
+    | "resolved"
+    | "assigned"
+    | "unassigned"
+    | "review_state_changed";
   readonly note?: string;
   readonly timestamp: ISODateString;
+  readonly assignedTo?: EntityId;
+  readonly reviewState?: AlertReviewState;
+  readonly reviewLabel?: string;
 }
 
 export interface OperationalAlertDecision {
@@ -298,6 +326,8 @@ export interface AlertsListQueryRequest extends ListQueryRequest {
   readonly severity?: AlertSummary["severity"];
   readonly status?: AlertSummary["status"];
   readonly source?: string;
+  readonly assignedTo?: EntityId;
+  readonly reviewState?: AlertReviewState;
   readonly hasLatestNote?: boolean;
   readonly sortBy?: "updatedAt_desc" | "updatedAt_asc" | "createdAt_desc" | "createdAt_asc";
 }
@@ -445,6 +475,33 @@ export const aquaPulseEndpointCatalog = {
       id: "alerts.resolve",
       method: "POST",
       path: "/api/alerts/:id/resolve",
+      semantics: "action"
+    }),
+    assign: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertAssignActionRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.assign",
+      method: "POST",
+      path: "/api/alerts/:id/assign",
+      semantics: "action"
+    }),
+    unassign: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertUnassignActionRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.unassign",
+      method: "POST",
+      path: "/api/alerts/:id/unassign",
+      semantics: "action"
+    }),
+    setReviewState: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertReviewStateActionRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.setReviewState",
+      method: "POST",
+      path: "/api/alerts/:id/review-state",
       semantics: "action"
     }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({

@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createRepositories, createRepositoriesFromConfig } from "../repositories";
 import { createMockApiClients } from "../clients";
 import { createAlertLifecycleSubmitter, submitAlertLifecycleAction } from "../features/alert-lifecycle";
+import {
+  createAlertAssignSubmitter,
+  createAlertReviewStateSubmitter,
+  createAlertUnassignSubmitter,
+  submitAlertTriageAction
+} from "../features/alert-triage";
 
 describe("Alerts lifecycle flow", () => {
   it("supports acknowledge and resolve through the default mock-backed repository path", async () => {
@@ -81,5 +87,62 @@ describe("Alerts lifecycle flow", () => {
     expect(acknowledged.data.items[0]?.status).toBe("acknowledged");
     expect(acknowledged.data.items[0]?.latestNote).toBeTruthy();
     expect(newest.data.items[0]?.updatedAt >= newest.data.items.at(-1)?.updatedAt!).toBe(true);
+  });
+
+  it("supports assignment and review-state actions through mock-backed and placeholder-http paths", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const assign = createAlertAssignSubmitter(repositories)("alert-1");
+    const setReviewState = createAlertReviewStateSubmitter(repositories)("alert-1");
+    const unassign = createAlertUnassignSubmitter(repositories)("alert-1");
+
+    const assigned = await assign({ assignedTo: "operator-1", note: "Owner set." });
+    const reviewed = await setReviewState({
+      reviewState: "reviewed",
+      reviewLabel: "oxygen-check",
+      note: "Reviewed."
+    });
+    const unassigned = await unassign({ note: "Released." });
+
+    expect(assigned.status).toBe("success");
+    expect(reviewed.status).toBe("success");
+    expect(unassigned.status).toBe("success");
+    if (assigned.status === "success" && reviewed.status === "success" && unassigned.status === "success") {
+      expect(assigned.data.assignedTo).toBe("operator-1");
+      expect(reviewed.data.reviewState).toBe("reviewed");
+      expect(reviewed.data.reviewLabel).toBe("oxygen-check");
+      expect(unassigned.data.assignedTo).toBeUndefined();
+      expect(unassigned.data.actionHistory?.map((item) => item.action)).toContain("review_state_changed");
+    }
+
+    const httpRepositories = createRepositoriesFromConfig({
+      mode: "http",
+      enablePlaceholderHttp: true
+    });
+    const httpAssigned = await httpRepositories.alerts.assign("alert-1", {
+      assignedTo: "operator-http",
+      note: "HTTP owner set."
+    });
+    const httpReviewed = await httpRepositories.alerts.setReviewState("alert-1", {
+      reviewState: "under_review",
+      reviewLabel: "http-queue",
+      note: "HTTP review state."
+    });
+
+    expect(httpAssigned.data.assignedTo).toBe("operator-http");
+    expect(httpReviewed.data.reviewState).toBe("under_review");
+    expect(httpReviewed.data.actionHistory?.at(-1)?.reviewLabel).toBe("http-queue");
+  });
+
+  it("keeps the public triage submit helper stable", async () => {
+    const result = await submitAlertTriageAction("assign", "alert-1", {
+      assignedTo: "operator-2",
+      note: "Taking ownership."
+    });
+
+    expect(result.status).toBe("success");
+    if (result.status === "success") {
+      expect(result.data.assignedTo).toBe("operator-2");
+      expect(result.data.reviewState).toBe("under_review");
+    }
   });
 });

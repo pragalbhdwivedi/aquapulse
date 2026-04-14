@@ -1,5 +1,7 @@
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
   AiDashboardQueryRequest,
@@ -13,6 +15,7 @@ import type {
   AiTextRewriteRequest,
   AiTextRewriteResponse,
   AlertSummary,
+  AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   AuditEvent,
   BatchSummary,
@@ -73,6 +76,9 @@ export interface AlertsRepository {
   getById(id: string): Promise<ApiSuccessEnvelope<AlertSummary>>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   resolve(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  assign(id: string, input: AlertAssignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  unassign(id: string, input: AlertUnassignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   explain(input: AiAlertsExplainRequest): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>>;
 }
 
@@ -153,6 +159,15 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       resolve(id: string, input: AlertLifecycleActionRequest) {
         return clients.alerts.resolve(id, input);
+      },
+      assign(id: string, input: AlertAssignActionRequest) {
+        return clients.alerts.assign(id, input);
+      },
+      unassign(id: string, input: AlertUnassignActionRequest) {
+        return clients.alerts.unassign(id, input);
+      },
+      setReviewState(id: string, input: AlertReviewStateActionRequest) {
+        return clients.alerts.setReviewState(id, input);
       },
       explain(input: AiAlertsExplainRequest) {
         return clients.alerts.explain(input);

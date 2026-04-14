@@ -29,6 +29,9 @@ export interface AlertRow {
   readonly source: string;
   readonly pond_id?: string;
   readonly status: AlertSummary["status"];
+  readonly assigned_to?: string;
+  readonly review_state?: AlertSummary["reviewState"];
+  readonly review_label?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -104,6 +107,9 @@ export interface AlertRowWrite {
   readonly source: string;
   readonly pond_id?: string;
   readonly status: AlertSummary["status"];
+  readonly assigned_to?: string;
+  readonly review_state?: AlertSummary["reviewState"];
+  readonly review_label?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -116,6 +122,9 @@ export interface AlertRowPatch {
   readonly source?: string;
   readonly pond_id?: string;
   readonly status?: AlertSummary["status"];
+  readonly assigned_to?: string;
+  readonly review_state?: AlertSummary["reviewState"];
+  readonly review_label?: string;
 }
 
 export interface TaskRowWrite extends TaskRow {}
@@ -185,6 +194,9 @@ export const alertRowMapper: RowMapper<AlertRow, AlertSummary> = {
       source: row.source,
       pondId: row.pond_id,
       status: row.status,
+      assignedTo: row.assigned_to,
+      reviewState: row.review_state,
+      reviewLabel: row.review_label,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -272,6 +284,7 @@ export function createPlaceholderAlertRow(overrides: Partial<AlertRow> = {}): Al
     source: "water-quality",
     pond_id: "pond-1",
     status: "open",
+    review_state: "unreviewed",
     created_at: "2026-04-13T00:00:00.000Z",
     updated_at: "2026-04-13T00:00:00.000Z",
     ...overrides
@@ -360,16 +373,29 @@ export function mapUpdatePondInputToRowPatch(
   };
 }
 
-export function mapCreateAlertInputToRowWrite(input: { readonly id?: string }): AlertRowWrite {
+export function mapCreateAlertInputToRowWrite(input: {
+  readonly id?: string;
+  readonly title?: string;
+  readonly severity?: AlertSummary["severity"];
+  readonly source?: string;
+  readonly pondId?: string;
+  readonly status?: AlertSummary["status"];
+  readonly assignedTo?: string;
+  readonly reviewState?: AlertSummary["reviewState"];
+  readonly reviewLabel?: string;
+}): AlertRowWrite {
   const base = createPlaceholderAlertRow(input.id ? { id: input.id } : {});
 
   return {
     id: base.id,
-    title: base.title,
-    severity: base.severity,
-    source: base.source,
-    pond_id: base.pond_id,
-    status: base.status,
+    title: input.title ?? base.title,
+    severity: input.severity ?? base.severity,
+    source: input.source ?? base.source,
+    pond_id: input.pondId ?? base.pond_id,
+    status: input.status ?? base.status,
+    assigned_to: input.assignedTo ?? base.assigned_to,
+    review_state: input.reviewState ?? base.review_state,
+    review_label: input.reviewLabel ?? base.review_label,
     created_at: base.created_at,
     updated_at: base.updated_at
   };
@@ -377,11 +403,29 @@ export function mapCreateAlertInputToRowWrite(input: { readonly id?: string }): 
 
 export function mapUpdateAlertInputToRowPatch(
   id: string,
-  _input: { readonly id?: string }
+  input: {
+    readonly id?: string;
+    readonly title?: string;
+    readonly severity?: AlertSummary["severity"];
+    readonly source?: string;
+    readonly pondId?: string;
+    readonly status?: AlertSummary["status"];
+    readonly assignedTo?: string;
+    readonly reviewState?: AlertSummary["reviewState"];
+    readonly reviewLabel?: string;
+  }
 ): AlertRowPatch {
   return {
     id,
-    updated_at: createPlaceholderAlertRow({ id }).updated_at
+    updated_at: createPlaceholderAlertRow({ id }).updated_at,
+    title: input.title,
+    severity: input.severity,
+    source: input.source,
+    pond_id: input.pondId,
+    status: input.status,
+    assigned_to: input.assignedTo,
+    review_state: input.reviewState,
+    review_label: input.reviewLabel
   };
 }
 

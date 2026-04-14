@@ -1,7 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
   AlertSummary,
+  AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   ListResponse,
   OperationalAlertDecision
@@ -24,6 +27,18 @@ export class AlertsApplicationService {
   }
   async resolve(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.resolve(_id, _input) };
+  }
+  async assign(_id: string, _input: AlertAssignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.assign(_id, _input) };
+  }
+  async unassign(_id: string, _input: AlertUnassignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.unassign(_id, _input) };
+  }
+  async setReviewState(
+    _id: string,
+    _input: AlertReviewStateActionRequest
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.setReviewState(_id, _input) };
   }
   async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
   async getById(_id: string): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.getById(_id) }; }

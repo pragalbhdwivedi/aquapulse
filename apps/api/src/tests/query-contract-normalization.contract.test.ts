@@ -32,6 +32,8 @@ describe("Query contract normalization", () => {
       pageSize: 10,
       severity: "high" as const,
       source: "water-quality",
+      assignedTo: "operator-1",
+      reviewState: "under_review" as const,
       hasLatestNote: true,
       sortBy: "updatedAt_desc" as const,
       filters: [{ field: "status", value: "open" as const }]
@@ -65,6 +67,8 @@ describe("Query contract normalization", () => {
       severity: "high",
       status: undefined,
       source: "water-quality",
+      assignedTo: "operator-1",
+      reviewState: "under_review",
       hasLatestNote: true,
       sortBy: "updatedAt_desc"
     });

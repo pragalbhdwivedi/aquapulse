@@ -17,7 +17,14 @@ import {
   type DatabaseConfig,
   type DatabaseConnectionFactory
 } from "@aquapulse/database";
-import type { AlertLifecycleActionRequest, AlertSummary, ListResponse } from "@aquapulse/types";
+import type {
+  AlertAssignActionRequest,
+  AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
+  AlertSummary,
+  AlertUnassignActionRequest,
+  ListResponse
+} from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
@@ -43,6 +50,8 @@ export function buildAlertsListQueryPlan(query: AlertsListQueryContract): Compil
       query.severity ?? null,
       query.status ?? null,
       query.source ?? null,
+      query.assignedTo ?? null,
+      query.reviewState ?? null,
       query.search ?? null
     ],
     filters: {
@@ -50,6 +59,8 @@ export function buildAlertsListQueryPlan(query: AlertsListQueryContract): Compil
       severity: query.severity,
       status: query.status,
       source: query.source,
+      assignedTo: query.assignedTo,
+      reviewState: query.reviewState,
       search: query.search
     }
   });
@@ -112,6 +123,25 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
   async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
     return this.update(id, { status: "resolved" });
+  }
+
+  async assign(id: string, _input: AlertAssignActionRequest): Promise<AlertSummary> {
+    return this.update(id, {
+      assignedTo: _input.assignedTo,
+      reviewState: "under_review"
+    });
+  }
+
+  async unassign(id: string, _input: AlertUnassignActionRequest): Promise<AlertSummary> {
+    void _input;
+    return this.update(id, { assignedTo: undefined });
+  }
+
+  async setReviewState(id: string, _input: AlertReviewStateActionRequest): Promise<AlertSummary> {
+    return this.update(id, {
+      reviewState: _input.reviewState,
+      reviewLabel: _input.reviewLabel
+    });
   }
 
   async getById(id: string): Promise<AlertSummary> {

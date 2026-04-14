@@ -1,5 +1,8 @@
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
+  AlertUnassignActionRequest,
   AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
@@ -89,6 +92,9 @@ export interface AlertsApiClient {
   getById(id: string): ApiItemContract<AlertSummary>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
   resolve(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
+  assign(id: string, input: AlertAssignActionRequest): ApiItemContract<AlertSummary>;
+  unassign(id: string, input: AlertUnassignActionRequest): ApiItemContract<AlertSummary>;
+  setReviewState(id: string, input: AlertReviewStateActionRequest): ApiItemContract<AlertSummary>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
 }
 

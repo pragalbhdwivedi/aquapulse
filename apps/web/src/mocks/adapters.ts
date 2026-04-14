@@ -4,7 +4,9 @@ import {
   findMatchingOperationalAlert
 } from "@aquapulse/types";
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
   AiAlertsExplainRequest,
   AiDashboardQueryRequest,
   AiHandoverGenerateRequest,
@@ -12,6 +14,7 @@ import type {
   AiPondsSummarizeRequest,
   AiTextRewriteRequest,
   AlertSummary,
+  AlertUnassignActionRequest,
   FeedCreateRequest,
   FeedUpdateRequest,
   TaskCreateRequest,
@@ -94,6 +97,7 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
       source: decision.source,
       pondId: decision.pondId,
       status: decision.status,
+      latestNote: decision.summary,
       updatedAt: decision.observedAt
     };
     const index = mockAlerts.findIndex((item) => item.id === existing.id);
@@ -112,6 +116,7 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
     source: decision.source,
     pondId: decision.pondId,
     status: decision.status,
+    reviewState: "unreviewed",
     latestNote: decision.summary,
     actionHistory: [
       {
@@ -196,6 +201,8 @@ export const alertsMockAdapter: AlertsApiClient = {
         (!query?.severity || item.severity === query.severity) &&
         (!query?.status || item.status === query.status) &&
         (!query?.source || item.source === query.source) &&
+        (!query?.assignedTo || item.assignedTo === query.assignedTo) &&
+        (!query?.reviewState || item.reviewState === query.reviewState) &&
         (query?.hasLatestNote === undefined ||
           (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
         matchesSearch(item.title, query?.search)
@@ -240,6 +247,78 @@ export const alertsMockAdapter: AlertsApiClient = {
         }
       ],
       updatedAt: "2026-04-15T10:15:00.000Z"
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
+  },
+  async assign(id: string, input: AlertAssignActionRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const updated = {
+      ...existing,
+      assignedTo: input.assignedTo,
+      reviewState: "under_review" as const,
+      latestNote: input.note ?? existing.latestNote,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "assigned" as const,
+          assignedTo: input.assignedTo,
+          reviewState: "under_review" as const,
+          note: input.note,
+          timestamp: "2026-04-15T10:20:00.000Z"
+        }
+      ],
+      updatedAt: "2026-04-15T10:20:00.000Z"
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
+  },
+  async unassign(id: string, input: AlertUnassignActionRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const updated = {
+      ...existing,
+      assignedTo: undefined,
+      latestNote: input.note ?? existing.latestNote,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "unassigned" as const,
+          note: input.note,
+          timestamp: "2026-04-15T10:25:00.000Z"
+        }
+      ],
+      updatedAt: "2026-04-15T10:25:00.000Z"
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
+  },
+  async setReviewState(id: string, input: AlertReviewStateActionRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const updated = {
+      ...existing,
+      reviewState: input.reviewState,
+      reviewLabel: input.reviewLabel,
+      latestNote: input.note ?? existing.latestNote,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "review_state_changed" as const,
+          reviewState: input.reviewState,
+          reviewLabel: input.reviewLabel,
+          note: input.note,
+          timestamp: "2026-04-15T10:30:00.000Z"
+        }
+      ],
+      updatedAt: "2026-04-15T10:30:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
     if (index >= 0) {

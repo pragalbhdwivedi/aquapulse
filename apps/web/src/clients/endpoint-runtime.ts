@@ -1,5 +1,9 @@
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
+  AlertSummary,
+  AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   AttachmentMetadata,
   EndpointRequest,
@@ -42,6 +46,12 @@ type AlertActionCapableClient<TItem, TInput> = {
   resolve: (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>;
 };
 
+type AlertTriageCapableClient<TItem> = {
+  assign: (id: string, input: AlertAssignActionRequest) => Promise<{ ok: true; data: TItem }>;
+  unassign: (id: string, input: AlertUnassignActionRequest) => Promise<{ ok: true; data: TItem }>;
+  setReviewState: (id: string, input: AlertReviewStateActionRequest) => Promise<{ ok: true; data: TItem }>;
+};
+
 function createListHandler<TItem, TQuery>(
   client: ListCapableClient<TItem, TQuery>,
   fallbackQuery: TQuery
@@ -82,11 +92,16 @@ function createUpdateHandler<TItem, TInput>(
 }
 
 function createAlertActionHandler<TItem, TInput>(
-  client: AlertActionCapableClient<TItem, TInput>,
-  action: "acknowledge" | "resolve"
+  client:
+    | AlertActionCapableClient<TItem, TInput>
+    | AlertTriageCapableClient<TItem>,
+  action: "acknowledge" | "resolve" | "assign" | "unassign" | "setReviewState"
 ) {
   return async (request: { readonly id: string; readonly body: TInput }) =>
-    client[action](request.id, request.body);
+    (client as Record<string, (id: string, input: TInput) => Promise<{ ok: true; data: TItem }>>)[action](
+      request.id,
+      request.body
+    );
 }
 
 export interface AquaPulseEndpointHandlers {
@@ -104,6 +119,9 @@ export interface AquaPulseEndpointHandlers {
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
     resolve: EndpointHandler<EndpointCatalog["alerts"]["resolve"]>;
+    assign: EndpointHandler<EndpointCatalog["alerts"]["assign"]>;
+    unassign: EndpointHandler<EndpointCatalog["alerts"]["unassign"]>;
+    setReviewState: EndpointHandler<EndpointCatalog["alerts"]["setReviewState"]>;
     explain: EndpointHandler<EndpointCatalog["alerts"]["explain"]>;
   };
   tasks: {
@@ -236,6 +254,24 @@ export function createEndpointHandlersFromClients(
               AlertLifecycleActionRequest
             >, "resolve")
           : createMutationFromDetailHandler(clients.alerts),
+      assign:
+        "assign" in clients.alerts
+          ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertTriageCapableClient<
+              AlertSummary
+            >, "assign")
+          : createMutationFromDetailHandler(clients.alerts),
+      unassign:
+        "unassign" in clients.alerts
+          ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertTriageCapableClient<
+              AlertSummary
+            >, "unassign")
+          : createMutationFromDetailHandler(clients.alerts),
+      setReviewState:
+        "setReviewState" in clients.alerts
+          ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertTriageCapableClient<
+              AlertSummary
+            >, "setReviewState")
+          : createMutationFromDetailHandler(clients.alerts),
       explain: async (request) => clients.alerts.explain(request)
     },
     tasks: {
@@ -344,6 +380,9 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       getById: (id) => handlers.alerts.getById({ id }),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),
+      assign: (id, input) => handlers.alerts.assign({ id, body: input }),
+      unassign: (id, input) => handlers.alerts.unassign({ id, body: input }),
+      setReviewState: (id, input) => handlers.alerts.setReviewState({ id, body: input }),
       explain: (input) => handlers.alerts.explain(input)
     },
     tasks: {

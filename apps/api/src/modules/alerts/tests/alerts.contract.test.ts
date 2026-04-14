@@ -29,6 +29,9 @@ describe("Alerts contracts", () => {
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue(alert),
       resolve: vi.fn().mockResolvedValue(alert),
+      assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
+      setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       listOpen: vi.fn().mockResolvedValue(alertList)
@@ -47,6 +50,9 @@ describe("Alerts contracts", () => {
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue({ ...alert, status: "acknowledged" as const }),
       resolve: vi.fn().mockResolvedValue({ ...alert, status: "resolved" as const }),
+      assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
+      setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       listOpen: vi.fn().mockResolvedValue(alertList)
@@ -60,6 +66,41 @@ describe("Alerts contracts", () => {
     expect(repository.resolve).toHaveBeenCalledWith("alert-1", { note: "Restored." });
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(resolved.data.status).toBe("resolved");
+  });
+
+  it("application service delegates triage actions to the alerts repository port", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      resolve: vi.fn().mockResolvedValue(alert),
+      assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
+      setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const, reviewLabel: "operator-review" }),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const assigned = await service.assign("alert-1", { assignedTo: "user-2", note: "Picked up for review." });
+    const reviewState = await service.setReviewState("alert-1", {
+      reviewState: "reviewed",
+      reviewLabel: "operator-review",
+      note: "Completed review."
+    });
+    const unassigned = await service.unassign("alert-1", { note: "Returned to queue." });
+
+    expect(repository.assign).toHaveBeenCalledWith("alert-1", { assignedTo: "user-2", note: "Picked up for review." });
+    expect(repository.setReviewState).toHaveBeenCalledWith("alert-1", {
+      reviewState: "reviewed",
+      reviewLabel: "operator-review",
+      note: "Completed review."
+    });
+    expect(repository.unassign).toHaveBeenCalledWith("alert-1", { note: "Returned to queue." });
+    expect(assigned.data.assignedTo).toBe("user-2");
+    expect(reviewState.data.reviewState).toBe("reviewed");
+    expect(unassigned.data.assignedTo).toBeUndefined();
   });
 
   it("controller returns a standard item envelope", async () => {

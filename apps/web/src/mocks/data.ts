@@ -31,6 +31,7 @@ export const mockAlerts: AlertSummary[] = [
     source: "water-quality",
     pondId: "pond-1",
     status: "open",
+    reviewState: "unreviewed",
     actionHistory: [{ action: "created", timestamp: now }]
   }
 ];

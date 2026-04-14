@@ -91,7 +91,10 @@ describe("Postgres read adapter slices", () => {
     expect(open.items[0]?.status).toBe("open");
     expect(recordedQueries).toEqual([
       { statement: "alerts.getById", params: ["alert-42"] },
-      { statement: "alerts.list", params: [1, 15, "pond-42", "high", "open", "water-quality", "oxygen"] },
+      {
+        statement: "alerts.list",
+        params: [1, 15, "pond-42", "high", "open", "water-quality", null, null, "oxygen"]
+      },
       { statement: "alerts.listOpen", params: [] }
     ]);
     expect(buildAlertByIdQueryPlan("alert-42").filters).toEqual({ id: "alert-42" });
@@ -100,6 +103,8 @@ describe("Postgres read adapter slices", () => {
       severity: "high",
       status: undefined,
       source: undefined,
+      assignedTo: undefined,
+      reviewState: undefined,
       search: undefined
     });
     expect(buildOpenAlertsQueryPlan().filters).toEqual({ status: "open" });
@@ -161,6 +166,9 @@ describe("Postgres read adapter slices", () => {
             source: "water-quality",
             pond_id: "pond-1",
             status: "open",
+            assigned_to: undefined,
+            review_state: "unreviewed",
+            review_label: undefined,
             created_at: "2026-04-13T00:00:00.000Z",
             updated_at: "2026-04-13T00:00:00.000Z"
           }
@@ -172,6 +180,14 @@ describe("Postgres read adapter slices", () => {
           "alert-write-2",
           {
             id: "alert-write-2",
+            title: undefined,
+            severity: undefined,
+            source: undefined,
+            pond_id: undefined,
+            status: undefined,
+            assigned_to: undefined,
+            review_state: undefined,
+            review_label: undefined,
             updated_at: "2026-04-13T00:00:00.000Z"
           }
         ]
@@ -183,10 +199,10 @@ describe("Postgres read adapter slices", () => {
       "pond-write-2",
       { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
-    expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
-    expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
+    expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", assigned_to: undefined, review_state: "unreviewed", review_label: undefined, created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
+    expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
       "alert-write-2",
-      { id: "alert-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
+      { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
   });
 });

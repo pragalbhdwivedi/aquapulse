@@ -9,18 +9,24 @@ import { AlertsApplicationService } from "./application/alerts.application-servi
 import { AlertsService } from "./alerts.service";
 import {
   AcknowledgeAlertDto,
+  AssignAlertDto,
   CreateAlertsDto,
   QueryAlertsDto,
   ResolveAlertDto,
+  SetAlertReviewStateDto,
+  UnassignAlertDto,
   UpdateAlertsDto
 } from "./dto";
 import {
   toAcknowledgeAlertInput,
+  toAssignAlertInput,
   toAlertsItemResponse,
   toAlertsListResponse,
   toCreateAlertsInput,
   toQueryAlertsInput,
   toResolveAlertInput,
+  toSetAlertReviewStateInput,
+  toUnassignAlertInput,
   toUpdateAlertsInput
 } from "./mappers/alerts.mapper";
 
@@ -98,6 +104,48 @@ export class AlertsController {
       input,
       toResolveAlertInput,
       (resourceId, mappedInput) => this.alertsApplicationService.resolve(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Post(":id/assign")
+  async assign(
+    @Param("id") id: string,
+    @Body() input: AssignAlertDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.assign>> {
+    return delegateUpdate(
+      id,
+      input,
+      toAssignAlertInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.assign(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Post(":id/unassign")
+  async unassign(
+    @Param("id") id: string,
+    @Body() input: UnassignAlertDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.unassign>> {
+    return delegateUpdate(
+      id,
+      input,
+      toUnassignAlertInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.unassign(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Post(":id/review-state")
+  async setReviewState(
+    @Param("id") id: string,
+    @Body() input: SetAlertReviewStateDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.setReviewState>> {
+    return delegateUpdate(
+      id,
+      input,
+      toSetAlertReviewStateInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.setReviewState(resourceId, mappedInput),
       toAlertsItemResponse
     );
   }

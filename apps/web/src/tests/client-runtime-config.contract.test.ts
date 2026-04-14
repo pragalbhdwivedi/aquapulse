@@ -52,6 +52,9 @@ describe("Client runtime config and invocation registry", () => {
     expect(flattened[aquaPulseEndpointCatalog.ai.queryDashboard.id].method).toBe(
       aquaPulseEndpointCatalog.ai.queryDashboard.method
     );
+    expect(flattened[aquaPulseEndpointCatalog.alerts.assign.id].path).toBe(
+      aquaPulseEndpointCatalog.alerts.assign.path
+    );
     expect(flattened[aquaPulseEndpointCatalog.waterQuality.list.id].transport.http).toBe(
       "placeholder_http"
     );

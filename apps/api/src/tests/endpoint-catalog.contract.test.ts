@@ -54,6 +54,18 @@ describe("Endpoint catalog parity", () => {
       method: aquaPulseEndpointCatalog.alerts.resolve.method,
       path: aquaPulseEndpointCatalog.alerts.resolve.path
     });
+    expect(getHandlerContract(AlertsController, "assign")).toEqual({
+      method: aquaPulseEndpointCatalog.alerts.assign.method,
+      path: aquaPulseEndpointCatalog.alerts.assign.path
+    });
+    expect(getHandlerContract(AlertsController, "unassign")).toEqual({
+      method: aquaPulseEndpointCatalog.alerts.unassign.method,
+      path: aquaPulseEndpointCatalog.alerts.unassign.path
+    });
+    expect(getHandlerContract(AlertsController, "setReviewState")).toEqual({
+      method: aquaPulseEndpointCatalog.alerts.setReviewState.method,
+      path: aquaPulseEndpointCatalog.alerts.setReviewState.path
+    });
     expect(getHandlerContract(TasksController, "update")).toEqual({
       method: aquaPulseEndpointCatalog.tasks.update.method,
       path: aquaPulseEndpointCatalog.tasks.update.path

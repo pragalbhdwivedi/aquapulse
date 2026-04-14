@@ -1,6 +1,9 @@
 import type {
+  AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertReviewStateActionRequest,
   AlertSummary,
+  AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   EndpointContract,
   FeedCreateRequest,
@@ -134,6 +137,26 @@ export function createHttpClientFactory({
           registry.alerts.resolve,
           { id, body: input }
         );
+      },
+      assign(id: string, input: AlertAssignActionRequest) {
+        return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertAssignActionRequest }>(
+          executor,
+          registry.alerts.assign,
+          { id, body: input }
+        );
+      },
+      unassign(id: string, input: AlertUnassignActionRequest) {
+        return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertUnassignActionRequest }>(
+          executor,
+          registry.alerts.unassign,
+          { id, body: input }
+        );
+      },
+      setReviewState(id: string, input: AlertReviewStateActionRequest) {
+        return invokeCreateEndpoint<
+          AlertSummary,
+          { readonly id: string; readonly body: AlertReviewStateActionRequest }
+        >(executor, registry.alerts.setReviewState, { id, body: input });
       }
     },
     feed: {

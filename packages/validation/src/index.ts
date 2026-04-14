@@ -39,10 +39,27 @@ export const feedEntryUpdateSchema = z.object({
 export const alertQueryFiltersSchema = z.object({
   severity: z.enum(["low", "medium", "high", "critical"]).optional(),
   status: z.enum(["open", "acknowledged", "resolved"]).optional(),
-  pondId: z.string().optional()
+  pondId: z.string().optional(),
+  assignedTo: z.string().optional(),
+  reviewState: z.enum(["unreviewed", "under_review", "reviewed", "deferred"]).optional()
 });
 
 export const alertLifecycleActionSchema = z.object({
+  note: z.string().min(1).optional()
+});
+
+export const alertAssignActionSchema = z.object({
+  assignedTo: z.string().min(1),
+  note: z.string().min(1).optional()
+});
+
+export const alertUnassignActionSchema = z.object({
+  note: z.string().min(1).optional()
+});
+
+export const alertReviewStateActionSchema = z.object({
+  reviewState: z.enum(["unreviewed", "under_review", "reviewed", "deferred"]),
+  reviewLabel: z.string().min(1).optional(),
   note: z.string().min(1).optional()
 });
 

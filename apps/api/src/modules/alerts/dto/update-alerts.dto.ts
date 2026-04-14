@@ -1,4 +1,4 @@
-import type { AlertSeverity } from "@aquapulse/types";
+import type { AlertReviewState, AlertSeverity } from "@aquapulse/types";
 
 export class UpdateAlertsDto {
   id?: string;
@@ -7,5 +7,8 @@ export class UpdateAlertsDto {
   source?: string;
   pondId?: string;
   status?: "open" | "acknowledged" | "resolved";
+  assignedTo?: string;
+  reviewState?: AlertReviewState;
+  reviewLabel?: string;
   latestNote?: string;
 }
