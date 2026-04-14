@@ -1,3 +1,8 @@
+import {
+  evaluateFeedAlertDecisions,
+  evaluateWaterQualityAlertDecisions,
+  findMatchingOperationalAlert
+} from "@aquapulse/types";
 import type {
   AiAlertsExplainRequest,
   AiDashboardQueryRequest,
@@ -5,12 +10,14 @@ import type {
   AiIncidentsDraftRequest,
   AiPondsSummarizeRequest,
   AiTextRewriteRequest,
+  AlertSummary,
   FeedCreateRequest,
   FeedUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   WaterQualityCreateRequest
 } from "@aquapulse/types";
+import type { OperationalAlertDecision } from "@aquapulse/types";
 import {
   feedEntryCreateSchema,
   feedEntryUpdateSchema,
@@ -53,6 +60,40 @@ import {
 
 function matchesSearch(value: string | undefined, search: string | undefined): boolean {
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
+}
+
+function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
+  const existing = findMatchingOperationalAlert(mockAlerts, decision);
+
+  if (existing) {
+    const updated: AlertSummary = {
+      ...existing,
+      title: decision.title,
+      severity: decision.severity,
+      source: decision.source,
+      pondId: decision.pondId,
+      status: decision.status,
+      updatedAt: decision.observedAt
+    };
+    const index = mockAlerts.findIndex((item) => item.id === existing.id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return updated;
+  }
+
+  const created: AlertSummary = {
+    id: `alert-${mockAlerts.length + 1}`,
+    createdAt: decision.observedAt,
+    updatedAt: decision.observedAt,
+    title: decision.title,
+    severity: decision.severity,
+    source: decision.source,
+    pondId: decision.pondId,
+    status: decision.status
+  };
+  mockAlerts.push(created);
+  return created;
 }
 
 export const pondsMockAdapter: PondsApiClient = {
@@ -100,6 +141,9 @@ export const waterQualityMockAdapter: WaterQualityApiClient = {
       ph: parsed.data.ph
     };
     mockWaterQuality.unshift(created);
+    evaluateWaterQualityAlertDecisions(parsed.data).forEach((decision) => {
+      upsertMockOperationalAlert(decision);
+    });
     return ok(created);
   },
   async list(query: WaterQualityListQuery) {
@@ -214,6 +258,9 @@ export const feedMockAdapter: FeedApiClient = {
       fedAt: parsed.data.fedAt
     };
     mockFeedEntries.unshift(created);
+    evaluateFeedAlertDecisions(parsed.data).forEach((decision) => {
+      upsertMockOperationalAlert(decision);
+    });
     return ok(created);
   },
   async update(id: string, input: FeedUpdateRequest) {

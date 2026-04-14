@@ -5,20 +5,30 @@ import type {
   WaterQualityCreateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
+import { evaluateWaterQualityAlertDecisions } from "@aquapulse/types";
 import type { CreateWaterQualityDto, UpdateWaterQualityDto } from "../dto";
+import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 import { WATER_QUALITY_REPOSITORY, type WaterQualityRepositoryPort } from "../ports/water-quality-repository.port";
 import type { WaterQualityListQueryContract } from "../query-contracts/water-quality-query.contract";
 
 @Injectable()
 export class WaterQualityApplicationService {
   constructor(
-    @Inject(WATER_QUALITY_REPOSITORY) private readonly waterQualityRepository: WaterQualityRepositoryPort
+    @Inject(WATER_QUALITY_REPOSITORY) private readonly waterQualityRepository: WaterQualityRepositoryPort,
+    private readonly alertsApplicationService: AlertsApplicationService
   ) {}
 
   async create(
     input: WaterQualityCreateRequest
   ): Promise<ApiSuccessEnvelope<WaterQualityReading>> {
-    return { ok: true, data: await this.waterQualityRepository.create(input) };
+    const created = await this.waterQualityRepository.create(input);
+    const decisions = evaluateWaterQualityAlertDecisions(input);
+
+    await Promise.all(
+      decisions.map((decision) => this.alertsApplicationService.upsertOperationalDecision(decision))
+    );
+
+    return { ok: true, data: created };
   }
   async update(_id: string, _input: UpdateWaterQualityDto): Promise<ApiSuccessEnvelope<WaterQualityReading>> { return { ok: true, data: await this.waterQualityRepository.update(_id, _input) }; }
   async list(_query: WaterQualityListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>> { return { ok: true, data: await this.waterQualityRepository.list(_query) }; }

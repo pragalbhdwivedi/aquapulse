@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { AlertsApplicationService } from "../modules/alerts/application/alerts.application-service";
+import { InMemoryAlertsRepository } from "../modules/alerts/repositories/in-memory-alerts.repository";
 import { FeedApplicationService } from "../modules/feed/application/feed.application-service";
 import { FeedController } from "../modules/feed/feed.controller";
 import { InMemoryFeedRepository } from "../modules/feed/repositories/in-memory-feed.repository";
@@ -6,7 +8,8 @@ import { InMemoryFeedRepository } from "../modules/feed/repositories/in-memory-f
 describe("Feed update vertical slice", () => {
   it("updates a feed entry through the in-memory repository path", async () => {
     const repository = new InMemoryFeedRepository();
-    const service = new FeedApplicationService(repository);
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const service = new FeedApplicationService(repository, alerts);
     const created = await service.create({
       pondId: "pond-1",
       batchId: "batch-1",
@@ -27,7 +30,8 @@ describe("Feed update vertical slice", () => {
 
   it("keeps controller -> mapper -> service -> envelope delegation stable for update", async () => {
     const repository = new InMemoryFeedRepository();
-    const applicationService = new FeedApplicationService(repository);
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const applicationService = new FeedApplicationService(repository, alerts);
     const controller = new FeedController(
       { getPlaceholder: async () => ({ ok: true }) } as never,
       applicationService

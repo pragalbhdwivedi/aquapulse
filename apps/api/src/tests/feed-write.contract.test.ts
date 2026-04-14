@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { AlertsApplicationService } from "../modules/alerts/application/alerts.application-service";
+import { InMemoryAlertsRepository } from "../modules/alerts/repositories/in-memory-alerts.repository";
 import { FeedApplicationService } from "../modules/feed/application/feed.application-service";
 import { FeedController } from "../modules/feed/feed.controller";
 import { InMemoryFeedRepository } from "../modules/feed/repositories/in-memory-feed.repository";
@@ -6,7 +8,8 @@ import { InMemoryFeedRepository } from "../modules/feed/repositories/in-memory-f
 describe("Feed write vertical slice", () => {
   it("creates a feed entry through the in-memory repository path", async () => {
     const repository = new InMemoryFeedRepository();
-    const service = new FeedApplicationService(repository);
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const service = new FeedApplicationService(repository, alerts);
 
     const created = await service.create({
       pondId: "pond-1",
@@ -24,7 +27,8 @@ describe("Feed write vertical slice", () => {
 
   it("keeps controller -> mapper -> service -> envelope delegation stable for create", async () => {
     const repository = new InMemoryFeedRepository();
-    const applicationService = new FeedApplicationService(repository);
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const applicationService = new FeedApplicationService(repository, alerts);
     const controller = new FeedController(
       { getPlaceholder: async () => ({ ok: true }) } as never,
       applicationService
@@ -42,5 +46,26 @@ describe("Feed write vertical slice", () => {
     expect(response.data.id).toContain("feed-");
     expect(response.data.feedType).toBe("Starter Feed");
     expect(response.data.quantityKg).toBe(20);
+  });
+
+  it("supports a simple deterministic feed anomaly alert path", async () => {
+    const repository = new InMemoryFeedRepository();
+    const alertsRepository = new InMemoryAlertsRepository();
+    const alerts = new AlertsApplicationService(alertsRepository);
+    const service = new FeedApplicationService(repository, alerts);
+
+    await service.create({
+      pondId: "pond-1",
+      batchId: "batch-1",
+      feedType: "Emergency Feed",
+      quantityKg: 95,
+      fedAt: "2026-04-15T06:00:00.000Z"
+    });
+
+    const openAlerts = await alertsRepository.listOpen();
+    const anomaly = openAlerts.items.find((item) => item.title === "Feed quantity anomaly detected");
+
+    expect(anomaly?.severity).toBe("medium");
+    expect(anomaly?.source).toBe("feed");
   });
 });

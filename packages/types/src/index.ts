@@ -3,6 +3,11 @@ export type ISODateString = string;
 export type AlertSeverity = "low" | "medium" | "high" | "critical";
 export type TaskStatus = "todo" | "in_progress" | "done" | "cancelled";
 export type SortDirection = "asc" | "desc";
+export type OperationalAlertSource = "water-quality" | "feed";
+export type OperationalAlertRuleCode =
+  | "water_quality_threshold_breach"
+  | "water_quality_missing_critical_values"
+  | "feed_quantity_anomaly";
 
 export interface BaseEntity {
   readonly id: EntityId;
@@ -144,6 +149,18 @@ export interface AlertSummary extends BaseEntity {
   readonly source: string;
   readonly pondId?: EntityId;
   readonly status: "open" | "acknowledged" | "resolved";
+}
+
+export interface OperationalAlertDecision {
+  readonly ruleCode: OperationalAlertRuleCode;
+  readonly title: string;
+  readonly severity: AlertSeverity;
+  readonly source: OperationalAlertSource;
+  readonly pondId?: EntityId;
+  readonly status: "open";
+  readonly summary: string;
+  readonly dedupeKey: string;
+  readonly observedAt: ISODateString;
 }
 
 export interface AttachmentMetadata extends BaseEntity {
@@ -624,3 +641,100 @@ export const aquaPulseEndpointCatalog = {
     })
   }
 } as const;
+
+function buildOperationalAlertKey(
+  source: OperationalAlertSource,
+  ruleCode: OperationalAlertRuleCode,
+  pondId?: EntityId
+): string {
+  return [source, ruleCode, pondId ?? "global"].join(":");
+}
+
+export function evaluateWaterQualityAlertDecisions(
+  input: Pick<WaterQualityCreateRequest, "pondId" | "recordedAt" | "temperatureC" | "ph">
+): OperationalAlertDecision[] {
+  const decisions: OperationalAlertDecision[] = [];
+  const missingTemperature = input.temperatureC === undefined;
+  const missingPh = input.ph === undefined;
+
+  if (missingTemperature || missingPh) {
+    const missingFields = [missingTemperature ? "temperature" : null, missingPh ? "ph" : null]
+      .filter(Boolean)
+      .join(" and ");
+
+    decisions.push({
+      ruleCode: "water_quality_missing_critical_values",
+      title: "Missing critical water-quality reading",
+      severity: "critical",
+      source: "water-quality",
+      pondId: input.pondId,
+      status: "open",
+      summary: `Missing ${missingFields} reading for pond ${input.pondId}.`,
+      dedupeKey: buildOperationalAlertKey("water-quality", "water_quality_missing_critical_values", input.pondId),
+      observedAt: input.recordedAt
+    });
+  }
+
+  const breachedTemperature =
+    input.temperatureC !== undefined && (input.temperatureC < 26 || input.temperatureC > 32);
+  const breachedPh = input.ph !== undefined && (input.ph < 6.5 || input.ph > 8.5);
+
+  if (breachedTemperature || breachedPh) {
+    const parts: string[] = [];
+    if (breachedTemperature) {
+      parts.push(`temperature ${input.temperatureC}`);
+    }
+    if (breachedPh) {
+      parts.push(`ph ${input.ph}`);
+    }
+
+    decisions.push({
+      ruleCode: "water_quality_threshold_breach",
+      title: "Water-quality threshold breach",
+      severity: "high",
+      source: "water-quality",
+      pondId: input.pondId,
+      status: "open",
+      summary: `Threshold breach detected for ${parts.join(" and ")} in pond ${input.pondId}.`,
+      dedupeKey: buildOperationalAlertKey("water-quality", "water_quality_threshold_breach", input.pondId),
+      observedAt: input.recordedAt
+    });
+  }
+
+  return decisions;
+}
+
+export function evaluateFeedAlertDecisions(
+  input: Pick<FeedCreateRequest, "pondId" | "quantityKg" | "fedAt">
+): OperationalAlertDecision[] {
+  if (input.quantityKg < 80) {
+    return [];
+  }
+
+  return [
+    {
+      ruleCode: "feed_quantity_anomaly",
+      title: "Feed quantity anomaly detected",
+      severity: "medium",
+      source: "feed",
+      pondId: input.pondId,
+      status: "open",
+      summary: `Feed quantity ${input.quantityKg}kg looks unusually high for pond ${input.pondId}.`,
+      dedupeKey: buildOperationalAlertKey("feed", "feed_quantity_anomaly", input.pondId),
+      observedAt: input.fedAt
+    }
+  ];
+}
+
+export function findMatchingOperationalAlert(
+  alerts: readonly AlertSummary[],
+  decision: OperationalAlertDecision
+): AlertSummary | undefined {
+  return alerts.find(
+    (alert) =>
+      alert.status === "open" &&
+      alert.source === decision.source &&
+      alert.pondId === decision.pondId &&
+      `${alert.source}:${decision.ruleCode}:${alert.pondId ?? "global"}` === decision.dedupeKey
+  );
+}
