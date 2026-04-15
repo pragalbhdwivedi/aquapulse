@@ -131,6 +131,8 @@ describe("Alerts lifecycle flow", () => {
     expect(httpAssigned.data.assignedTo).toBe("operator-http");
     expect(httpReviewed.data.reviewState).toBe("under_review");
     expect(httpReviewed.data.actionHistory?.at(-1)?.reviewLabel).toBe("http-queue");
+    const summary = await httpRepositories.alerts.summary({ page: 1, pageSize: 20 });
+    expect(summary.data.assignmentCounts.assigned).toBeGreaterThanOrEqual(1);
   });
 
   it("keeps the public triage submit helper stable", async () => {

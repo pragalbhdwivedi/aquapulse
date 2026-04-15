@@ -9,7 +9,7 @@ export default async function AlertsPage() {
     <PageShell title="Alerts" description="Placeholder alerts route using the repository and query layer.">
       <p>Alerts: {alertsPage.alerts.items.length}</p>
       <p>AI explanation: {alertsPage.explanation}</p>
-      <AlertsActionList initialAlerts={alertsPage.alerts.items} />
+      <AlertsActionList initialAlerts={alertsPage.alerts.items} initialSummary={alertsPage.summary} />
     </PageShell>
   );
 }

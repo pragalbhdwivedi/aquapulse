@@ -1,4 +1,5 @@
 import type {
+  AlertQueueSummary,
   AiDashboardQueryResponse,
   AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
@@ -39,12 +40,14 @@ export function createReadonlyQueries(repositories: Pick<
     async getDashboardPageData(): Promise<{
       ponds: ListResponse<PondSummary>;
       alerts: ListResponse<AlertSummary>;
+      alertSummary: AlertQueueSummary;
       tasks: ListResponse<TaskSummary>;
       answer: AiDashboardQueryResponse;
     }> {
-      const [ponds, alerts, tasks, answer] = await Promise.all([
+      const [ponds, alerts, alertSummary, tasks, answer] = await Promise.all([
         repositories.ponds.list(defaultPondsQuery),
         repositories.alerts.list(defaultAlertsQuery),
+        repositories.alerts.summary({ page: 1, pageSize: 20 }),
         repositories.tasks.list(defaultTasksQuery),
         repositories.ai.queryDashboard({ question: "What needs attention today?" })
       ]);
@@ -52,6 +55,7 @@ export function createReadonlyQueries(repositories: Pick<
       return {
         ponds: ponds.data,
         alerts: alerts.data,
+        alertSummary: alertSummary.data,
         tasks: tasks.data,
         answer: answer.data
       };
@@ -79,15 +83,25 @@ export function createReadonlyQueries(repositories: Pick<
     },
     async getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
       alerts: ListResponse<AlertSummary>;
+      summary: AlertQueueSummary;
       explanation: string;
     }> {
-      const alerts = await repositories.alerts.list(query);
+      const summaryQuery: AlertsListQuery = {
+        ...query,
+        status: undefined,
+        reviewState: undefined
+      };
+      const [alerts, summary] = await Promise.all([
+        repositories.alerts.list(query),
+        repositories.alerts.summary(summaryQuery)
+      ]);
       const explanation = await repositories.alerts.explain({
         alertId: alerts.data.items[0]?.id ?? "alert-1"
       });
 
       return {
         alerts: alerts.data,
+        summary: summary.data,
         explanation: explanation.data.explanation
       };
     },
@@ -109,6 +123,7 @@ const readonlyQueries = createReadonlyQueries({
 export async function getDashboardPageData(): Promise<{
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
+  alertSummary: AlertQueueSummary;
   tasks: ListResponse<TaskSummary>;
   answer: AiDashboardQueryResponse;
 }> {
@@ -134,6 +149,7 @@ export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
 
 export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
   alerts: ListResponse<AlertSummary>;
+  summary: AlertQueueSummary;
   explanation: string;
 }> {
   return readonlyQueries.getAlertsPageData(query);

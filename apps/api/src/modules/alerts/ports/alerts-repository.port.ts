@@ -1,5 +1,6 @@
 import type {
   AlertAssignActionRequest,
+  AlertQueueSummary,
   AlertLifecycleActionRequest,
   AlertReviewStateActionRequest,
   AlertSummary,
@@ -21,5 +22,6 @@ export interface AlertsRepositoryPort {
   setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<AlertSummary>;
   getById(id: string): Promise<AlertSummary>;
   list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>>;
+  summary(query: AlertsListQueryContract): Promise<AlertQueueSummary>;
   listOpen(): Promise<ListResponse<AlertSummary>>;
 }

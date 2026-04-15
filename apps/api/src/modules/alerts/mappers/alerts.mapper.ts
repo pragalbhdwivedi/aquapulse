@@ -1,6 +1,7 @@
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AlertSummary,
   AlertUnassignActionRequest,
@@ -70,4 +71,10 @@ export function toAlertsItemResponse(item: AlertSummary): ApiSuccessEnvelope<Ale
 
 export function toAlertsListResponse(list: ListResponse<AlertSummary>): ApiSuccessEnvelope<ListResponse<AlertSummary>> {
   return createListResponse(list.items, list.page);
+}
+
+export function toAlertsSummaryResponse(
+  summary: AlertQueueSummary
+): ApiSuccessEnvelope<AlertQueueSummary> {
+  return createItemResponse(summary);
 }

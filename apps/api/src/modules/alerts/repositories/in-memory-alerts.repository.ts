@@ -3,6 +3,7 @@ import type {
   AlertAssignActionRequest,
   AlertActionHistoryItem,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AlertSummary,
   AlertUnassignActionRequest,
@@ -46,6 +47,81 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
       totalPages: Math.max(1, Math.ceil(items.length / pageSize))
     }
   };
+}
+
+function summarizeAlerts(items: readonly AlertSummary[]): AlertQueueSummary {
+  let open = 0;
+  let acknowledged = 0;
+  let resolved = 0;
+  let assigned = 0;
+  let unassigned = 0;
+  let unreviewed = 0;
+  let underReview = 0;
+  let reviewed = 0;
+  let deferred = 0;
+  let withLatestNote = 0;
+  let withoutLatestNote = 0;
+  let low = 0;
+  let medium = 0;
+  let high = 0;
+  let critical = 0;
+
+  for (const item of items) {
+    if (item.status === "open") open += 1;
+    if (item.status === "acknowledged") acknowledged += 1;
+    if (item.status === "resolved") resolved += 1;
+
+    if (item.assignedTo) assigned += 1;
+    else unassigned += 1;
+
+    switch (item.reviewState ?? "unreviewed") {
+      case "under_review":
+        underReview += 1;
+        break;
+      case "reviewed":
+        reviewed += 1;
+        break;
+      case "deferred":
+        deferred += 1;
+        break;
+      case "unreviewed":
+      default:
+        unreviewed += 1;
+        break;
+    }
+
+    if (item.latestNote?.trim()) withLatestNote += 1;
+    else withoutLatestNote += 1;
+
+    if (item.severity === "low") low += 1;
+    if (item.severity === "medium") medium += 1;
+    if (item.severity === "high") high += 1;
+    if (item.severity === "critical") critical += 1;
+  }
+
+  return {
+    totalAlerts: items.length,
+    statusCounts: { open, acknowledged, resolved },
+    assignmentCounts: { assigned, unassigned },
+    reviewStateCounts: { unreviewed, underReview, reviewed, deferred },
+    noteCounts: { withLatestNote, withoutLatestNote },
+    severityCounts: { low, medium, high, critical }
+  };
+}
+
+function filterAlerts(items: readonly AlertSummary[], query: AlertsListQueryContract): AlertSummary[] {
+  return items.filter(
+    (item) =>
+      (!query.pondId || item.pondId === query.pondId) &&
+      (!query.severity || item.severity === query.severity) &&
+      (!query.status || item.status === query.status) &&
+      (!query.source || item.source === query.source) &&
+      (!query.assignedTo || item.assignedTo === query.assignedTo) &&
+      (!query.reviewState || item.reviewState === query.reviewState) &&
+      (query.hasLatestNote === undefined ||
+        (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
+      (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
+  );
 }
 
 function sortAlerts(items: AlertSummary[], sortBy: AlertsListQueryContract["sortBy"]) {
@@ -219,19 +295,12 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   }
 
   async list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
-    const filtered = getAlerts(this).filter(
-      (item) =>
-        (!query.pondId || item.pondId === query.pondId) &&
-        (!query.severity || item.severity === query.severity) &&
-        (!query.status || item.status === query.status) &&
-        (!query.source || item.source === query.source) &&
-        (!query.assignedTo || item.assignedTo === query.assignedTo) &&
-        (!query.reviewState || item.reviewState === query.reviewState) &&
-        (query.hasLatestNote === undefined ||
-          (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-        (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
-    );
+    const filtered = filterAlerts(getAlerts(this), query);
     return createPage(sortAlerts(filtered, query.sortBy), query.page, query.pageSize);
+  }
+
+  async summary(query: AlertsListQueryContract): Promise<AlertQueueSummary> {
+    return summarizeAlerts(filterAlerts(getAlerts(this), query));
   }
 
   async listOpen(): Promise<ListResponse<AlertSummary>> {

@@ -22,6 +22,7 @@ import {
   toAssignAlertInput,
   toAlertsItemResponse,
   toAlertsListResponse,
+  toAlertsSummaryResponse,
   toCreateAlertsInput,
   toQueryAlertsInput,
   toResolveAlertInput,
@@ -62,6 +63,18 @@ export class AlertsController {
       toQueryAlertsInput,
       (mappedQuery) => this.alertsApplicationService.list(mappedQuery),
       toAlertsListResponse
+    );
+  }
+
+  @Get("summary")
+  async summary(
+    @Query() query: QueryAlertsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.summary>> {
+    return delegateList(
+      query,
+      toQueryAlertsInput,
+      (mappedQuery) => this.alertsApplicationService.summary(mappedQuery),
+      toAlertsSummaryResponse
     );
   }
 

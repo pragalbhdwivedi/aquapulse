@@ -29,10 +29,12 @@ describe("Frontend contract boundaries", () => {
     const ponds = await repositories.ponds.list({ page: 2, pageSize: 10, status: "active" });
     const explanation = await repositories.alerts.explain({ alertId: "alert-1" });
     const alertDetail = await repositories.alerts.getById("alert-1");
+    const alertSummary = await repositories.alerts.summary({ page: 1, pageSize: 20 });
 
     expect(ponds.data.items).toHaveLength(1);
     expect(explanation.data.explanation).toContain("Placeholder");
     expect(alertDetail.data.id).toBe("alert-1");
+    expect(alertSummary.data.totalAlerts).toBeGreaterThan(0);
 
     expectTypeOf(repositories.ponds).toMatchTypeOf<PondsRepository>();
     expectTypeOf(repositories.alerts).toMatchTypeOf<AlertsRepository>();
@@ -40,6 +42,7 @@ describe("Frontend contract boundaries", () => {
     expectTypeOf<typeof explanation>().toEqualTypeOf<ApiSuccessEnvelope<AiAlertsExplainResponse>>();
     expect(ponds.data.page.page).toBe(2);
     expect(ponds.data.page.pageSize).toBe(10);
+    expect(alertSummary.data.statusCounts.open).toBeGreaterThanOrEqual(1);
   });
 
   it("AI repository methods keep the dashboard contract stable", async () => {

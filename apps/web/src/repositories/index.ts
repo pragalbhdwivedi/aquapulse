@@ -1,6 +1,7 @@
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
@@ -73,6 +74,7 @@ export interface WaterQualityRepository {
 
 export interface AlertsRepository {
   list(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>>;
+  summary(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<AlertQueueSummary>>;
   getById(id: string): Promise<ApiSuccessEnvelope<AlertSummary>>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   resolve(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
@@ -150,6 +152,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
     alerts: {
       list(query?: AlertsListQuery) {
         return clients.alerts.list(query);
+      },
+      summary(query?: AlertsListQuery) {
+        return clients.alerts.summary(query);
       },
       getById(id: string) {
         return clients.alerts.getById(id);

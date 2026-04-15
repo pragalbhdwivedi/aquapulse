@@ -1,6 +1,7 @@
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AlertSummary,
   AlertUnassignActionRequest,
@@ -118,6 +119,13 @@ export function createHttpClientFactory({
         return invokeListEndpoint<AlertSummary, NonNullable<typeof query> | { page: number; pageSize: number }>(
           executor,
           registry.alerts.list,
+          query ?? { page: 1, pageSize: 20 }
+        );
+      },
+      summary(query) {
+        return invokeCreateEndpoint<AlertQueueSummary, NonNullable<typeof query> | { page: number; pageSize: number }>(
+          executor,
+          registry.alerts.summary,
           query ?? { page: 1, pageSize: 20 }
         );
       },

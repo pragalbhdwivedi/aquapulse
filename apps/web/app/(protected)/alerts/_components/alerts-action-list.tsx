@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AlertReviewState, AlertSummary } from "@aquapulse/types";
+import type { AlertQueueSummary, AlertReviewState, AlertSummary } from "@aquapulse/types";
 import { createApiClients } from "@web/clients";
 import type { AlertsListQuery } from "@web/contracts/api";
 import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
@@ -16,6 +16,7 @@ import { createRepositories } from "@web/repositories";
 
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
+  readonly initialSummary: AlertQueueSummary;
 }
 
 type AlertQueueSubmissionResult =
@@ -31,9 +32,10 @@ const reviewStateOptions: AlertReviewState[] = [
   "deferred"
 ];
 
-export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
+export function AlertsActionList({ initialAlerts, initialSummary }: AlertsActionListProps) {
   const repositories = useMemo(() => createRepositories(createApiClients()), []);
   const [alerts, setAlerts] = useState(initialAlerts);
+  const [summary, setSummary] = useState(initialSummary);
   const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
@@ -64,21 +66,38 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
     [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]
   );
 
+  const summaryQuery = useMemo<AlertsListQuery>(
+    () => ({
+      ...reviewQueueQuery,
+      status: undefined,
+      reviewState: undefined
+    }),
+    [reviewQueueQuery]
+  );
+
   const refreshQueue = useCallback(async () => {
     setIsRefreshingQueue(true);
-    const response = await repositories.alerts.list(reviewQueueQuery);
+    const [response, summaryResponse] = await Promise.all([
+      repositories.alerts.list(reviewQueueQuery),
+      repositories.alerts.summary(summaryQuery)
+    ]);
     setAlerts(response.data.items);
+    setSummary(summaryResponse.data);
     setIsRefreshingQueue(false);
-  }, [repositories, reviewQueueQuery]);
+  }, [repositories, reviewQueueQuery, summaryQuery]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function runRefresh() {
       setIsRefreshingQueue(true);
-      const response = await repositories.alerts.list(reviewQueueQuery);
+      const [response, summaryResponse] = await Promise.all([
+        repositories.alerts.list(reviewQueueQuery),
+        repositories.alerts.summary(summaryQuery)
+      ]);
       if (!cancelled) {
         setAlerts(response.data.items);
+        setSummary(summaryResponse.data);
         setIsRefreshingQueue(false);
       }
     }
@@ -88,7 +107,7 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
     return () => {
       cancelled = true;
     };
-  }, [repositories, reviewQueueQuery]);
+  }, [repositories, reviewQueueQuery, summaryQuery]);
 
   async function handleLifecycleAction(action: "acknowledge" | "resolve", alertId: string) {
     setActiveAlertId(alertId);
@@ -163,6 +182,14 @@ export function AlertsActionList({ initialAlerts }: AlertsActionListProps) {
         }}
       >
         <strong>Review Queue</strong>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
+          <span>Open: {summary.statusCounts.open}</span>
+          <span>Acknowledged: {summary.statusCounts.acknowledged}</span>
+          <span>Resolved: {summary.statusCounts.resolved}</span>
+          <span>Assigned: {summary.assignmentCounts.assigned}</span>
+          <span>Unassigned: {summary.assignmentCounts.unassigned}</span>
+          <span>Under review: {summary.reviewStateCounts.underReview}</span>
+        </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span>Status</span>

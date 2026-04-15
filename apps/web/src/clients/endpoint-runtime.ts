@@ -1,6 +1,7 @@
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AlertSummary,
   AlertUnassignActionRequest,
@@ -78,6 +79,12 @@ function createMutationFromValue<TRequest, TItem>(
   return async (_request: TRequest) => ({ ok: true as const, data: value });
 }
 
+function createDirectHandler<TRequest, TResponse>(
+  execute: (request: TRequest) => Promise<TResponse>
+) {
+  return async (request: TRequest) => execute(request);
+}
+
 function createCreateHandler<TItem, TInput>(
   client: CreateCapableClient<TItem, TInput>
 ) {
@@ -115,6 +122,7 @@ export interface AquaPulseEndpointHandlers {
   alerts: {
     create: EndpointHandler<EndpointCatalog["alerts"]["create"]>;
     list: EndpointHandler<EndpointCatalog["alerts"]["list"]>;
+    summary: EndpointHandler<EndpointCatalog["alerts"]["summary"]>;
     getById: EndpointHandler<EndpointCatalog["alerts"]["getById"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
@@ -238,6 +246,23 @@ export function createEndpointHandlersFromClients(
     alerts: {
       create: createMutationFromDetailHandler(clients.alerts),
       list: createListHandler(clients.alerts, { page: 1, pageSize: 20 }),
+      summary:
+        "summary" in clients.alerts
+          ? createDirectHandler((query: EndpointRequest<EndpointCatalog["alerts"]["summary"]>) =>
+              (clients.alerts as typeof clients.alerts & {
+                summary: (
+                  query: EndpointRequest<EndpointCatalog["alerts"]["summary"]>
+                ) => Promise<{ ok: true; data: AlertQueueSummary }>;
+              }).summary(query)
+            )
+          : createMutationFromValue({
+              totalAlerts: 0,
+              statusCounts: { open: 0, acknowledged: 0, resolved: 0 },
+              assignmentCounts: { assigned: 0, unassigned: 0 },
+              reviewStateCounts: { unreviewed: 0, underReview: 0, reviewed: 0, deferred: 0 },
+              noteCounts: { withLatestNote: 0, withoutLatestNote: 0 },
+              severityCounts: { low: 0, medium: 0, high: 0, critical: 0 }
+            }),
       getById: createDetailHandler(clients.alerts),
       update: createMutationFromDetailHandler(clients.alerts),
       acknowledge:
@@ -377,6 +402,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     },
     alerts: {
       list: (query) => handlers.alerts.list(query ?? { page: 1, pageSize: 20 }),
+      summary: (query) => handlers.alerts.summary(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.alerts.getById({ id }),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),

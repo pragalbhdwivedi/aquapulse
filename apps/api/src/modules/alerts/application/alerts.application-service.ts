@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AlertSummary,
   AlertUnassignActionRequest,
@@ -41,6 +42,9 @@ export class AlertsApplicationService {
     return { ok: true, data: await this.alertsRepository.setReviewState(_id, _input) };
   }
   async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
+  async summary(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<AlertQueueSummary>> {
+    return { ok: true, data: await this.alertsRepository.summary(_query) };
+  }
   async getById(_id: string): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.getById(_id) }; }
 
   async upsertOperationalDecision(

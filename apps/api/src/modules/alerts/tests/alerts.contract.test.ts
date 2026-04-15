@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AlertSummary, ListResponse } from "@aquapulse/types";
+import type { AlertQueueSummary, AlertSummary, ListResponse } from "@aquapulse/types";
 import { QueryAlertsDto } from "../dto";
 import { toAlertsItemResponse, toAlertsListResponse } from "../mappers/alerts.mapper";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
@@ -22,6 +22,15 @@ const alertList: ListResponse<AlertSummary> = {
   page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
 };
 
+const alertSummary: AlertQueueSummary = {
+  totalAlerts: 1,
+  statusCounts: { open: 1, acknowledged: 0, resolved: 0 },
+  assignmentCounts: { assigned: 0, unassigned: 1 },
+  reviewStateCounts: { unreviewed: 1, underReview: 0, reviewed: 0, deferred: 0 },
+  noteCounts: { withLatestNote: 0, withoutLatestNote: 1 },
+  severityCounts: { low: 0, medium: 0, high: 1, critical: 0 }
+};
+
 describe("Alerts contracts", () => {
   it("application service uses the alerts repository port", async () => {
     const repository: AlertsRepositoryPort = {
@@ -34,6 +43,7 @@ describe("Alerts contracts", () => {
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
       listOpen: vi.fn().mockResolvedValue(alertList)
     };
 
@@ -55,6 +65,7 @@ describe("Alerts contracts", () => {
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
       listOpen: vi.fn().mockResolvedValue(alertList)
     };
 
@@ -79,6 +90,7 @@ describe("Alerts contracts", () => {
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const, reviewLabel: "operator-review" }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
       listOpen: vi.fn().mockResolvedValue(alertList)
     };
 
@@ -103,12 +115,36 @@ describe("Alerts contracts", () => {
     expect(unassigned.data.assignedTo).toBeUndefined();
   });
 
+  it("application service delegates summary reads to the alerts repository port", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      resolve: vi.fn().mockResolvedValue(alert),
+      assign: vi.fn().mockResolvedValue(alert),
+      unassign: vi.fn().mockResolvedValue(alert),
+      setReviewState: vi.fn().mockResolvedValue(alert),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const result = await service.summary({ page: 1, pageSize: 20 });
+
+    expect(repository.summary).toHaveBeenCalledWith({ page: 1, pageSize: 20 });
+    expect(result.data.assignmentCounts.unassigned).toBe(1);
+    expect(result.data.statusCounts.open).toBe(1);
+  });
+
   it("controller returns a standard item envelope", async () => {
     const placeholderService = { getPlaceholder: vi.fn().mockResolvedValue({ ok: true }) };
     const appService = {
       create: vi.fn(),
       update: vi.fn(),
       list: vi.fn(),
+      summary: vi.fn().mockResolvedValue({ ok: true, data: alertSummary }),
       getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
     };
 

@@ -15,6 +15,7 @@ describe("Frontend query layer", () => {
 
     expect(dashboard.ponds.items.length).toBeGreaterThan(0);
     expect(dashboard.alerts.items.length).toBeGreaterThan(0);
+    expect(dashboard.alertSummary.totalAlerts).toBeGreaterThan(0);
     expect(dashboard.answer.answer).toContain("Placeholder");
   });
 
@@ -36,6 +37,7 @@ describe("Frontend query layer", () => {
 
     expect(ponds.items[0]?.code).toBe("NP-01");
     expect(alerts.explanation).toContain("Placeholder");
+    expect(alerts.summary.assignmentCounts.unassigned).toBeGreaterThanOrEqual(0);
     expect(audit.items[0]?.resourceType).toBe("alert");
     expect(reports.handover.summary).toContain("Placeholder");
   });
@@ -76,5 +78,24 @@ describe("Frontend query layer", () => {
 
     expect(alerts.alerts.page.page).toBe(1);
     expect(alerts.alerts.items.every((item) => item.status === "open")).toBe(true);
+  });
+
+  it("keeps alert queue summary counts stable through repository-backed queries", async () => {
+    await alertsRepository.assign("alert-1", { assignedTo: "operator-queue", note: "Queue owner set." });
+    await alertsRepository.setReviewState("alert-1", {
+      reviewState: "under_review",
+      reviewLabel: "queue-check",
+      note: "Queue moved under review."
+    });
+
+    const alerts = await getAlertsPageData({
+      page: 1,
+      pageSize: 20,
+      assignedTo: "operator-queue",
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(alerts.summary.assignmentCounts.assigned).toBeGreaterThanOrEqual(1);
+    expect(alerts.summary.reviewStateCounts.underReview).toBeGreaterThanOrEqual(1);
   });
 });

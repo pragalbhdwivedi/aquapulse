@@ -6,6 +6,7 @@ import {
 import type {
   AlertAssignActionRequest,
   AlertLifecycleActionRequest,
+  AlertQueueSummary,
   AlertReviewStateActionRequest,
   AiAlertsExplainRequest,
   AiDashboardQueryRequest,
@@ -84,6 +85,81 @@ function sortMockAlerts(items: AlertSummary[], sortBy: AlertsListQuery["sortBy"]
       break;
   }
   return sorted;
+}
+
+function filterMockAlerts(items: AlertSummary[], query?: AlertsListQuery) {
+  return items.filter(
+    (item) =>
+      (!query?.pondId || item.pondId === query.pondId) &&
+      (!query?.severity || item.severity === query.severity) &&
+      (!query?.status || item.status === query.status) &&
+      (!query?.source || item.source === query.source) &&
+      (!query?.assignedTo || item.assignedTo === query.assignedTo) &&
+      (!query?.reviewState || item.reviewState === query.reviewState) &&
+      (query?.hasLatestNote === undefined ||
+        (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
+      matchesSearch(item.title, query?.search)
+  );
+}
+
+function summarizeMockAlerts(items: readonly AlertSummary[]): AlertQueueSummary {
+  let open = 0;
+  let acknowledged = 0;
+  let resolved = 0;
+  let assigned = 0;
+  let unassigned = 0;
+  let unreviewed = 0;
+  let underReview = 0;
+  let reviewed = 0;
+  let deferred = 0;
+  let withLatestNote = 0;
+  let withoutLatestNote = 0;
+  let low = 0;
+  let medium = 0;
+  let high = 0;
+  let critical = 0;
+
+  for (const item of items) {
+    if (item.status === "open") open += 1;
+    if (item.status === "acknowledged") acknowledged += 1;
+    if (item.status === "resolved") resolved += 1;
+
+    if (item.assignedTo) assigned += 1;
+    else unassigned += 1;
+
+    switch (item.reviewState ?? "unreviewed") {
+      case "under_review":
+        underReview += 1;
+        break;
+      case "reviewed":
+        reviewed += 1;
+        break;
+      case "deferred":
+        deferred += 1;
+        break;
+      case "unreviewed":
+      default:
+        unreviewed += 1;
+        break;
+    }
+
+    if (item.latestNote?.trim()) withLatestNote += 1;
+    else withoutLatestNote += 1;
+
+    if (item.severity === "low") low += 1;
+    if (item.severity === "medium") medium += 1;
+    if (item.severity === "high") high += 1;
+    if (item.severity === "critical") critical += 1;
+  }
+
+  return {
+    totalAlerts: items.length,
+    statusCounts: { open, acknowledged, resolved },
+    assignmentCounts: { assigned, unassigned },
+    reviewStateCounts: { unreviewed, underReview, reviewed, deferred },
+    noteCounts: { withLatestNote, withoutLatestNote },
+    severityCounts: { low, medium, high, critical }
+  };
 }
 
 function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
@@ -195,19 +271,11 @@ export const waterQualityMockAdapter: WaterQualityApiClient = {
 export const alertsMockAdapter: AlertsApiClient = {
   async list(query?: AlertsListQuery) {
     const normalizedQuery = normalizeListQuery(query);
-    const items = mockAlerts.filter(
-      (item) =>
-        (!query?.pondId || item.pondId === query.pondId) &&
-        (!query?.severity || item.severity === query.severity) &&
-        (!query?.status || item.status === query.status) &&
-        (!query?.source || item.source === query.source) &&
-        (!query?.assignedTo || item.assignedTo === query.assignedTo) &&
-        (!query?.reviewState || item.reviewState === query.reviewState) &&
-        (query?.hasLatestNote === undefined ||
-          (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-        matchesSearch(item.title, query?.search)
-    );
+    const items = filterMockAlerts(mockAlerts, query);
     return ok(list(sortMockAlerts(items, query?.sortBy), normalizedQuery));
+  },
+  async summary(query?: AlertsListQuery) {
+    return ok(summarizeMockAlerts(filterMockAlerts(mockAlerts, query)));
   },
   async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
   async acknowledge(id: string, _input: AlertLifecycleActionRequest) {

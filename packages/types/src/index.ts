@@ -157,6 +157,35 @@ export interface AlertSummary extends BaseEntity {
   readonly actionHistory?: AlertActionHistoryItem[];
 }
 
+export interface AlertQueueSummary {
+  readonly totalAlerts: number;
+  readonly statusCounts: {
+    readonly open: number;
+    readonly acknowledged: number;
+    readonly resolved: number;
+  };
+  readonly assignmentCounts: {
+    readonly assigned: number;
+    readonly unassigned: number;
+  };
+  readonly reviewStateCounts: {
+    readonly unreviewed: number;
+    readonly underReview: number;
+    readonly reviewed: number;
+    readonly deferred: number;
+  };
+  readonly noteCounts: {
+    readonly withLatestNote: number;
+    readonly withoutLatestNote: number;
+  };
+  readonly severityCounts: {
+    readonly low: number;
+    readonly medium: number;
+    readonly high: number;
+    readonly critical: number;
+  };
+}
+
 export interface AlertLifecycleActionRequest {
   readonly note?: string;
 }
@@ -446,6 +475,12 @@ export const aquaPulseEndpointCatalog = {
       method: "GET",
       path: "/api/alerts",
       semantics: "list"
+    }),
+    summary: defineEndpoint<AlertsListQueryRequest, ApiSuccessEnvelope<AlertQueueSummary>>({
+      id: "alerts.summary",
+      method: "GET",
+      path: "/api/alerts/summary",
+      semantics: "detail"
     }),
     getById: defineEndpoint<{ readonly id: EntityId }, ApiSuccessEnvelope<AlertSummary>>({
       id: "alerts.getById",
