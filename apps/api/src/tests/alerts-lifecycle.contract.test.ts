@@ -106,4 +106,35 @@ describe("Alerts lifecycle flow", () => {
     ]);
     expect(filtered.data.items[0]?.reviewState).toBe("reviewed");
   });
+
+  it("builds deterministic owner workload counts through the alert summary path", async () => {
+    const repository = new InMemoryAlertsRepository();
+    const service = new AlertsApplicationService(repository);
+
+    await service.assign("alert-1", {
+      assignedTo: "operator-queue",
+      note: "Owner set for review queue."
+    });
+    await service.setReviewState("alert-1", {
+      reviewState: "under_review",
+      reviewLabel: "queue",
+      note: "Moved under review."
+    });
+
+    const summary = await service.summary({
+      page: 1,
+      pageSize: 20,
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(summary.data.ownerWorkloads).toEqual([
+      {
+        ownerId: "operator-queue",
+        assignedAlerts: 1,
+        openAlerts: 1,
+        underReviewAlerts: 1,
+        unresolvedAlerts: 1
+      }
+    ]);
+  });
 });

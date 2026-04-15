@@ -98,4 +98,32 @@ describe("Frontend query layer", () => {
     expect(alerts.summary.assignmentCounts.assigned).toBeGreaterThanOrEqual(1);
     expect(alerts.summary.reviewStateCounts.underReview).toBeGreaterThanOrEqual(1);
   });
+
+  it("keeps owner workload counts and preset-style filters stable through the shared queue query path", async () => {
+    await alertsRepository.assign("alert-1", {
+      assignedTo: "operator-queue",
+      note: "Preset queue owner."
+    });
+    await alertsRepository.setReviewState("alert-1", {
+      reviewState: "under_review",
+      reviewLabel: "queue",
+      note: "Preset queue review."
+    });
+
+    const alerts = await getAlertsPageData({
+      page: 1,
+      pageSize: 20,
+      assignedTo: "operator-queue",
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(alerts.alerts.items.every((item) => item.assignedTo === "operator-queue")).toBe(true);
+    expect(alerts.summary.ownerWorkloads).toContainEqual({
+      ownerId: "operator-queue",
+      assignedAlerts: 1,
+      openAlerts: 1,
+      underReviewAlerts: 1,
+      unresolvedAlerts: 1
+    });
+  });
 });

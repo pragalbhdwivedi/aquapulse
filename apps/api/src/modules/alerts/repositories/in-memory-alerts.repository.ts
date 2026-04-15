@@ -9,6 +9,7 @@ import type {
   AlertUnassignActionRequest,
   ListResponse
 } from "@aquapulse/types";
+import { buildAlertQueueSummary as summarizeAlertQueue } from "@aquapulse/types";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
@@ -46,66 +47,6 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
       totalItems: items.length,
       totalPages: Math.max(1, Math.ceil(items.length / pageSize))
     }
-  };
-}
-
-function summarizeAlerts(items: readonly AlertSummary[]): AlertQueueSummary {
-  let open = 0;
-  let acknowledged = 0;
-  let resolved = 0;
-  let assigned = 0;
-  let unassigned = 0;
-  let unreviewed = 0;
-  let underReview = 0;
-  let reviewed = 0;
-  let deferred = 0;
-  let withLatestNote = 0;
-  let withoutLatestNote = 0;
-  let low = 0;
-  let medium = 0;
-  let high = 0;
-  let critical = 0;
-
-  for (const item of items) {
-    if (item.status === "open") open += 1;
-    if (item.status === "acknowledged") acknowledged += 1;
-    if (item.status === "resolved") resolved += 1;
-
-    if (item.assignedTo) assigned += 1;
-    else unassigned += 1;
-
-    switch (item.reviewState ?? "unreviewed") {
-      case "under_review":
-        underReview += 1;
-        break;
-      case "reviewed":
-        reviewed += 1;
-        break;
-      case "deferred":
-        deferred += 1;
-        break;
-      case "unreviewed":
-      default:
-        unreviewed += 1;
-        break;
-    }
-
-    if (item.latestNote?.trim()) withLatestNote += 1;
-    else withoutLatestNote += 1;
-
-    if (item.severity === "low") low += 1;
-    if (item.severity === "medium") medium += 1;
-    if (item.severity === "high") high += 1;
-    if (item.severity === "critical") critical += 1;
-  }
-
-  return {
-    totalAlerts: items.length,
-    statusCounts: { open, acknowledged, resolved },
-    assignmentCounts: { assigned, unassigned },
-    reviewStateCounts: { unreviewed, underReview, reviewed, deferred },
-    noteCounts: { withLatestNote, withoutLatestNote },
-    severityCounts: { low, medium, high, critical }
   };
 }
 
@@ -300,7 +241,7 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   }
 
   async summary(query: AlertsListQueryContract): Promise<AlertQueueSummary> {
-    return summarizeAlerts(filterAlerts(getAlerts(this), query));
+    return summarizeAlertQueue(filterAlerts(getAlerts(this), query));
   }
 
   async listOpen(): Promise<ListResponse<AlertSummary>> {

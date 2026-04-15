@@ -28,7 +28,8 @@ const alertSummary: AlertQueueSummary = {
   assignmentCounts: { assigned: 0, unassigned: 1 },
   reviewStateCounts: { unreviewed: 1, underReview: 0, reviewed: 0, deferred: 0 },
   noteCounts: { withLatestNote: 0, withoutLatestNote: 1 },
-  severityCounts: { low: 0, medium: 0, high: 1, critical: 0 }
+  severityCounts: { low: 0, medium: 0, high: 1, critical: 0 },
+  ownerWorkloads: []
 };
 
 describe("Alerts contracts", () => {

@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AlertQueueSummary, AlertReviewState, AlertSummary } from "@aquapulse/types";
+import {
+  alertQueuePresetDefinitions,
+  type AlertQueuePresetDefinition,
+  type AlertQueuePresetId,
+  type AlertQueueSummary,
+  type AlertReviewState,
+  type AlertSummary
+} from "@aquapulse/types";
 import { createApiClients } from "@web/clients";
 import type { AlertsListQuery } from "@web/contracts/api";
 import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
@@ -31,6 +38,23 @@ const reviewStateOptions: AlertReviewState[] = [
   "reviewed",
   "deferred"
 ];
+const currentOwnerPlaceholder = "operator-queue";
+
+function getPresetQuery(presetId: AlertQueuePresetId): Partial<AlertsListQuery> {
+  const preset = alertQueuePresetDefinitions.find((item) => item.id === presetId);
+  if (!preset) {
+    return {};
+  }
+
+  if (preset.requiresAssignedTo) {
+    return {
+      ...preset.query,
+      assignedTo: currentOwnerPlaceholder
+    };
+  }
+
+  return preset.query;
+}
 
 export function AlertsActionList({ initialAlerts, initialSummary }: AlertsActionListProps) {
   const repositories = useMemo(() => createRepositories(createApiClients()), []);
@@ -41,6 +65,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
   const [reviewLabels, setReviewLabels] = useState<Record<string, string>>({});
   const [reviewStates, setReviewStates] = useState<Record<string, AlertReviewState>>({});
+  const [presetId, setPresetId] = useState<AlertQueuePresetId | "custom">("custom");
   const [statusFilter, setStatusFilter] = useState<AlertsListQuery["status"] | "all">("all");
   const [sortBy, setSortBy] = useState<NonNullable<AlertsListQuery["sortBy"]>>("updatedAt_desc");
   const [hasLatestNoteOnly, setHasLatestNoteOnly] = useState(false);
@@ -64,6 +89,11 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
       sortBy
     }),
     [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]
+  );
+
+  const selectedPreset = useMemo<AlertQueuePresetDefinition | undefined>(
+    () => alertQueuePresetDefinitions.find((item) => item.id === presetId),
+    [presetId]
   );
 
   const summaryQuery = useMemo<AlertsListQuery>(
@@ -170,6 +200,24 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
     setActiveAlertId(null);
   }
 
+  function applyPreset(nextPresetId: AlertQueuePresetId | "custom") {
+    setPresetId(nextPresetId);
+
+    if (nextPresetId === "custom") {
+      return;
+    }
+
+    const presetQuery = getPresetQuery(nextPresetId);
+    setStatusFilter((presetQuery.status as AlertsListQuery["status"] | undefined) ?? "all");
+    setReviewStateFilter((presetQuery.reviewState as AlertReviewState | undefined) ?? "all");
+    setSortBy(
+      (presetQuery.sortBy as NonNullable<AlertsListQuery["sortBy"]> | undefined) ?? "updatedAt_desc"
+    );
+    setHasLatestNoteOnly(Boolean(presetQuery.hasLatestNote));
+    setPondIdFilter(presetQuery.pondId ?? "");
+    setAssignedToFilter(presetQuery.assignedTo ?? "");
+  }
+
   return (
     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
       <div
@@ -190,13 +238,44 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
           <span>Unassigned: {summary.assignmentCounts.unassigned}</span>
           <span>Under review: {summary.reviewStateCounts.underReview}</span>
         </div>
+        {summary.ownerWorkloads.length ? (
+          <div style={{ display: "grid", gap: "0.35rem" }}>
+            <strong style={{ fontSize: "0.95rem" }}>Owner workload</strong>
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
+              {summary.ownerWorkloads.map((workload) => (
+                <span key={workload.ownerId}>
+                  {workload.ownerId}: {workload.assignedAlerts} assigned, {workload.openAlerts} open,{" "}
+                  {workload.underReviewAlerts} under review
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Preset view</span>
+            <select
+              value={presetId}
+              onChange={(event) => applyPreset(event.target.value as AlertQueuePresetId | "custom")}
+              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              <option value="custom">Custom</option>
+              {alertQueuePresetDefinitions.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span>Status</span>
             <select
               value={statusFilter}
               onChange={(event) =>
-                setStatusFilter(event.target.value as AlertsListQuery["status"] | "all")
+                {
+                  setPresetId("custom");
+                  setStatusFilter(event.target.value as AlertsListQuery["status"] | "all");
+                }
               }
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             >
@@ -211,7 +290,10 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <select
               value={reviewStateFilter}
               onChange={(event) =>
-                setReviewStateFilter(event.target.value as AlertReviewState | "all")
+                {
+                  setPresetId("custom");
+                  setReviewStateFilter(event.target.value as AlertReviewState | "all");
+                }
               }
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             >
@@ -228,7 +310,10 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <select
               value={sortBy}
               onChange={(event) =>
-                setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>)
+                {
+                  setPresetId("custom");
+                  setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>);
+                }
               }
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             >
@@ -242,7 +327,10 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <span>Pond</span>
             <input
               value={pondIdFilter}
-              onChange={(event) => setPondIdFilter(event.target.value)}
+              onChange={(event) => {
+                setPresetId("custom");
+                setPondIdFilter(event.target.value);
+              }}
               placeholder="pond-1"
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             />
@@ -251,7 +339,10 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <span>Owner</span>
             <input
               value={assignedToFilter}
-              onChange={(event) => setAssignedToFilter(event.target.value)}
+              onChange={(event) => {
+                setPresetId("custom");
+                setAssignedToFilter(event.target.value);
+              }}
               placeholder="user-1"
               style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
             />
@@ -260,11 +351,20 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <input
               type="checkbox"
               checked={hasLatestNoteOnly}
-              onChange={(event) => setHasLatestNoteOnly(event.target.checked)}
+              onChange={(event) => {
+                setPresetId("custom");
+                setHasLatestNoteOnly(event.target.checked);
+              }}
             />
             <span>With notes only</span>
           </label>
         </div>
+        {selectedPreset ? (
+          <p style={{ margin: 0, color: "#94a3b8" }}>
+            {selectedPreset.description}
+            {selectedPreset.requiresAssignedTo ? ` Using placeholder owner ${currentOwnerPlaceholder}.` : ""}
+          </p>
+        ) : null}
         <p style={{ margin: 0, color: "#94a3b8" }}>
           {isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}`}
         </p>

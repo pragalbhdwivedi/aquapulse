@@ -184,6 +184,30 @@ export interface AlertQueueSummary {
     readonly high: number;
     readonly critical: number;
   };
+  readonly ownerWorkloads: AlertOwnerWorkloadSummary[];
+}
+
+export interface AlertOwnerWorkloadSummary {
+  readonly ownerId: EntityId;
+  readonly assignedAlerts: number;
+  readonly openAlerts: number;
+  readonly underReviewAlerts: number;
+  readonly unresolvedAlerts: number;
+}
+
+export type AlertQueuePresetId =
+  | "all_open"
+  | "assigned_to_me"
+  | "under_review"
+  | "with_notes"
+  | "resolved_recently";
+
+export interface AlertQueuePresetDefinition {
+  readonly id: AlertQueuePresetId;
+  readonly label: string;
+  readonly description: string;
+  readonly query: Partial<AlertsListQueryRequest>;
+  readonly requiresAssignedTo?: boolean;
 }
 
 export interface AlertLifecycleActionRequest {
@@ -360,6 +384,55 @@ export interface AlertsListQueryRequest extends ListQueryRequest {
   readonly hasLatestNote?: boolean;
   readonly sortBy?: "updatedAt_desc" | "updatedAt_asc" | "createdAt_desc" | "createdAt_asc";
 }
+
+export const alertQueuePresetDefinitions: readonly AlertQueuePresetDefinition[] = [
+  {
+    id: "all_open",
+    label: "All open",
+    description: "Show open operational alerts across the queue.",
+    query: {
+      status: "open",
+      sortBy: "updatedAt_desc"
+    }
+  },
+  {
+    id: "assigned_to_me",
+    label: "Assigned to me",
+    description: "Focus on the alerts owned by the active operator placeholder.",
+    query: {
+      assignedTo: "__current_user__",
+      sortBy: "updatedAt_desc"
+    },
+    requiresAssignedTo: true
+  },
+  {
+    id: "under_review",
+    label: "Under review",
+    description: "Highlight alerts already being actively reviewed.",
+    query: {
+      reviewState: "under_review",
+      sortBy: "updatedAt_desc"
+    }
+  },
+  {
+    id: "with_notes",
+    label: "With notes",
+    description: "Surface alerts that already carry the latest operator note.",
+    query: {
+      hasLatestNote: true,
+      sortBy: "updatedAt_desc"
+    }
+  },
+  {
+    id: "resolved_recently",
+    label: "Resolved recently",
+    description: "Review recently resolved alerts in newest-first order.",
+    query: {
+      status: "resolved",
+      sortBy: "updatedAt_desc"
+    }
+  }
+] as const;
 
 export interface TasksListQueryRequest extends ListQueryRequest {
   readonly assigneeId?: EntityId;
@@ -861,4 +934,87 @@ export function findMatchingOperationalAlert(
       alert.pondId === decision.pondId &&
       `${alert.source}:${decision.ruleCode}:${alert.pondId ?? "global"}` === decision.dedupeKey
   );
+}
+
+export function buildAlertQueueSummary(items: readonly AlertSummary[]): AlertQueueSummary {
+  let open = 0;
+  let acknowledged = 0;
+  let resolved = 0;
+  let assigned = 0;
+  let unassigned = 0;
+  let unreviewed = 0;
+  let underReview = 0;
+  let reviewed = 0;
+  let deferred = 0;
+  let withLatestNote = 0;
+  let withoutLatestNote = 0;
+  let low = 0;
+  let medium = 0;
+  let high = 0;
+  let critical = 0;
+
+  const ownerWorkloads = new Map<string, AlertOwnerWorkloadSummary>();
+
+  for (const item of items) {
+    if (item.status === "open") open += 1;
+    if (item.status === "acknowledged") acknowledged += 1;
+    if (item.status === "resolved") resolved += 1;
+
+    if (item.assignedTo) {
+      assigned += 1;
+
+      const current = ownerWorkloads.get(item.assignedTo) ?? {
+        ownerId: item.assignedTo,
+        assignedAlerts: 0,
+        openAlerts: 0,
+        underReviewAlerts: 0,
+        unresolvedAlerts: 0
+      };
+
+      ownerWorkloads.set(item.assignedTo, {
+        ownerId: item.assignedTo,
+        assignedAlerts: current.assignedAlerts + 1,
+        openAlerts: current.openAlerts + (item.status === "open" ? 1 : 0),
+        underReviewAlerts:
+          current.underReviewAlerts + ((item.reviewState ?? "unreviewed") === "under_review" ? 1 : 0),
+        unresolvedAlerts: current.unresolvedAlerts + (item.status !== "resolved" ? 1 : 0)
+      });
+    } else {
+      unassigned += 1;
+    }
+
+    switch (item.reviewState ?? "unreviewed") {
+      case "under_review":
+        underReview += 1;
+        break;
+      case "reviewed":
+        reviewed += 1;
+        break;
+      case "deferred":
+        deferred += 1;
+        break;
+      case "unreviewed":
+      default:
+        unreviewed += 1;
+        break;
+    }
+
+    if (item.latestNote?.trim()) withLatestNote += 1;
+    else withoutLatestNote += 1;
+
+    if (item.severity === "low") low += 1;
+    if (item.severity === "medium") medium += 1;
+    if (item.severity === "high") high += 1;
+    if (item.severity === "critical") critical += 1;
+  }
+
+  return {
+    totalAlerts: items.length,
+    statusCounts: { open, acknowledged, resolved },
+    assignmentCounts: { assigned, unassigned },
+    reviewStateCounts: { unreviewed, underReview, reviewed, deferred },
+    noteCounts: { withLatestNote, withoutLatestNote },
+    severityCounts: { low, medium, high, critical },
+    ownerWorkloads: [...ownerWorkloads.values()].sort((left, right) => left.ownerId.localeCompare(right.ownerId))
+  };
 }

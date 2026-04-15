@@ -261,7 +261,8 @@ export function createEndpointHandlersFromClients(
               assignmentCounts: { assigned: 0, unassigned: 0 },
               reviewStateCounts: { unreviewed: 0, underReview: 0, reviewed: 0, deferred: 0 },
               noteCounts: { withLatestNote: 0, withoutLatestNote: 0 },
-              severityCounts: { low: 0, medium: 0, high: 0, critical: 0 }
+              severityCounts: { low: 0, medium: 0, high: 0, critical: 0 },
+              ownerWorkloads: []
             }),
       getById: createDetailHandler(clients.alerts),
       update: createMutationFromDetailHandler(clients.alerts),
