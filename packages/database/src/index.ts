@@ -10,4 +10,5 @@ export * from "./query/query-contracts.js";
 export * from "./query/query-plan-builder.js";
 export * from "./mapping/row-mapper.js";
 export * from "./mapping/aquapulse-row-mappers.js";
+export * from "./schema/index.js";
 export * from "./testing/database-test-helpers.js";

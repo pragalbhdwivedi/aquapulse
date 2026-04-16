@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit --project tsconfig.json"
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "db:migrations:list": "node ./scripts/list-migrations.mjs",
+    "db:migrations:verify": "node ./scripts/verify-migrations.mjs",
+    "db:migrations:show": "node ./scripts/show-migration-sql.mjs"
   },
   "dependencies": {
     "@aquapulse/types": "workspace:*"

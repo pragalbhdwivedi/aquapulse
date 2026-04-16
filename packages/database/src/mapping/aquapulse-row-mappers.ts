@@ -1,5 +1,7 @@
 import type { AlertSummary, PondSummary } from "@aquapulse/types";
 import type {
+  AlertActionHistoryItem,
+  AlertSavedViewDefinition,
   AttachmentMetadata,
   BatchSummary,
   FeedCreateRequest,
@@ -7,7 +9,8 @@ import type {
   FeedUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
-  TaskSummary
+  TaskSummary,
+  WaterQualityReading
 } from "@aquapulse/types";
 import type { RowMapper } from "./row-mapper.js";
 
@@ -75,6 +78,36 @@ export interface FeedRow {
   readonly feed_type: string;
   readonly quantity_kg: number;
   readonly fed_at: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface WaterQualityRow {
+  readonly id: string;
+  readonly pond_id: string;
+  readonly recorded_at: string;
+  readonly temperature_c?: number;
+  readonly ph?: number;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+export interface AlertActionHistoryRow {
+  readonly id: string;
+  readonly alert_id: string;
+  readonly action: AlertActionHistoryItem["action"];
+  readonly note?: string;
+  readonly assigned_to?: string;
+  readonly review_state?: AlertActionHistoryItem["reviewState"];
+  readonly review_label?: string;
+  readonly created_at: string;
+}
+
+export interface AlertSavedViewRow {
+  readonly id: string;
+  readonly name: string;
+  readonly preset_id?: string;
+  readonly filter_query: Record<string, unknown>;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -170,6 +203,10 @@ export interface FeedRowPatch {
   readonly fed_at?: string;
 }
 
+export interface WaterQualityRowWrite extends WaterQualityRow {}
+export interface AlertActionHistoryRowWrite extends AlertActionHistoryRow {}
+export interface AlertSavedViewRowWrite extends AlertSavedViewRow {}
+
 export const pondRowMapper: RowMapper<PondRow, PondSummary> = {
   toDomain(row) {
     return {
@@ -262,6 +299,46 @@ export const feedRowMapper: RowMapper<FeedRow, FeedEntry> = {
   }
 };
 
+export const waterQualityRowMapper: RowMapper<WaterQualityRow, WaterQualityReading> = {
+  toDomain(row) {
+    return {
+      id: row.id,
+      pondId: row.pond_id,
+      recordedAt: row.recorded_at,
+      temperatureC: row.temperature_c,
+      ph: row.ph,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+};
+
+export const alertActionHistoryRowMapper: RowMapper<AlertActionHistoryRow, AlertActionHistoryItem> = {
+  toDomain(row) {
+    return {
+      action: row.action,
+      note: row.note,
+      timestamp: row.created_at,
+      assignedTo: row.assigned_to,
+      reviewState: row.review_state,
+      reviewLabel: row.review_label
+    };
+  }
+};
+
+export const alertSavedViewRowMapper: RowMapper<AlertSavedViewRow, AlertSavedViewDefinition> = {
+  toDomain(row) {
+    return {
+      id: row.id,
+      name: row.name,
+      presetId: row.preset_id as AlertSavedViewDefinition["presetId"],
+      query: row.filter_query,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at
+    };
+  }
+};
+
 export function createPlaceholderPondRow(overrides: Partial<PondRow> = {}): PondRow {
   return {
     id: "pond-1",
@@ -342,6 +419,51 @@ export function createPlaceholderFeedRow(overrides: Partial<FeedRow> = {}): Feed
     feed_type: "Starter Feed",
     quantity_kg: 35,
     fed_at: "2026-04-13T00:00:00.000Z",
+    created_at: "2026-04-13T00:00:00.000Z",
+    updated_at: "2026-04-13T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+export function createPlaceholderWaterQualityRow(
+  overrides: Partial<WaterQualityRow> = {}
+): WaterQualityRow {
+  return {
+    id: "wq-1",
+    pond_id: "pond-1",
+    recorded_at: "2026-04-13T00:00:00.000Z",
+    temperature_c: 28.4,
+    ph: 7.6,
+    created_at: "2026-04-13T00:00:00.000Z",
+    updated_at: "2026-04-13T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+export function createPlaceholderAlertActionHistoryRow(
+  overrides: Partial<AlertActionHistoryRow> = {}
+): AlertActionHistoryRow {
+  return {
+    id: "alert-history-1",
+    alert_id: "alert-1",
+    action: "created",
+    created_at: "2026-04-13T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+export function createPlaceholderAlertSavedViewRow(
+  overrides: Partial<AlertSavedViewRow> = {}
+): AlertSavedViewRow {
+  return {
+    id: "alert-view-1",
+    name: "Open alerts",
+    preset_id: "all_open",
+    filter_query: {
+      page: 1,
+      pageSize: 20,
+      status: "open"
+    },
     created_at: "2026-04-13T00:00:00.000Z",
     updated_at: "2026-04-13T00:00:00.000Z",
     ...overrides

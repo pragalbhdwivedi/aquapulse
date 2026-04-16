@@ -1,8 +1,10 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  AQUAPULSE_SCHEMA_TABLES,
   PlaceholderDatabaseConnectionFactory,
   createDefaultPersistenceRuntimeConfig,
   createTestDatabaseConfig,
+  databaseMigrationManifest,
   parseDatabaseRuntimeConfig,
   parsePersistenceRuntimeConfigFromEnv,
   parseDatabaseConfig,
@@ -26,6 +28,8 @@ describe("Database package foundation", () => {
     expect(config.database).toBe("aquapulse");
     expect(runtime.defaultAdapter).toBe("in-memory");
     expect(selectPersistenceAdapter(runtime, registry)).toBe("memory");
+    expect(databaseMigrationManifest.schemaVersion).toBe("0001_core_schema");
+    expect(AQUAPULSE_SCHEMA_TABLES.alerts).toBe("alerts");
 
     expectTypeOf(config).toEqualTypeOf<DatabaseConfig>();
     expectTypeOf<RepositoryListQuery>().toMatchTypeOf<{ page: number; pageSize: number }>();
