@@ -10,7 +10,10 @@ import {
   type AlertSummary
 } from "@aquapulse/types";
 import type { AlertsListQuery } from "@web/contracts/api";
-import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import {
+  getAlertsRuntimeDiagnostics,
+  parseClientRuntimeConfig
+} from "@web/clients/runtime-config";
 import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
 import {
   createAlertSavedViewsRepositoryStore,
@@ -20,6 +23,10 @@ import {
   getAlertPresetQuery,
   getAlertSummaryQuery
 } from "@web/features/alert-workbench";
+import {
+  deriveAlertsRuntimeIndicator,
+  formatAlertsRuntimeError
+} from "@web/features/alerts-runtime";
 import {
   submitAlertTriageAction,
   type AlertAssignSubmissionResult,
@@ -52,17 +59,20 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
         NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE,
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT
       }),
     []
   );
   const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
+  const runtimeDiagnostics = useMemo(() => getAlertsRuntimeDiagnostics(runtimeConfig), [runtimeConfig]);
+  const runtimeIndicator = useMemo(() => deriveAlertsRuntimeIndicator(runtimeConfig), [runtimeConfig]);
   const savedViewsStore = useMemo(
     () =>
-      runtimeConfig.alertsMode === "http" || runtimeConfig.mode === "http"
+      runtimeDiagnostics.effectiveMode === "http"
         ? createAlertSavedViewsRepositoryStore(repositories.alerts)
         : createAlertSavedViewsStore(typeof window === "undefined" ? undefined : window.localStorage),
-    [repositories.alerts, runtimeConfig.alertsMode, runtimeConfig.mode]
+    [repositories.alerts, runtimeDiagnostics.effectiveMode]
   );
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
@@ -91,10 +101,18 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
   const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: 1, pageSize: 20, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]);
   const allVisibleSelected = alerts.length > 0 && alerts.every((alert) => selectedAlertIds.includes(alert.id));
+  const reportRuntimeError = useCallback(
+    (error: unknown) => {
+      setFeedbackTone("error");
+      setFeedbackMessage(formatAlertsRuntimeError(error, runtimeConfig));
+    },
+    [runtimeConfig]
+  );
 
   const applyQueryState = useCallback((query: Partial<AlertsListQuery>) => {
     setStatusFilter((query.status as AlertsListQuery["status"] | undefined) ?? "all");
@@ -107,20 +125,38 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
 
   const refreshQueue = useCallback(async () => {
     setIsRefreshingQueue(true);
-    const [response, summaryResponse] = await Promise.all([repositories.alerts.list(reviewQueueQuery), repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))]);
-    setAlerts(response.data.items);
-    setSummary(summaryResponse.data);
-    setSelectedAlertIds((current) => current.filter((id) => response.data.items.some((item) => item.id === id)));
-    setIsRefreshingQueue(false);
-  }, [repositories.alerts, reviewQueueQuery]);
+    try {
+      const [response, summaryResponse] = await Promise.all([
+        repositories.alerts.list(reviewQueueQuery),
+        repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))
+      ]);
+      setAlerts(response.data.items);
+      setSummary(summaryResponse.data);
+      setSelectedAlertIds((current) =>
+        current.filter((id) => response.data.items.some((item) => item.id === id))
+      );
+      return true;
+    } catch (error) {
+      reportRuntimeError(error);
+      return false;
+    } finally {
+      setIsRefreshingQueue(false);
+    }
+  }, [repositories.alerts, reportRuntimeError, reviewQueueQuery]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadSavedViews() {
-      const nextSavedViews = await savedViewsStore.list();
-      if (!cancelled) {
-        setSavedViews(nextSavedViews);
+      try {
+        const nextSavedViews = await savedViewsStore.list();
+        if (!cancelled) {
+          setSavedViews(nextSavedViews);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          reportRuntimeError(error);
+        }
       }
     }
 
@@ -129,60 +165,103 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
     return () => {
       cancelled = true;
     };
-  }, [savedViewsStore]);
+  }, [reportRuntimeError, savedViewsStore]);
 
   useEffect(() => {
     let cancelled = false;
     async function runRefresh() {
       setIsRefreshingQueue(true);
-      const [response, summaryResponse] = await Promise.all([repositories.alerts.list(reviewQueueQuery), repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))]);
-      if (!cancelled) {
-        setAlerts(response.data.items);
-        setSummary(summaryResponse.data);
-        setSelectedAlertIds((current) => current.filter((id) => response.data.items.some((item) => item.id === id)));
-        setIsRefreshingQueue(false);
+      try {
+        const [response, summaryResponse] = await Promise.all([
+          repositories.alerts.list(reviewQueueQuery),
+          repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))
+        ]);
+        if (!cancelled) {
+          setAlerts(response.data.items);
+          setSummary(summaryResponse.data);
+          setSelectedAlertIds((current) =>
+            current.filter((id) => response.data.items.some((item) => item.id === id))
+          );
+        }
+      } catch (error) {
+        if (!cancelled) {
+          reportRuntimeError(error);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsRefreshingQueue(false);
+        }
       }
     }
     void runRefresh();
     return () => {
       cancelled = true;
     };
-  }, [repositories.alerts, reviewQueueQuery]);
+  }, [reportRuntimeError, repositories.alerts, reviewQueueQuery]);
 
   async function handleSingleAction(alertId: string, run: () => Promise<AlertQueueSubmissionResult>, message: string) {
     setActiveAlertId(alertId);
     setIsSubmitting(true);
-    const submission = await run();
-    setResult(submission);
-    if (submission.status === "success") {
-      await refreshQueue();
-      setFeedbackMessage(message);
+    try {
+      const submission = await run();
+      setResult(submission);
+      if (submission.status === "success") {
+        const refreshed = await refreshQueue();
+        setFeedbackTone("success");
+        setFeedbackMessage(
+          refreshed ? message : `${message} The queue refresh did not complete, so the visible list may be stale.`
+        );
+      }
+    } catch (error) {
+      reportRuntimeError(error);
+    } finally {
+      setIsSubmitting(false);
+      setActiveAlertId(null);
     }
-    setIsSubmitting(false);
-    setActiveAlertId(null);
   }
 
   async function handleBulkAction(action: "bulkAcknowledge" | "bulkResolve" | "bulkAssign" | "bulkSetReviewState") {
     if (selectedAlertIds.length === 0) return;
     setIsSubmitting(true);
-    const response = action === "bulkAcknowledge"
-      ? await repositories.alerts.bulkAcknowledge({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
-      : action === "bulkResolve"
-        ? await repositories.alerts.bulkResolve({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
-        : action === "bulkAssign"
-          ? await repositories.alerts.bulkAssign({ alertIds: selectedAlertIds, assignedTo: bulkOwner.trim() || defaultAlertWorkbenchOwner, note: bulkNote.trim() || undefined })
-          : await repositories.alerts.bulkSetReviewState({ alertIds: selectedAlertIds, reviewState: bulkReviewState, reviewLabel: bulkReviewLabel.trim() || undefined, note: bulkNote.trim() || undefined });
-    await refreshQueue();
-    setSelectedAlertIds([]);
-    setBulkNote("");
-    setFeedbackMessage(`${response.data.totalUpdated} alert${response.data.totalUpdated === 1 ? "" : "s"} updated.`);
-    setIsSubmitting(false);
+    try {
+      const response = action === "bulkAcknowledge"
+        ? await repositories.alerts.bulkAcknowledge({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
+        : action === "bulkResolve"
+          ? await repositories.alerts.bulkResolve({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
+          : action === "bulkAssign"
+            ? await repositories.alerts.bulkAssign({ alertIds: selectedAlertIds, assignedTo: bulkOwner.trim() || defaultAlertWorkbenchOwner, note: bulkNote.trim() || undefined })
+            : await repositories.alerts.bulkSetReviewState({ alertIds: selectedAlertIds, reviewState: bulkReviewState, reviewLabel: bulkReviewLabel.trim() || undefined, note: bulkNote.trim() || undefined });
+      const refreshed = await refreshQueue();
+      setSelectedAlertIds([]);
+      setBulkNote("");
+      setFeedbackTone("success");
+      setFeedbackMessage(
+        refreshed
+          ? `${response.data.totalUpdated} alert${response.data.totalUpdated === 1 ? "" : "s"} updated.`
+          : `${response.data.totalUpdated} alert${response.data.totalUpdated === 1 ? "" : "s"} updated, but the queue refresh did not complete.`
+      );
+    } catch (error) {
+      reportRuntimeError(error);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
       <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid rgba(148, 163, 184, 0.3)", borderRadius: "0.75rem" }}>
         <strong>Review Queue Workbench</strong>
+        <div style={{ display: "grid", gap: "0.25rem", padding: "0.65rem 0.8rem", borderRadius: "0.65rem", background: "rgba(30, 41, 59, 0.45)", color: "#cbd5e1" }}>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+            <span>Alerts runtime: {runtimeIndicator.modeLabel}</span>
+            <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
+            <span>Target: {runtimeIndicator.targetLabel}</span>
+          </div>
+          <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+          {runtimeIndicator.warnings.map((warning) => (
+            <span key={warning} style={{ color: "#fbbf24" }}>{warning}</span>
+          ))}
+        </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
           <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
         </div>
@@ -194,13 +273,13 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Pond</span><input value={pondIdFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setPondIdFilter(event.target.value); }} placeholder="pond-1" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={assignedToFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setAssignedToFilter(event.target.value); }} placeholder="operator-queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}><input type="checkbox" checked={hasLatestNoteOnly} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setHasLatestNoteOnly(event.target.checked); }} /><span>With notes only</span></label>
-          <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
+          <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); setFeedbackTone("success"); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
-          <button type="button" onClick={async () => { if (!savedViewName.trim()) { setFeedbackMessage("Name the view before saving it."); return; } const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackMessage("Saved the current queue view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
-          <button type="button" disabled={!activeSavedViewId} onClick={async () => { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackMessage("Removed saved view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
+          <button type="button" onClick={async () => { if (!savedViewName.trim()) { setFeedbackTone("error"); setFeedbackMessage("Name the view before saving it."); return; } try { const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackTone("success"); setFeedbackMessage("Saved the current queue view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); setFeedbackTone("success"); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
+          <button type="button" disabled={!activeSavedViewId} onClick={async () => { try { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackTone("success"); setFeedbackMessage("Removed saved view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
         </div>
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>Bulk actions</strong>
@@ -244,7 +323,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         onResolve={(alertId) => handleSingleAction(alertId, () => submitAlertLifecycleAction("resolve", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert resolved successfully.")}
       />
 
-      {feedbackMessage ? <p style={{ margin: 0, color: "#86efac" }}>{feedbackMessage}</p> : null}
+      {feedbackMessage ? <p style={{ margin: 0, color: feedbackTone === "success" ? "#86efac" : "#fca5a5" }}>{feedbackMessage}</p> : null}
       {pageState.status === "success" ? <p style={{ margin: 0, color: "#86efac" }}>Alert updated to {pageState.data?.status}. Refreshed alerts: {pageState.refreshedList?.items.length ?? 0}.</p> : null}
       {pageState.status === "validation_error" ? <p style={{ margin: 0, color: "#fca5a5" }}>{Object.values(pageState.fieldErrors).filter(Boolean).join(", ")}</p> : null}
     </div>

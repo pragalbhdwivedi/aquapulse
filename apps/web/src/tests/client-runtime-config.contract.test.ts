@@ -6,6 +6,7 @@ import {
   flattenEndpointInvocationRegistry
 } from "../clients/invocation-registry";
 import {
+  getAlertsRuntimeDiagnostics,
   getDefaultClientRuntimeConfig,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl
@@ -64,6 +65,40 @@ describe("Client runtime config and invocation registry", () => {
     });
 
     expect(resolveAlertsHttpBaseUrl(config)).toBe("");
+  });
+
+  it("keeps malformed alerts HTTP settings safe and visible through diagnostics", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "false",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "bad-target"
+    });
+    const diagnostics = getAlertsRuntimeDiagnostics(config);
+
+    expect(config.mode).toBe("mock");
+    expect(config.alertsHttpBaseUrl).toBeUndefined();
+    expect(diagnostics.effectiveMode).toBe("mock");
+    expect(diagnostics.warnings).toContain(
+      "NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
+    );
+    expect(diagnostics.warnings).toContain(
+      "Alerts HTTP mode was requested, but no HTTP executor is enabled. Alerts will remain mock-backed."
+    );
+  });
+
+  it("supports direct alerts HTTP transport when explicitly configured", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000"
+    });
+    const diagnostics = getAlertsRuntimeDiagnostics(config);
+
+    expect(resolveAlertsHttpBaseUrl(config)).toBe("http://localhost:4000");
+    expect(diagnostics.effectiveMode).toBe("http");
+    expect(diagnostics.usesLocalProxy).toBe(false);
+    expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/alerts");
   });
 
   it("keeps the invocation registry aligned with the endpoint catalog", () => {

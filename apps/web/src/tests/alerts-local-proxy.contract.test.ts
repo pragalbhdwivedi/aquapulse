@@ -31,6 +31,14 @@ describe("Alerts local API proxy", () => {
     );
   });
 
+  it("falls back to the default local backend when the configured target is malformed", () => {
+    const config = readAlertsLocalProxyConfig({
+      AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: "not-a-url"
+    });
+
+    expect(config.backendBaseUrl).toBe("http://localhost:4000");
+  });
+
   it("proxies alerts list requests through the Next route bridge", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toBe("http://localhost:4000/api/alerts?page=1&pageSize=20");
@@ -100,5 +108,28 @@ describe("Alerts local API proxy", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, data: { totalAlerts: 1 } });
+  });
+
+  it("returns a developer-friendly 502 response when the backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("connect ECONNREFUSED");
+    }));
+
+    const response = await proxyAlertsApiRequest(
+      new Request("http://localhost:3000/api/alerts"),
+      {
+        backendBaseUrl: "http://localhost:4000"
+      }
+    );
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: {
+        code: "ALERTS_LOCAL_PROXY_UNAVAILABLE",
+        message:
+          "Alerts local proxy could not reach http://localhost:4000. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL."
+      }
+    });
   });
 });

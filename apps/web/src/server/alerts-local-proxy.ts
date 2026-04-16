@@ -6,6 +6,25 @@ export interface AlertsLocalProxyConfig {
 
 export interface AlertsLocalProxyEnv {
   readonly AQUAPULSE_WEB_LOCAL_API_BACKEND_URL?: string;
+  readonly [key: string]: string | undefined;
+}
+
+function normalizeBackendBaseUrl(value: string | undefined): string | undefined {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) {
+    return undefined;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmedValue);
+    if (parsedUrl.protocol === "http:" || parsedUrl.protocol === "https:") {
+      return parsedUrl.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 export function readAlertsLocalProxyConfig(
@@ -13,7 +32,8 @@ export function readAlertsLocalProxyConfig(
 ): AlertsLocalProxyConfig {
   return {
     backendBaseUrl:
-      env.AQUAPULSE_WEB_LOCAL_API_BACKEND_URL?.trim() || defaultLocalApiBackendUrl
+      normalizeBackendBaseUrl(env.AQUAPULSE_WEB_LOCAL_API_BACKEND_URL) ??
+      defaultLocalApiBackendUrl
   };
 }
 
@@ -43,15 +63,33 @@ export async function proxyAlertsApiRequest(
   config: AlertsLocalProxyConfig = readAlertsLocalProxyConfig()
 ): Promise<Response> {
   const targetUrl = buildAlertsProxyTargetUrl(request, config);
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers: createForwardHeaders(request),
-    body: shouldForwardBody(request.method) ? await request.clone().arrayBuffer() : undefined,
-    redirect: "manual"
-  });
+  try {
+    const response = await fetch(targetUrl, {
+      method: request.method,
+      headers: createForwardHeaders(request),
+      body: shouldForwardBody(request.method) ? await request.clone().arrayBuffer() : undefined,
+      redirect: "manual"
+    });
 
-  return new Response(await response.arrayBuffer(), {
-    status: response.status,
-    headers: response.headers
-  });
+    return new Response(await response.arrayBuffer(), {
+      status: response.status,
+      headers: response.headers
+    });
+  } catch {
+    return Response.json(
+      {
+        ok: false,
+        error: {
+          code: "ALERTS_LOCAL_PROXY_UNAVAILABLE",
+          message: `Alerts local proxy could not reach ${config.backendBaseUrl}. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL.`
+        }
+      },
+      {
+        status: 502,
+        headers: {
+          "x-aquapulse-alerts-proxy": "local"
+        }
+      }
+    );
+  }
 }
