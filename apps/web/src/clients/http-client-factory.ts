@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -139,6 +143,13 @@ export function createHttpClientFactory({
           { id, body: input }
         );
       },
+      bulkAcknowledge(input: AlertBulkLifecycleActionRequest) {
+        return invokeCreateEndpoint<AlertBulkActionResult, AlertBulkLifecycleActionRequest>(
+          executor,
+          registry.alerts.bulkAcknowledge,
+          input
+        );
+      },
       resolve(id: string, input: AlertLifecycleActionRequest) {
         return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertLifecycleActionRequest }>(
           executor,
@@ -146,11 +157,25 @@ export function createHttpClientFactory({
           { id, body: input }
         );
       },
+      bulkResolve(input: AlertBulkLifecycleActionRequest) {
+        return invokeCreateEndpoint<AlertBulkActionResult, AlertBulkLifecycleActionRequest>(
+          executor,
+          registry.alerts.bulkResolve,
+          input
+        );
+      },
       assign(id: string, input: AlertAssignActionRequest) {
         return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertAssignActionRequest }>(
           executor,
           registry.alerts.assign,
           { id, body: input }
+        );
+      },
+      bulkAssign(input: AlertBulkAssignActionRequest) {
+        return invokeCreateEndpoint<AlertBulkActionResult, AlertBulkAssignActionRequest>(
+          executor,
+          registry.alerts.bulkAssign,
+          input
         );
       },
       unassign(id: string, input: AlertUnassignActionRequest) {
@@ -165,6 +190,13 @@ export function createHttpClientFactory({
           AlertSummary,
           { readonly id: string; readonly body: AlertReviewStateActionRequest }
         >(executor, registry.alerts.setReviewState, { id, body: input });
+      },
+      bulkSetReviewState(input: AlertBulkReviewStateActionRequest) {
+        return invokeCreateEndpoint<AlertBulkActionResult, AlertBulkReviewStateActionRequest>(
+          executor,
+          registry.alerts.bulkSetReviewState,
+          input
+        );
       }
     },
     feed: {

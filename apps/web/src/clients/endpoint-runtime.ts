@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -51,6 +55,13 @@ type AlertTriageCapableClient<TItem> = {
   assign: (id: string, input: AlertAssignActionRequest) => Promise<{ ok: true; data: TItem }>;
   unassign: (id: string, input: AlertUnassignActionRequest) => Promise<{ ok: true; data: TItem }>;
   setReviewState: (id: string, input: AlertReviewStateActionRequest) => Promise<{ ok: true; data: TItem }>;
+};
+
+type AlertBulkCapableClient<TItem> = {
+  bulkAcknowledge: (input: AlertBulkLifecycleActionRequest) => Promise<{ ok: true; data: TItem }>;
+  bulkResolve: (input: AlertBulkLifecycleActionRequest) => Promise<{ ok: true; data: TItem }>;
+  bulkAssign: (input: AlertBulkAssignActionRequest) => Promise<{ ok: true; data: TItem }>;
+  bulkSetReviewState: (input: AlertBulkReviewStateActionRequest) => Promise<{ ok: true; data: TItem }>;
 };
 
 function createListHandler<TItem, TQuery>(
@@ -111,6 +122,13 @@ function createAlertActionHandler<TItem, TInput>(
     );
 }
 
+function createAlertBulkActionHandler<TItem, TInput>(
+  client: AlertBulkCapableClient<TItem>,
+  action: "bulkAcknowledge" | "bulkResolve" | "bulkAssign" | "bulkSetReviewState"
+) {
+  return async (request: TInput) => client[action](request as never);
+}
+
 export interface AquaPulseEndpointHandlers {
   ponds: {
     create: EndpointHandler<EndpointCatalog["ponds"]["create"]>;
@@ -126,10 +144,14 @@ export interface AquaPulseEndpointHandlers {
     getById: EndpointHandler<EndpointCatalog["alerts"]["getById"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
+    bulkAcknowledge: EndpointHandler<EndpointCatalog["alerts"]["bulkAcknowledge"]>;
     resolve: EndpointHandler<EndpointCatalog["alerts"]["resolve"]>;
+    bulkResolve: EndpointHandler<EndpointCatalog["alerts"]["bulkResolve"]>;
     assign: EndpointHandler<EndpointCatalog["alerts"]["assign"]>;
+    bulkAssign: EndpointHandler<EndpointCatalog["alerts"]["bulkAssign"]>;
     unassign: EndpointHandler<EndpointCatalog["alerts"]["unassign"]>;
     setReviewState: EndpointHandler<EndpointCatalog["alerts"]["setReviewState"]>;
+    bulkSetReviewState: EndpointHandler<EndpointCatalog["alerts"]["bulkSetReviewState"]>;
     explain: EndpointHandler<EndpointCatalog["alerts"]["explain"]>;
   };
   tasks: {
@@ -273,6 +295,17 @@ export function createEndpointHandlersFromClients(
               AlertLifecycleActionRequest
             >, "acknowledge")
           : createMutationFromDetailHandler(clients.alerts),
+      bulkAcknowledge:
+        "bulkAcknowledge" in clients.alerts
+          ? createAlertBulkActionHandler(
+              clients.alerts as typeof clients.alerts & AlertBulkCapableClient<AlertBulkActionResult>,
+              "bulkAcknowledge"
+            )
+          : createMutationFromValue({
+              updatedAlerts: [],
+              totalRequested: 0,
+              totalUpdated: 0
+            }),
       resolve:
         "resolve" in clients.alerts
           ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertActionCapableClient<
@@ -280,12 +313,34 @@ export function createEndpointHandlersFromClients(
               AlertLifecycleActionRequest
             >, "resolve")
           : createMutationFromDetailHandler(clients.alerts),
+      bulkResolve:
+        "bulkResolve" in clients.alerts
+          ? createAlertBulkActionHandler(
+              clients.alerts as typeof clients.alerts & AlertBulkCapableClient<AlertBulkActionResult>,
+              "bulkResolve"
+            )
+          : createMutationFromValue({
+              updatedAlerts: [],
+              totalRequested: 0,
+              totalUpdated: 0
+            }),
       assign:
         "assign" in clients.alerts
           ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertTriageCapableClient<
               AlertSummary
             >, "assign")
           : createMutationFromDetailHandler(clients.alerts),
+      bulkAssign:
+        "bulkAssign" in clients.alerts
+          ? createAlertBulkActionHandler(
+              clients.alerts as typeof clients.alerts & AlertBulkCapableClient<AlertBulkActionResult>,
+              "bulkAssign"
+            )
+          : createMutationFromValue({
+              updatedAlerts: [],
+              totalRequested: 0,
+              totalUpdated: 0
+            }),
       unassign:
         "unassign" in clients.alerts
           ? createAlertActionHandler(clients.alerts as typeof clients.alerts & AlertTriageCapableClient<
@@ -298,6 +353,17 @@ export function createEndpointHandlersFromClients(
               AlertSummary
             >, "setReviewState")
           : createMutationFromDetailHandler(clients.alerts),
+      bulkSetReviewState:
+        "bulkSetReviewState" in clients.alerts
+          ? createAlertBulkActionHandler(
+              clients.alerts as typeof clients.alerts & AlertBulkCapableClient<AlertBulkActionResult>,
+              "bulkSetReviewState"
+            )
+          : createMutationFromValue({
+              updatedAlerts: [],
+              totalRequested: 0,
+              totalUpdated: 0
+            }),
       explain: async (request) => clients.alerts.explain(request)
     },
     tasks: {
@@ -406,10 +472,14 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       summary: (query) => handlers.alerts.summary(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.alerts.getById({ id }),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
+      bulkAcknowledge: (input) => handlers.alerts.bulkAcknowledge(input),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),
+      bulkResolve: (input) => handlers.alerts.bulkResolve(input),
       assign: (id, input) => handlers.alerts.assign({ id, body: input }),
+      bulkAssign: (input) => handlers.alerts.bulkAssign(input),
       unassign: (id, input) => handlers.alerts.unassign({ id, body: input }),
       setReviewState: (id, input) => handlers.alerts.setReviewState({ id, body: input }),
+      bulkSetReviewState: (input) => handlers.alerts.bulkSetReviewState(input),
       explain: (input) => handlers.alerts.explain(input)
     },
     tasks: {

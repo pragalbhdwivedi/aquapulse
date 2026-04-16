@@ -13,6 +13,7 @@ import type {
   WaterQualityReading
 } from "@aquapulse/types";
 import type { AlertsListQuery, AuditListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
+import { getAlertSummaryQuery } from "../features/alert-workbench";
 import {
   aiRepository,
   alertsRepository,
@@ -93,7 +94,7 @@ export function createReadonlyQueries(repositories: Pick<
       };
       const [alerts, summary] = await Promise.all([
         repositories.alerts.list(query),
-        repositories.alerts.summary(summaryQuery)
+        repositories.alerts.summary(getAlertSummaryQuery(summaryQuery))
       ]);
       const explanation = await repositories.alerts.explain({
         alertId: alerts.data.items[0]?.id ?? "alert-1"

@@ -19,6 +19,10 @@ import {
 } from "@aquapulse/database";
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -123,8 +127,32 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
     return this.update(id, { status: "acknowledged" });
   }
 
+  async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => this.acknowledge(alertId, { note: input.note }))
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
+  }
+
   async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
     return this.update(id, { status: "resolved" });
+  }
+
+  async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => this.resolve(alertId, { note: input.note }))
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
   }
 
   async assign(id: string, _input: AlertAssignActionRequest): Promise<AlertSummary> {
@@ -132,6 +160,20 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
       assignedTo: _input.assignedTo,
       reviewState: "under_review"
     });
+  }
+
+  async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        this.assign(alertId, { assignedTo: input.assignedTo, note: input.note })
+      )
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
   }
 
   async unassign(id: string, _input: AlertUnassignActionRequest): Promise<AlertSummary> {
@@ -144,6 +186,26 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
       reviewState: _input.reviewState,
       reviewLabel: _input.reviewLabel
     });
+  }
+
+  async bulkSetReviewState(
+    input: AlertBulkReviewStateActionRequest
+  ): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        this.setReviewState(alertId, {
+          reviewState: input.reviewState,
+          reviewLabel: input.reviewLabel,
+          note: input.note
+        })
+      )
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
   }
 
   async getById(id: string): Promise<AlertSummary> {

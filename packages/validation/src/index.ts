@@ -63,6 +63,20 @@ export const alertReviewStateActionSchema = z.object({
   note: z.string().min(1).optional()
 });
 
+export const alertBulkLifecycleActionSchema = z.object({
+  alertIds: z.array(z.string().min(1)).min(1),
+  note: z.string().min(1).optional()
+});
+
+export const alertBulkAssignActionSchema = alertBulkLifecycleActionSchema.extend({
+  assignedTo: z.string().min(1)
+});
+
+export const alertBulkReviewStateActionSchema = alertBulkLifecycleActionSchema.extend({
+  reviewState: z.enum(["unreviewed", "under_review", "reviewed", "deferred"]),
+  reviewLabel: z.string().min(1).optional()
+});
+
 export const taskCreateSchema = z.object({
   title: z.string().min(2),
   assigneeId: z.string().optional(),

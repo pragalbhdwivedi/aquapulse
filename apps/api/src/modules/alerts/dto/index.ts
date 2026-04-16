@@ -7,3 +7,7 @@ export * from "./set-alert-review-state.dto";
 export * from "./query-alerts.dto";
 export * from "./response-alerts.dto";
 export * from "./unassign-alert.dto";
+export * from "./bulk-acknowledge-alerts.dto";
+export * from "./bulk-resolve-alerts.dto";
+export * from "./bulk-assign-alerts.dto";
+export * from "./bulk-set-alert-review-state.dto";

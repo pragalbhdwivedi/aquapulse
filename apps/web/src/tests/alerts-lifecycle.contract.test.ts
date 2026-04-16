@@ -148,4 +148,34 @@ describe("Alerts lifecycle flow", () => {
       expect(result.data.reviewState).toBe("under_review");
     }
   });
+
+  it("supports bulk queue actions through mock-backed and placeholder-http repositories", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    await repositories.alerts.bulkAssign({
+      alertIds: ["alert-1"],
+      assignedTo: "operator-bulk",
+      note: "Bulk assignment."
+    });
+    const bulkReviewed = await repositories.alerts.bulkSetReviewState({
+      alertIds: ["alert-1"],
+      reviewState: "under_review",
+      reviewLabel: "bulk-queue",
+      note: "Bulk review."
+    });
+
+    expect(bulkReviewed.data.totalUpdated).toBe(1);
+    expect(bulkReviewed.data.updatedAlerts[0]?.reviewLabel).toBe("bulk-queue");
+
+    const httpRepositories = createRepositoriesFromConfig({
+      mode: "http",
+      enablePlaceholderHttp: true
+    });
+    const bulkAcknowledged = await httpRepositories.alerts.bulkAcknowledge({
+      alertIds: ["alert-1"],
+      note: "HTTP bulk acknowledge."
+    });
+
+    expect(bulkAcknowledged.data.totalUpdated).toBe(1);
+    expect(bulkAcknowledged.data.updatedAlerts[0]?.status).toBe("acknowledged");
+  });
 });

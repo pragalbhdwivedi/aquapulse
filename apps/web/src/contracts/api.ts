@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -93,10 +97,14 @@ export interface AlertsApiClient {
   summary(query?: AlertsListQuery): ApiItemContract<AlertQueueSummary>;
   getById(id: string): ApiItemContract<AlertSummary>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
+  bulkAcknowledge(input: AlertBulkLifecycleActionRequest): ApiItemContract<AlertBulkActionResult>;
   resolve(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
+  bulkResolve(input: AlertBulkLifecycleActionRequest): ApiItemContract<AlertBulkActionResult>;
   assign(id: string, input: AlertAssignActionRequest): ApiItemContract<AlertSummary>;
+  bulkAssign(input: AlertBulkAssignActionRequest): ApiItemContract<AlertBulkActionResult>;
   unassign(id: string, input: AlertUnassignActionRequest): ApiItemContract<AlertSummary>;
   setReviewState(id: string, input: AlertReviewStateActionRequest): ApiItemContract<AlertSummary>;
+  bulkSetReviewState(input: AlertBulkReviewStateActionRequest): ApiItemContract<AlertBulkActionResult>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
 }
 

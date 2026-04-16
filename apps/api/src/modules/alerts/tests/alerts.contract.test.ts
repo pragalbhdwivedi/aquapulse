@@ -38,10 +38,14 @@ describe("Alerts contracts", () => {
       create: vi.fn().mockResolvedValue(alert),
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
@@ -60,10 +64,14 @@ describe("Alerts contracts", () => {
       create: vi.fn().mockResolvedValue(alert),
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue({ ...alert, status: "acknowledged" as const }),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       resolve: vi.fn().mockResolvedValue({ ...alert, status: "resolved" as const }),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const }),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
@@ -85,10 +93,14 @@ describe("Alerts contracts", () => {
       create: vi.fn().mockResolvedValue(alert),
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       assign: vi.fn().mockResolvedValue({ ...alert, assignedTo: "user-2", reviewState: "under_review" as const }),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       unassign: vi.fn().mockResolvedValue({ ...alert, assignedTo: undefined }),
       setReviewState: vi.fn().mockResolvedValue({ ...alert, reviewState: "reviewed" as const, reviewLabel: "operator-review" }),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
@@ -121,10 +133,14 @@ describe("Alerts contracts", () => {
       create: vi.fn().mockResolvedValue(alert),
       update: vi.fn().mockResolvedValue(alert),
       acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       assign: vi.fn().mockResolvedValue(alert),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       unassign: vi.fn().mockResolvedValue(alert),
       setReviewState: vi.fn().mockResolvedValue(alert),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
@@ -154,6 +170,35 @@ describe("Alerts contracts", () => {
 
     expect(response.ok).toBe(true);
     expect(response.data.severity).toBe("high");
+  });
+
+  it("application service delegates bulk actions to the alerts repository port", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      assign: vi.fn().mockResolvedValue(alert),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      unassign: vi.fn().mockResolvedValue(alert),
+      setReviewState: vi.fn().mockResolvedValue(alert),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const acknowledged = await service.bulkAcknowledge({ alertIds: ["alert-1"], note: "Bulk acknowledge." });
+    const assigned = await service.bulkAssign({ alertIds: ["alert-1"], assignedTo: "operator-1", note: "Bulk assign." });
+
+    expect(repository.bulkAcknowledge).toHaveBeenCalledWith({ alertIds: ["alert-1"], note: "Bulk acknowledge." });
+    expect(repository.bulkAssign).toHaveBeenCalledWith({ alertIds: ["alert-1"], assignedTo: "operator-1", note: "Bulk assign." });
+    expect(acknowledged.data.totalUpdated).toBe(1);
+    expect(assigned.data.totalUpdated).toBe(1);
   });
 
   it("mapper keeps alert response shapes consistent", () => {

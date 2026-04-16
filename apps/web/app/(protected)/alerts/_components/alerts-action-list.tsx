@@ -3,15 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   alertQueuePresetDefinitions,
-  type AlertQueuePresetDefinition,
   type AlertQueuePresetId,
   type AlertQueueSummary,
   type AlertReviewState,
+  type AlertSavedViewDefinition,
   type AlertSummary
 } from "@aquapulse/types";
 import { createApiClients } from "@web/clients";
 import type { AlertsListQuery } from "@web/contracts/api";
 import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
+import {
+  createAlertSavedViewsStore,
+  defaultAlertWorkbenchOwner,
+  deriveOwnerAlertIndicators,
+  getAlertPresetQuery,
+  getAlertSummaryQuery
+} from "@web/features/alert-workbench";
 import {
   submitAlertTriageAction,
   type AlertAssignSubmissionResult,
@@ -20,6 +27,7 @@ import {
 } from "@web/features/alert-triage";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
 import { createRepositories } from "@web/repositories";
+import { AlertsWorkbenchQueue } from "./alerts-workbench-queue";
 
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
@@ -32,39 +40,26 @@ type AlertQueueSubmissionResult =
   | AlertUnassignSubmissionResult
   | AlertReviewStateSubmissionResult;
 
-const reviewStateOptions: AlertReviewState[] = [
-  "unreviewed",
-  "under_review",
-  "reviewed",
-  "deferred"
-];
-const currentOwnerPlaceholder = "operator-queue";
-
-function getPresetQuery(presetId: AlertQueuePresetId): Partial<AlertsListQuery> {
-  const preset = alertQueuePresetDefinitions.find((item) => item.id === presetId);
-  if (!preset) {
-    return {};
-  }
-
-  if (preset.requiresAssignedTo) {
-    return {
-      ...preset.query,
-      assignedTo: currentOwnerPlaceholder
-    };
-  }
-
-  return preset.query;
-}
+const reviewStateOptions: AlertReviewState[] = ["unreviewed", "under_review", "reviewed", "deferred"];
 
 export function AlertsActionList({ initialAlerts, initialSummary }: AlertsActionListProps) {
   const repositories = useMemo(() => createRepositories(createApiClients()), []);
+  const savedViewsStore = useMemo(() => createAlertSavedViewsStore(typeof window === "undefined" ? undefined : window.localStorage), []);
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
-  const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
+  const [detailAlertId, setDetailAlertId] = useState<string | null>(null);
+  const [selectedAlertIds, setSelectedAlertIds] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [ownerInputs, setOwnerInputs] = useState<Record<string, string>>({});
   const [reviewLabels, setReviewLabels] = useState<Record<string, string>>({});
   const [reviewStates, setReviewStates] = useState<Record<string, AlertReviewState>>({});
+  const [savedViews, setSavedViews] = useState<AlertSavedViewDefinition[]>([]);
+  const [activeSavedViewId, setActiveSavedViewId] = useState("");
+  const [savedViewName, setSavedViewName] = useState("");
+  const [bulkOwner, setBulkOwner] = useState(defaultAlertWorkbenchOwner);
+  const [bulkNote, setBulkNote] = useState("");
+  const [bulkReviewState, setBulkReviewState] = useState<AlertReviewState>("under_review");
+  const [bulkReviewLabel, setBulkReviewLabel] = useState("");
   const [presetId, setPresetId] = useState<AlertQueuePresetId | "custom">("custom");
   const [statusFilter, setStatusFilter] = useState<AlertsListQuery["status"] | "all">("all");
   const [sortBy, setSortBy] = useState<NonNullable<AlertsListQuery["sortBy"]>>("updatedAt_desc");
@@ -72,460 +67,154 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [pondIdFilter, setPondIdFilter] = useState("");
   const [assignedToFilter, setAssignedToFilter] = useState("");
   const [reviewStateFilter, setReviewStateFilter] = useState<AlertReviewState | "all">("all");
+  const [activeAlertId, setActiveAlertId] = useState<string | null>(null);
   const [result, setResult] = useState<AlertQueueSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const pageState = toMutationSyncPageState(result, isSubmitting);
   const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const pageState = toMutationSyncPageState(result, isSubmitting);
+  const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
+  const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: 1, pageSize: 20, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]);
+  const allVisibleSelected = alerts.length > 0 && alerts.every((alert) => selectedAlertIds.includes(alert.id));
 
-  const reviewQueueQuery = useMemo<AlertsListQuery>(
-    () => ({
-      page: 1,
-      pageSize: 20,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      hasLatestNote: hasLatestNoteOnly ? true : undefined,
-      pondId: pondIdFilter.trim() || undefined,
-      assignedTo: assignedToFilter.trim() || undefined,
-      reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter,
-      sortBy
-    }),
-    [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]
-  );
-
-  const selectedPreset = useMemo<AlertQueuePresetDefinition | undefined>(
-    () => alertQueuePresetDefinitions.find((item) => item.id === presetId),
-    [presetId]
-  );
-
-  const summaryQuery = useMemo<AlertsListQuery>(
-    () => ({
-      ...reviewQueueQuery,
-      status: undefined,
-      reviewState: undefined
-    }),
-    [reviewQueueQuery]
-  );
+  const applyQueryState = useCallback((query: Partial<AlertsListQuery>) => {
+    setStatusFilter((query.status as AlertsListQuery["status"] | undefined) ?? "all");
+    setReviewStateFilter((query.reviewState as AlertReviewState | undefined) ?? "all");
+    setSortBy((query.sortBy as NonNullable<AlertsListQuery["sortBy"]> | undefined) ?? "updatedAt_desc");
+    setHasLatestNoteOnly(Boolean(query.hasLatestNote));
+    setPondIdFilter(query.pondId ?? "");
+    setAssignedToFilter(query.assignedTo ?? "");
+  }, []);
 
   const refreshQueue = useCallback(async () => {
     setIsRefreshingQueue(true);
-    const [response, summaryResponse] = await Promise.all([
-      repositories.alerts.list(reviewQueueQuery),
-      repositories.alerts.summary(summaryQuery)
-    ]);
+    const [response, summaryResponse] = await Promise.all([repositories.alerts.list(reviewQueueQuery), repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))]);
     setAlerts(response.data.items);
     setSummary(summaryResponse.data);
+    setSelectedAlertIds((current) => current.filter((id) => response.data.items.some((item) => item.id === id)));
     setIsRefreshingQueue(false);
-  }, [repositories, reviewQueueQuery, summaryQuery]);
+  }, [repositories.alerts, reviewQueueQuery]);
+
+  useEffect(() => {
+    setSavedViews(savedViewsStore.list());
+  }, [savedViewsStore]);
 
   useEffect(() => {
     let cancelled = false;
-
     async function runRefresh() {
       setIsRefreshingQueue(true);
-      const [response, summaryResponse] = await Promise.all([
-        repositories.alerts.list(reviewQueueQuery),
-        repositories.alerts.summary(summaryQuery)
-      ]);
+      const [response, summaryResponse] = await Promise.all([repositories.alerts.list(reviewQueueQuery), repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))]);
       if (!cancelled) {
         setAlerts(response.data.items);
         setSummary(summaryResponse.data);
+        setSelectedAlertIds((current) => current.filter((id) => response.data.items.some((item) => item.id === id)));
         setIsRefreshingQueue(false);
       }
     }
-
     void runRefresh();
-
     return () => {
       cancelled = true;
     };
-  }, [repositories, reviewQueueQuery, summaryQuery]);
+  }, [repositories.alerts, reviewQueueQuery]);
 
-  async function handleLifecycleAction(action: "acknowledge" | "resolve", alertId: string) {
+  async function handleSingleAction(alertId: string, run: () => Promise<AlertQueueSubmissionResult>, message: string) {
     setActiveAlertId(alertId);
     setIsSubmitting(true);
-    const submission = await submitAlertLifecycleAction(action, alertId, {
-      note: notes[alertId]?.trim() ? notes[alertId].trim() : undefined
-    });
+    const submission = await run();
     setResult(submission);
     if (submission.status === "success") {
       await refreshQueue();
-      setNotes((current) => ({ ...current, [alertId]: "" }));
+      setFeedbackMessage(message);
     }
     setIsSubmitting(false);
     setActiveAlertId(null);
   }
 
-  async function handleAssign(alertId: string) {
-    setActiveAlertId(alertId);
+  async function handleBulkAction(action: "bulkAcknowledge" | "bulkResolve" | "bulkAssign" | "bulkSetReviewState") {
+    if (selectedAlertIds.length === 0) return;
     setIsSubmitting(true);
-    const submission = await submitAlertTriageAction("assign", alertId, {
-      assignedTo: ownerInputs[alertId]?.trim() ?? "",
-      note: notes[alertId]?.trim() || undefined
-    });
-    setResult(submission);
-    if (submission.status === "success") {
-      await refreshQueue();
-    }
+    const response = action === "bulkAcknowledge"
+      ? await repositories.alerts.bulkAcknowledge({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
+      : action === "bulkResolve"
+        ? await repositories.alerts.bulkResolve({ alertIds: selectedAlertIds, note: bulkNote.trim() || undefined })
+        : action === "bulkAssign"
+          ? await repositories.alerts.bulkAssign({ alertIds: selectedAlertIds, assignedTo: bulkOwner.trim() || defaultAlertWorkbenchOwner, note: bulkNote.trim() || undefined })
+          : await repositories.alerts.bulkSetReviewState({ alertIds: selectedAlertIds, reviewState: bulkReviewState, reviewLabel: bulkReviewLabel.trim() || undefined, note: bulkNote.trim() || undefined });
+    await refreshQueue();
+    setSelectedAlertIds([]);
+    setBulkNote("");
+    setFeedbackMessage(`${response.data.totalUpdated} alert${response.data.totalUpdated === 1 ? "" : "s"} updated.`);
     setIsSubmitting(false);
-    setActiveAlertId(null);
-  }
-
-  async function handleUnassign(alertId: string) {
-    setActiveAlertId(alertId);
-    setIsSubmitting(true);
-    const submission = await submitAlertTriageAction("unassign", alertId, {
-      note: notes[alertId]?.trim() || undefined
-    });
-    setResult(submission);
-    if (submission.status === "success") {
-      await refreshQueue();
-      setOwnerInputs((current) => ({ ...current, [alertId]: "" }));
-    }
-    setIsSubmitting(false);
-    setActiveAlertId(null);
-  }
-
-  async function handleReviewState(alertId: string) {
-    setActiveAlertId(alertId);
-    setIsSubmitting(true);
-    const submission = await submitAlertTriageAction("setReviewState", alertId, {
-      reviewState: reviewStates[alertId] ?? "under_review",
-      reviewLabel: reviewLabels[alertId]?.trim() || undefined,
-      note: notes[alertId]?.trim() || undefined
-    });
-    setResult(submission);
-    if (submission.status === "success") {
-      await refreshQueue();
-    }
-    setIsSubmitting(false);
-    setActiveAlertId(null);
-  }
-
-  function applyPreset(nextPresetId: AlertQueuePresetId | "custom") {
-    setPresetId(nextPresetId);
-
-    if (nextPresetId === "custom") {
-      return;
-    }
-
-    const presetQuery = getPresetQuery(nextPresetId);
-    setStatusFilter((presetQuery.status as AlertsListQuery["status"] | undefined) ?? "all");
-    setReviewStateFilter((presetQuery.reviewState as AlertReviewState | undefined) ?? "all");
-    setSortBy(
-      (presetQuery.sortBy as NonNullable<AlertsListQuery["sortBy"]> | undefined) ?? "updatedAt_desc"
-    );
-    setHasLatestNoteOnly(Boolean(presetQuery.hasLatestNote));
-    setPondIdFilter(presetQuery.pondId ?? "");
-    setAssignedToFilter(presetQuery.assignedTo ?? "");
   }
 
   return (
     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
-      <div
-        style={{
-          display: "grid",
-          gap: "0.75rem",
-          padding: "0.9rem",
-          border: "1px solid rgba(148, 163, 184, 0.3)",
-          borderRadius: "0.75rem"
-        }}
-      >
-        <strong>Review Queue</strong>
+      <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid rgba(148, 163, 184, 0.3)", borderRadius: "0.75rem" }}>
+        <strong>Review Queue Workbench</strong>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
-          <span>Open: {summary.statusCounts.open}</span>
-          <span>Acknowledged: {summary.statusCounts.acknowledged}</span>
-          <span>Resolved: {summary.statusCounts.resolved}</span>
-          <span>Assigned: {summary.assignmentCounts.assigned}</span>
-          <span>Unassigned: {summary.assignmentCounts.unassigned}</span>
-          <span>Under review: {summary.reviewStateCounts.underReview}</span>
+          <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
         </div>
-        {summary.ownerWorkloads.length ? (
-          <div style={{ display: "grid", gap: "0.35rem" }}>
-            <strong style={{ fontSize: "0.95rem" }}>Owner workload</strong>
-            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
-              {summary.ownerWorkloads.map((workload) => (
-                <span key={workload.ownerId}>
-                  {workload.ownerId}: {workload.assignedAlerts} assigned, {workload.openAlerts} open,{" "}
-                  {workload.underReviewAlerts} under review
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null}
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Preset view</span>
-            <select
-              value={presetId}
-              onChange={(event) => applyPreset(event.target.value as AlertQueuePresetId | "custom")}
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            >
-              <option value="custom">Custom</option>
-              {alertQueuePresetDefinitions.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Status</span>
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                {
-                  setPresetId("custom");
-                  setStatusFilter(event.target.value as AlertsListQuery["status"] | "all");
-                }
-              }
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            >
-              <option value="all">All</option>
-              <option value="open">Open</option>
-              <option value="acknowledged">Acknowledged</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Review state</span>
-            <select
-              value={reviewStateFilter}
-              onChange={(event) =>
-                {
-                  setPresetId("custom");
-                  setReviewStateFilter(event.target.value as AlertReviewState | "all");
-                }
-              }
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            >
-              <option value="all">All</option>
-              {reviewStateOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Sort</span>
-            <select
-              value={sortBy}
-              onChange={(event) =>
-                {
-                  setPresetId("custom");
-                  setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>);
-                }
-              }
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            >
-              <option value="updatedAt_desc">Newest updated</option>
-              <option value="updatedAt_asc">Oldest updated</option>
-              <option value="createdAt_desc">Newest created</option>
-              <option value="createdAt_asc">Oldest created</option>
-            </select>
-          </label>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Pond</span>
-            <input
-              value={pondIdFilter}
-              onChange={(event) => {
-                setPresetId("custom");
-                setPondIdFilter(event.target.value);
-              }}
-              placeholder="pond-1"
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            />
-          </label>
-          <label style={{ display: "grid", gap: "0.35rem" }}>
-            <span>Owner</span>
-            <input
-              value={assignedToFilter}
-              onChange={(event) => {
-                setPresetId("custom");
-                setAssignedToFilter(event.target.value);
-              }}
-              placeholder="user-1"
-              style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-            />
-          </label>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}>
-            <input
-              type="checkbox"
-              checked={hasLatestNoteOnly}
-              onChange={(event) => {
-                setPresetId("custom");
-                setHasLatestNoteOnly(event.target.checked);
-              }}
-            />
-            <span>With notes only</span>
-          </label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Preset view</span><select value={presetId} onChange={(event) => { const nextPresetId = event.target.value as AlertQueuePresetId | "custom"; setPresetId(nextPresetId); setActiveSavedViewId(""); applyQueryState(nextPresetId === "custom" ? {} : getAlertPresetQuery(nextPresetId, defaultAlertWorkbenchOwner)); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="custom">Custom</option>{alertQueuePresetDefinitions.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Status</span><select value={statusFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setStatusFilter(event.target.value as AlertsListQuery["status"] | "all"); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={reviewStateFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setReviewStateFilter(event.target.value as AlertReviewState | "all"); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Sort</span><select value={sortBy} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="updatedAt_desc">Newest updated</option><option value="updatedAt_asc">Oldest updated</option><option value="createdAt_desc">Newest created</option><option value="createdAt_asc">Oldest created</option></select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Pond</span><input value={pondIdFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setPondIdFilter(event.target.value); }} placeholder="pond-1" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={assignedToFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setAssignedToFilter(event.target.value); }} placeholder="operator-queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}><input type="checkbox" checked={hasLatestNoteOnly} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setHasLatestNoteOnly(event.target.checked); }} /><span>With notes only</span></label>
+          <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
         </div>
-        {selectedPreset ? (
-          <p style={{ margin: 0, color: "#94a3b8" }}>
-            {selectedPreset.description}
-            {selectedPreset.requiresAssignedTo ? ` Using placeholder owner ${currentOwnerPlaceholder}.` : ""}
-          </p>
-        ) : null}
-        <p style={{ margin: 0, color: "#94a3b8" }}>
-          {isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}`}
-        </p>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          <button type="button" onClick={() => { if (!savedViewName.trim()) { setFeedbackMessage("Name the view before saving it."); return; } const nextViews = savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackMessage("Saved the current queue view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
+          <button type="button" disabled={!activeSavedViewId} onClick={() => { const nextViews = savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackMessage("Removed saved view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
+        </div>
+        <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
+          <strong>Bulk actions</strong>
+          <p style={{ margin: 0, color: "#94a3b8" }}>Selected alerts: {selectedAlertIds.length}</p>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
+            <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={bulkOwner} onChange={(event) => setBulkOwner(event.target.value)} placeholder={defaultAlertWorkbenchOwner} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+            <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={bulkReviewState} onChange={(event) => setBulkReviewState(event.target.value as AlertReviewState)} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+            <label style={{ display: "grid", gap: "0.35rem" }}><span>Review label</span><input value={bulkReviewLabel} onChange={(event) => setBulkReviewLabel(event.target.value)} placeholder="triage, urgent" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+            <label style={{ display: "grid", gap: "0.35rem", minWidth: "16rem" }}><span>Bulk note</span><input value={bulkNote} onChange={(event) => setBulkNote(event.target.value)} placeholder="Optional note for the selected alerts" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          </div>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkAcknowledge")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk acknowledge</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkResolve")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk resolve</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkAssign")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk assign</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkSetReviewState")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk review-state update</button>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "#94a3b8" }}><input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedAlertIds((current) => allVisibleSelected ? current.filter((id) => !alerts.some((alert) => alert.id === id)) : [...new Set([...current, ...alerts.map((alert) => alert.id)])])} /><span>{isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}. Selected: ${selectedAlertIds.length}.`}</span></div>
       </div>
-      <ul style={{ display: "grid", gap: "0.75rem", padding: 0, margin: 0, listStyle: "none" }}>
-        {alerts.map((alert) => (
-          <li
-            key={alert.id}
-            style={{
-              display: "grid",
-              gap: "0.5rem",
-              padding: "0.9rem",
-              border: "1px solid rgba(148, 163, 184, 0.3)",
-              borderRadius: "0.75rem"
-            }}
-          >
-            <div>
-              <strong>{alert.title}</strong> [{alert.severity}] {alert.pondId ? `for ${alert.pondId}` : ""}
-            </div>
-            <div>Status: {alert.status}</div>
-            <div>Owner: {alert.assignedTo ?? "Unassigned"}</div>
-            <div>Review state: {alert.reviewState ?? "unreviewed"}</div>
-            {alert.reviewLabel ? <div>Review label: {alert.reviewLabel}</div> : null}
-            {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
-            <label style={{ display: "grid", gap: "0.35rem" }}>
-              <span>Review note</span>
-              <input
-                value={notes[alert.id] ?? ""}
-                onChange={(event) =>
-                  setNotes((current) => ({
-                    ...current,
-                    [alert.id]: event.target.value
-                  }))
-                }
-                placeholder="Optional operator note"
-                style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-              />
-            </label>
-            <div style={{ display: "grid", gap: "0.5rem" }}>
-              <label style={{ display: "grid", gap: "0.35rem" }}>
-                <span>Assign owner</span>
-                <input
-                  value={ownerInputs[alert.id] ?? alert.assignedTo ?? ""}
-                  onChange={(event) =>
-                    setOwnerInputs((current) => ({
-                      ...current,
-                      [alert.id]: event.target.value
-                    }))
-                  }
-                  placeholder="user-1"
-                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                />
-              </label>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleAssign(alert.id)}
-                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                >
-                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Assign"}
-                </button>
-                <button
-                  type="button"
-                  disabled={isSubmitting || !alert.assignedTo}
-                  onClick={() => handleUnassign(alert.id)}
-                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                >
-                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Unassign"}
-                </button>
-              </div>
-            </div>
-            <div style={{ display: "grid", gap: "0.5rem" }}>
-              <label style={{ display: "grid", gap: "0.35rem" }}>
-                <span>Review state</span>
-                <select
-                  value={reviewStates[alert.id] ?? alert.reviewState ?? "unreviewed"}
-                  onChange={(event) =>
-                    setReviewStates((current) => ({
-                      ...current,
-                      [alert.id]: event.target.value as AlertReviewState
-                    }))
-                  }
-                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                >
-                  {reviewStateOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label style={{ display: "grid", gap: "0.35rem" }}>
-                <span>Review label</span>
-                <input
-                  value={reviewLabels[alert.id] ?? alert.reviewLabel ?? ""}
-                  onChange={(event) =>
-                    setReviewLabels((current) => ({
-                      ...current,
-                      [alert.id]: event.target.value
-                    }))
-                  }
-                  placeholder="water-quality, feed, urgent..."
-                  style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                />
-              </label>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => handleReviewState(alert.id)}
-                  style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-                >
-                  {isSubmitting && activeAlertId === alert.id ? "Working..." : "Apply review state"}
-                </button>
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <button
-                type="button"
-                disabled={isSubmitting || alert.status !== "open"}
-                onClick={() => handleLifecycleAction("acknowledge", alert.id)}
-                style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-              >
-                {isSubmitting && activeAlertId === alert.id ? "Working..." : "Acknowledge"}
-              </button>
-              <button
-                type="button"
-                disabled={isSubmitting || alert.status === "resolved"}
-                onClick={() => handleLifecycleAction("resolve", alert.id)}
-                style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
-              >
-                {isSubmitting && activeAlertId === alert.id ? "Working..." : "Resolve"}
-              </button>
-            </div>
-            {alert.actionHistory?.length ? (
-              <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
-                {alert.actionHistory.map((item, index) => (
-                  <li key={`${alert.id}-${item.action}-${item.timestamp}-${index}`}>
-                    {item.action} at {item.timestamp}
-                    {item.assignedTo ? ` by/for ${item.assignedTo}` : ""}
-                    {item.reviewState ? ` [${item.reviewState}]` : ""}
-                    {item.reviewLabel ? ` (${item.reviewLabel})` : ""}
-                    {item.note ? ` - ${item.note}` : ""}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      {pageState.status === "success" ? (
-        <p style={{ margin: 0, color: "#86efac" }}>
-          Alert updated to {pageState.data?.status}. Refreshed alerts: {pageState.refreshedList?.items.length ?? 0}.
-        </p>
-      ) : null}
-      {pageState.status === "validation_error" ? (
-        <p style={{ margin: 0, color: "#fca5a5" }}>
-          {Object.values(pageState.fieldErrors).filter(Boolean).join(", ")}
-        </p>
-      ) : null}
+
+      <AlertsWorkbenchQueue
+        alerts={alerts}
+        detailAlertId={detailAlertId}
+        selectedAlertIds={selectedAlertIds}
+        isSubmitting={isSubmitting}
+        activeAlertId={activeAlertId}
+        notes={notes}
+        ownerInputs={ownerInputs}
+        reviewLabels={reviewLabels}
+        reviewStates={reviewStates}
+        onToggleSelection={(alertId) => setSelectedAlertIds((current) => current.includes(alertId) ? current.filter((item) => item !== alertId) : [...current, alertId])}
+        onToggleDetail={(alertId) => setDetailAlertId((current) => current === alertId ? null : alertId)}
+        onNoteChange={(alertId, value) => setNotes((current) => ({ ...current, [alertId]: value }))}
+        onOwnerChange={(alertId, value) => setOwnerInputs((current) => ({ ...current, [alertId]: value }))}
+        onReviewLabelChange={(alertId, value) => setReviewLabels((current) => ({ ...current, [alertId]: value }))}
+        onReviewStateChange={(alertId, value) => setReviewStates((current) => ({ ...current, [alertId]: value }))}
+        onAssign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("assign", alertId, { assignedTo: ownerInputs[alertId]?.trim() ?? defaultAlertWorkbenchOwner, note: notes[alertId]?.trim() || undefined }), "Alert owner updated.")}
+        onUnassign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("unassign", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert returned to the general queue.")}
+        onApplyReviewState={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("setReviewState", alertId, { reviewState: reviewStates[alertId] ?? "under_review", reviewLabel: reviewLabels[alertId]?.trim() || undefined, note: notes[alertId]?.trim() || undefined }), "Review flow updated.")}
+        onAcknowledge={(alertId) => handleSingleAction(alertId, () => submitAlertLifecycleAction("acknowledge", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert acknowledged successfully.")}
+        onResolve={(alertId) => handleSingleAction(alertId, () => submitAlertLifecycleAction("resolve", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert resolved successfully.")}
+      />
+
+      {feedbackMessage ? <p style={{ margin: 0, color: "#86efac" }}>{feedbackMessage}</p> : null}
+      {pageState.status === "success" ? <p style={{ margin: 0, color: "#86efac" }}>Alert updated to {pageState.data?.status}. Refreshed alerts: {pageState.refreshedList?.items.length ?? 0}.</p> : null}
+      {pageState.status === "validation_error" ? <p style={{ margin: 0, color: "#fca5a5" }}>{Object.values(pageState.fieldErrors).filter(Boolean).join(", ")}</p> : null}
     </div>
   );
 }

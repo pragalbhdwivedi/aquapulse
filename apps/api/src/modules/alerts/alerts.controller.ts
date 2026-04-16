@@ -10,6 +10,10 @@ import { AlertsService } from "./alerts.service";
 import {
   AcknowledgeAlertDto,
   AssignAlertDto,
+  BulkAcknowledgeAlertsDto,
+  BulkAssignAlertsDto,
+  BulkResolveAlertsDto,
+  BulkSetAlertReviewStateDto,
   CreateAlertsDto,
   QueryAlertsDto,
   ResolveAlertDto,
@@ -20,9 +24,14 @@ import {
 import {
   toAcknowledgeAlertInput,
   toAssignAlertInput,
+  toAlertsBulkActionResponse,
   toAlertsItemResponse,
   toAlertsListResponse,
   toAlertsSummaryResponse,
+  toBulkAcknowledgeAlertsInput,
+  toBulkAssignAlertsInput,
+  toBulkResolveAlertsInput,
+  toBulkSetAlertReviewStateInput,
   toCreateAlertsInput,
   toQueryAlertsInput,
   toResolveAlertInput,
@@ -90,6 +99,54 @@ export class AlertsController {
       toUpdateAlertsInput,
       (resourceId, mappedInput) => this.alertsApplicationService.update(resourceId, mappedInput),
       toAlertsItemResponse
+    );
+  }
+
+  @Post("bulk/acknowledge")
+  async bulkAcknowledge(
+    @Body() input: BulkAcknowledgeAlertsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAcknowledge>> {
+    return delegateCreate(
+      input,
+      toBulkAcknowledgeAlertsInput,
+      (mappedInput) => this.alertsApplicationService.bulkAcknowledge(mappedInput),
+      toAlertsBulkActionResponse
+    );
+  }
+
+  @Post("bulk/resolve")
+  async bulkResolve(
+    @Body() input: BulkResolveAlertsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkResolve>> {
+    return delegateCreate(
+      input,
+      toBulkResolveAlertsInput,
+      (mappedInput) => this.alertsApplicationService.bulkResolve(mappedInput),
+      toAlertsBulkActionResponse
+    );
+  }
+
+  @Post("bulk/assign")
+  async bulkAssign(
+    @Body() input: BulkAssignAlertsDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAssign>> {
+    return delegateCreate(
+      input,
+      toBulkAssignAlertsInput,
+      (mappedInput) => this.alertsApplicationService.bulkAssign(mappedInput),
+      toAlertsBulkActionResponse
+    );
+  }
+
+  @Post("bulk/review-state")
+  async bulkSetReviewState(
+    @Body() input: BulkSetAlertReviewStateDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkSetReviewState>> {
+    return delegateCreate(
+      input,
+      toBulkSetAlertReviewStateInput,
+      (mappedInput) => this.alertsApplicationService.bulkSetReviewState(mappedInput),
+      toAlertsBulkActionResponse
     );
   }
 

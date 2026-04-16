@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -77,10 +81,14 @@ export interface AlertsRepository {
   summary(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<AlertQueueSummary>>;
   getById(id: string): Promise<ApiSuccessEnvelope<AlertSummary>>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   resolve(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   assign(id: string, input: AlertAssignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  bulkAssign(input: AlertBulkAssignActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   unassign(id: string, input: AlertUnassignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  bulkSetReviewState(input: AlertBulkReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   explain(input: AiAlertsExplainRequest): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>>;
 }
 
@@ -162,17 +170,29 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       acknowledge(id: string, input: AlertLifecycleActionRequest) {
         return clients.alerts.acknowledge(id, input);
       },
+      bulkAcknowledge(input: AlertBulkLifecycleActionRequest) {
+        return clients.alerts.bulkAcknowledge(input);
+      },
       resolve(id: string, input: AlertLifecycleActionRequest) {
         return clients.alerts.resolve(id, input);
       },
+      bulkResolve(input: AlertBulkLifecycleActionRequest) {
+        return clients.alerts.bulkResolve(input);
+      },
       assign(id: string, input: AlertAssignActionRequest) {
         return clients.alerts.assign(id, input);
+      },
+      bulkAssign(input: AlertBulkAssignActionRequest) {
+        return clients.alerts.bulkAssign(input);
       },
       unassign(id: string, input: AlertUnassignActionRequest) {
         return clients.alerts.unassign(id, input);
       },
       setReviewState(id: string, input: AlertReviewStateActionRequest) {
         return clients.alerts.setReviewState(id, input);
+      },
+      bulkSetReviewState(input: AlertBulkReviewStateActionRequest) {
+        return clients.alerts.bulkSetReviewState(input);
       },
       explain(input: AiAlertsExplainRequest) {
         return clients.alerts.explain(input);

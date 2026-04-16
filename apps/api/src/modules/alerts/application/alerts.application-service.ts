@@ -1,6 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -26,11 +30,26 @@ export class AlertsApplicationService {
   async acknowledge(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.acknowledge(_id, _input) };
   }
+  async bulkAcknowledge(
+    _input: AlertBulkLifecycleActionRequest
+  ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    return { ok: true, data: await this.alertsRepository.bulkAcknowledge(_input) };
+  }
   async resolve(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.resolve(_id, _input) };
   }
+  async bulkResolve(
+    _input: AlertBulkLifecycleActionRequest
+  ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    return { ok: true, data: await this.alertsRepository.bulkResolve(_input) };
+  }
   async assign(_id: string, _input: AlertAssignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.assign(_id, _input) };
+  }
+  async bulkAssign(
+    _input: AlertBulkAssignActionRequest
+  ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    return { ok: true, data: await this.alertsRepository.bulkAssign(_input) };
   }
   async unassign(_id: string, _input: AlertUnassignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.unassign(_id, _input) };
@@ -40,6 +59,11 @@ export class AlertsApplicationService {
     _input: AlertReviewStateActionRequest
   ): Promise<ApiSuccessEnvelope<AlertSummary>> {
     return { ok: true, data: await this.alertsRepository.setReviewState(_id, _input) };
+  }
+  async bulkSetReviewState(
+    _input: AlertBulkReviewStateActionRequest
+  ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    return { ok: true, data: await this.alertsRepository.bulkSetReviewState(_input) };
   }
   async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
   async summary(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<AlertQueueSummary>> {

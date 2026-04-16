@@ -2,6 +2,10 @@ import { Injectable } from "@nestjs/common";
 import type {
   AlertAssignActionRequest,
   AlertActionHistoryItem,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -9,7 +13,11 @@ import type {
   AlertUnassignActionRequest,
   ListResponse
 } from "@aquapulse/types";
-import { buildAlertQueueSummary as summarizeAlertQueue } from "@aquapulse/types";
+import {
+  buildAlertQueueSummary as summarizeAlertQueue,
+  filterAlertsByQuery,
+  sortAlertsByQuery
+} from "@aquapulse/types";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
@@ -48,41 +56,6 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
       totalPages: Math.max(1, Math.ceil(items.length / pageSize))
     }
   };
-}
-
-function filterAlerts(items: readonly AlertSummary[], query: AlertsListQueryContract): AlertSummary[] {
-  return items.filter(
-    (item) =>
-      (!query.pondId || item.pondId === query.pondId) &&
-      (!query.severity || item.severity === query.severity) &&
-      (!query.status || item.status === query.status) &&
-      (!query.source || item.source === query.source) &&
-      (!query.assignedTo || item.assignedTo === query.assignedTo) &&
-      (!query.reviewState || item.reviewState === query.reviewState) &&
-      (query.hasLatestNote === undefined ||
-        (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-      (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
-  );
-}
-
-function sortAlerts(items: AlertSummary[], sortBy: AlertsListQueryContract["sortBy"]) {
-  const sorted = [...items];
-  switch (sortBy) {
-    case "createdAt_asc":
-      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-      break;
-    case "updatedAt_asc":
-      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
-      break;
-    case "createdAt_desc":
-      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-      break;
-    case "updatedAt_desc":
-    default:
-      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      break;
-  }
-  return sorted;
 }
 
 function applyAlertMutation(
@@ -163,6 +136,18 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
     );
   }
 
+  async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => this.acknowledge(alertId, { note: input.note }))
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
+  }
+
   async resolve(id: string, input: AlertLifecycleActionRequest): Promise<AlertSummary> {
     return applyAlertMutation(
       this,
@@ -175,6 +160,18 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       },
       "2026-04-15T10:15:00.000Z"
     );
+  }
+
+  async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => this.resolve(alertId, { note: input.note }))
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
   }
 
   async assign(id: string, input: AlertAssignActionRequest): Promise<AlertSummary> {
@@ -194,6 +191,20 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       },
       "2026-04-15T10:20:00.000Z"
     );
+  }
+
+  async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        this.assign(alertId, { assignedTo: input.assignedTo, note: input.note })
+      )
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
   }
 
   async unassign(id: string, input: AlertUnassignActionRequest): Promise<AlertSummary> {
@@ -231,17 +242,37 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
     );
   }
 
+  async bulkSetReviewState(
+    input: AlertBulkReviewStateActionRequest
+  ): Promise<AlertBulkActionResult> {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        this.setReviewState(alertId, {
+          reviewState: input.reviewState,
+          reviewLabel: input.reviewLabel,
+          note: input.note
+        })
+      )
+    );
+
+    return {
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    };
+  }
+
   async getById(id: string): Promise<AlertSummary> {
     return getAlerts(this).find((item) => item.id === id) ?? getAlerts(this)[0];
   }
 
   async list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
-    const filtered = filterAlerts(getAlerts(this), query);
-    return createPage(sortAlerts(filtered, query.sortBy), query.page, query.pageSize);
+    const filtered = filterAlertsByQuery(getAlerts(this), query);
+    return createPage(sortAlertsByQuery(filtered, query.sortBy), query.page, query.pageSize);
   }
 
   async summary(query: AlertsListQueryContract): Promise<AlertQueueSummary> {
-    return summarizeAlertQueue(filterAlerts(getAlerts(this), query));
+    return summarizeAlertQueue(filterAlertsByQuery(getAlerts(this), query));
   }
 
   async listOpen(): Promise<ListResponse<AlertSummary>> {

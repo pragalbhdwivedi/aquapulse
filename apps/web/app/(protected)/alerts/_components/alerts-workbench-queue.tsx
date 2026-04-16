@@ -1,0 +1,115 @@
+"use client";
+
+import type { AlertReviewState, AlertSummary } from "@aquapulse/types";
+import { AlertsWorkbenchDetail } from "./alerts-workbench-detail";
+
+interface AlertsWorkbenchQueueProps {
+  readonly alerts: AlertSummary[];
+  readonly detailAlertId: string | null;
+  readonly selectedAlertIds: string[];
+  readonly isSubmitting: boolean;
+  readonly activeAlertId: string | null;
+  readonly notes: Record<string, string>;
+  readonly ownerInputs: Record<string, string>;
+  readonly reviewLabels: Record<string, string>;
+  readonly reviewStates: Record<string, AlertReviewState>;
+  readonly onToggleSelection: (alertId: string) => void;
+  readonly onToggleDetail: (alertId: string) => void;
+  readonly onNoteChange: (alertId: string, value: string) => void;
+  readonly onOwnerChange: (alertId: string, value: string) => void;
+  readonly onReviewLabelChange: (alertId: string, value: string) => void;
+  readonly onReviewStateChange: (alertId: string, value: AlertReviewState) => void;
+  readonly onAssign: (alertId: string) => void;
+  readonly onUnassign: (alertId: string) => void;
+  readonly onApplyReviewState: (alertId: string) => void;
+  readonly onAcknowledge: (alertId: string) => void;
+  readonly onResolve: (alertId: string) => void;
+}
+
+export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
+  const {
+    alerts,
+    detailAlertId,
+    selectedAlertIds,
+    isSubmitting,
+    activeAlertId,
+    notes,
+    ownerInputs,
+    reviewLabels,
+    reviewStates,
+    onToggleSelection,
+    onToggleDetail,
+    onNoteChange,
+    onOwnerChange,
+    onReviewLabelChange,
+    onReviewStateChange,
+    onAssign,
+    onUnassign,
+    onApplyReviewState,
+    onAcknowledge,
+    onResolve
+  } = props;
+
+  if (alerts.length === 0) {
+    return (
+      <div style={{ padding: "1rem", border: "1px solid rgba(148, 163, 184, 0.3)", borderRadius: "0.75rem", color: "#94a3b8" }}>
+        No alerts match the current queue filters.
+      </div>
+    );
+  }
+
+  return (
+    <ul style={{ display: "grid", gap: "0.75rem", padding: 0, margin: 0, listStyle: "none" }}>
+      {alerts.map((alert) => {
+        const isSelected = selectedAlertIds.includes(alert.id);
+        const isDetailOpen = detailAlertId === alert.id;
+
+        return (
+          <li
+            key={alert.id}
+            style={{
+              display: "grid",
+              gap: "0.6rem",
+              padding: "0.9rem",
+              border: isDetailOpen ? "1px solid rgba(56, 189, 248, 0.55)" : "1px solid rgba(148, 163, 184, 0.3)",
+              borderRadius: "0.75rem"
+            }}
+          >
+            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
+              <input type="checkbox" checked={isSelected} onChange={() => onToggleSelection(alert.id)} />
+              <button type="button" onClick={() => onToggleDetail(alert.id)} style={{ padding: "0.35rem 0.7rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+                {isDetailOpen ? "Hide detail" : "Open detail"}
+              </button>
+              <strong>{alert.title}</strong>
+              <span>[{alert.severity}]</span>
+              <span>{alert.status}</span>
+              <span>{alert.assignedTo ?? "Unassigned"}</span>
+              <span>{alert.reviewState ?? "unreviewed"}</span>
+            </div>
+            {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
+            {isDetailOpen ? (
+              <AlertsWorkbenchDetail
+                alert={alert}
+                note={notes[alert.id] ?? ""}
+                ownerInput={ownerInputs[alert.id] ?? alert.assignedTo ?? ""}
+                reviewLabel={reviewLabels[alert.id] ?? alert.reviewLabel ?? ""}
+                reviewState={reviewStates[alert.id] ?? alert.reviewState ?? "unreviewed"}
+                isSubmitting={isSubmitting}
+                activeAlertId={activeAlertId}
+                onNoteChange={(value) => onNoteChange(alert.id, value)}
+                onOwnerChange={(value) => onOwnerChange(alert.id, value)}
+                onReviewLabelChange={(value) => onReviewLabelChange(alert.id, value)}
+                onReviewStateChange={(value) => onReviewStateChange(alert.id, value)}
+                onAssign={() => onAssign(alert.id)}
+                onUnassign={() => onUnassign(alert.id)}
+                onApplyReviewState={() => onApplyReviewState(alert.id)}
+                onAcknowledge={() => onAcknowledge(alert.id)}
+                onResolve={() => onResolve(alert.id)}
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

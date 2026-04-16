@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertQueueSummary,
   AlertLifecycleActionRequest,
   AlertReviewStateActionRequest,
@@ -16,10 +20,14 @@ export interface AlertsRepositoryPort {
   create(input: CreateAlertsDto): Promise<AlertSummary>;
   update(id: string, input: UpdateAlertsDto): Promise<AlertSummary>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<AlertSummary>;
+  bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult>;
   resolve(id: string, input: AlertLifecycleActionRequest): Promise<AlertSummary>;
+  bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult>;
   assign(id: string, input: AlertAssignActionRequest): Promise<AlertSummary>;
+  bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult>;
   unassign(id: string, input: AlertUnassignActionRequest): Promise<AlertSummary>;
   setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<AlertSummary>;
+  bulkSetReviewState(input: AlertBulkReviewStateActionRequest): Promise<AlertBulkActionResult>;
   getById(id: string): Promise<AlertSummary>;
   list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>>;
   summary(query: AlertsListQueryContract): Promise<AlertQueueSummary>;

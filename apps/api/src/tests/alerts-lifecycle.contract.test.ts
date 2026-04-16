@@ -137,4 +137,33 @@ describe("Alerts lifecycle flow", () => {
       }
     ]);
   });
+
+  it("supports deterministic bulk lifecycle and review actions", async () => {
+    const repository = new InMemoryAlertsRepository();
+    const service = new AlertsApplicationService(repository);
+
+    await service.create({
+      id: "alert-2",
+      title: "Feed issue",
+      severity: "medium",
+      source: "feed",
+      pondId: "pond-1",
+      status: "open"
+    });
+
+    const acknowledged = await service.bulkAcknowledge({
+      alertIds: ["alert-1", "alert-2"],
+      note: "Bulk review."
+    });
+    const reviewed = await service.bulkSetReviewState({
+      alertIds: ["alert-1", "alert-2"],
+      reviewState: "under_review",
+      reviewLabel: "bulk-queue",
+      note: "Bulk moved to review."
+    });
+
+    expect(acknowledged.data.totalUpdated).toBe(2);
+    expect(reviewed.data.updatedAlerts.every((item) => item.reviewState === "under_review")).toBe(true);
+    expect(reviewed.data.updatedAlerts.every((item) => item.reviewLabel === "bulk-queue")).toBe(true);
+  });
 });

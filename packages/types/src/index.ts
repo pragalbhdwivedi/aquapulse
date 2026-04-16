@@ -229,6 +229,41 @@ export interface AlertReviewStateActionRequest {
   readonly note?: string;
 }
 
+export interface AlertBulkLifecycleActionRequest {
+  readonly alertIds: EntityId[];
+  readonly note?: string;
+}
+
+export interface AlertBulkAssignActionRequest extends AlertBulkLifecycleActionRequest {
+  readonly assignedTo: EntityId;
+}
+
+export interface AlertBulkReviewStateActionRequest extends AlertBulkLifecycleActionRequest {
+  readonly reviewState: AlertReviewState;
+  readonly reviewLabel?: string;
+}
+
+export interface AlertBulkActionResult {
+  readonly updatedAlerts: AlertSummary[];
+  readonly totalRequested: number;
+  readonly totalUpdated: number;
+}
+
+export interface AlertSavedViewDefinition {
+  readonly id: EntityId;
+  readonly name: string;
+  readonly presetId?: AlertQueuePresetId;
+  readonly query: Partial<AlertsListQueryRequest>;
+  readonly createdAt: ISODateString;
+  readonly updatedAt: ISODateString;
+}
+
+export interface AlertSavedViewCreateRequest {
+  readonly name: string;
+  readonly presetId?: AlertQueuePresetId;
+  readonly query: Partial<AlertsListQueryRequest>;
+}
+
 export interface AlertActionHistoryItem {
   readonly action:
     | "created"
@@ -576,6 +611,12 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/alerts/:id/acknowledge",
       semantics: "action"
     }),
+    bulkAcknowledge: defineEndpoint<AlertBulkLifecycleActionRequest, ApiSuccessEnvelope<AlertBulkActionResult>>({
+      id: "alerts.bulkAcknowledge",
+      method: "POST",
+      path: "/api/alerts/bulk/acknowledge",
+      semantics: "action"
+    }),
     resolve: defineEndpoint<
       { readonly id: EntityId; readonly body: AlertLifecycleActionRequest },
       ApiSuccessEnvelope<AlertSummary>
@@ -585,6 +626,12 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/alerts/:id/resolve",
       semantics: "action"
     }),
+    bulkResolve: defineEndpoint<AlertBulkLifecycleActionRequest, ApiSuccessEnvelope<AlertBulkActionResult>>({
+      id: "alerts.bulkResolve",
+      method: "POST",
+      path: "/api/alerts/bulk/resolve",
+      semantics: "action"
+    }),
     assign: defineEndpoint<
       { readonly id: EntityId; readonly body: AlertAssignActionRequest },
       ApiSuccessEnvelope<AlertSummary>
@@ -592,6 +639,12 @@ export const aquaPulseEndpointCatalog = {
       id: "alerts.assign",
       method: "POST",
       path: "/api/alerts/:id/assign",
+      semantics: "action"
+    }),
+    bulkAssign: defineEndpoint<AlertBulkAssignActionRequest, ApiSuccessEnvelope<AlertBulkActionResult>>({
+      id: "alerts.bulkAssign",
+      method: "POST",
+      path: "/api/alerts/bulk/assign",
       semantics: "action"
     }),
     unassign: defineEndpoint<
@@ -610,6 +663,15 @@ export const aquaPulseEndpointCatalog = {
       id: "alerts.setReviewState",
       method: "POST",
       path: "/api/alerts/:id/review-state",
+      semantics: "action"
+    }),
+    bulkSetReviewState: defineEndpoint<
+      AlertBulkReviewStateActionRequest,
+      ApiSuccessEnvelope<AlertBulkActionResult>
+    >({
+      id: "alerts.bulkSetReviewState",
+      method: "POST",
+      path: "/api/alerts/bulk/review-state",
       semantics: "action"
     }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({
@@ -1016,5 +1078,77 @@ export function buildAlertQueueSummary(items: readonly AlertSummary[]): AlertQue
     noteCounts: { withLatestNote, withoutLatestNote },
     severityCounts: { low, medium, high, critical },
     ownerWorkloads: [...ownerWorkloads.values()].sort((left, right) => left.ownerId.localeCompare(right.ownerId))
+  };
+}
+
+export function filterAlertsByQuery(
+  items: readonly AlertSummary[],
+  query: Partial<AlertsListQueryRequest> = {}
+): AlertSummary[] {
+  return items.filter(
+    (item) =>
+      (!query.pondId || item.pondId === query.pondId) &&
+      (!query.severity || item.severity === query.severity) &&
+      (!query.status || item.status === query.status) &&
+      (!query.source || item.source === query.source) &&
+      (!query.assignedTo || item.assignedTo === query.assignedTo) &&
+      (!query.reviewState || item.reviewState === query.reviewState) &&
+      (query.hasLatestNote === undefined ||
+        (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
+      (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
+  );
+}
+
+export function sortAlertsByQuery(
+  items: readonly AlertSummary[],
+  sortBy: AlertsListQueryRequest["sortBy"] = "updatedAt_desc"
+): AlertSummary[] {
+  const sorted = [...items];
+
+  switch (sortBy) {
+    case "createdAt_asc":
+      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+      break;
+    case "updatedAt_asc":
+      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
+      break;
+    case "createdAt_desc":
+      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+      break;
+    case "updatedAt_desc":
+    default:
+      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      break;
+  }
+
+  return sorted;
+}
+
+export function getAlertQueuePresetQuery(
+  presetId: AlertQueuePresetId,
+  currentOwnerId = "__current_user__"
+): Partial<AlertsListQueryRequest> {
+  const preset = alertQueuePresetDefinitions.find((item) => item.id === presetId);
+  if (!preset) {
+    return {};
+  }
+
+  if (preset.requiresAssignedTo) {
+    return {
+      ...preset.query,
+      assignedTo: currentOwnerId
+    };
+  }
+
+  return preset.query;
+}
+
+export function buildAlertSummaryQuery(
+  query: Partial<AlertsListQueryRequest>
+): Partial<AlertsListQueryRequest> {
+  return {
+    ...query,
+    status: undefined,
+    reviewState: undefined
   };
 }

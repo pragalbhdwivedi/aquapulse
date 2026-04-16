@@ -1,8 +1,13 @@
 import { getDashboardPageData } from "@web/queries";
+import { defaultAlertWorkbenchOwner, deriveOwnerAlertIndicators } from "@web/features/alert-workbench";
 import { PageShell } from "../_components/page-shell";
 
 export default async function DashboardPage() {
   const dashboard = await getDashboardPageData();
+  const ownerIndicators = deriveOwnerAlertIndicators(
+    dashboard.alertSummary,
+    defaultAlertWorkbenchOwner
+  );
 
   return (
     <PageShell title="Dashboard" description="Placeholder dashboard routed through repository and query abstractions.">
@@ -10,6 +15,7 @@ export default async function DashboardPage() {
       <p>Open alerts: {dashboard.alerts.items.length}</p>
       <p>Assigned alerts: {dashboard.alertSummary.assignmentCounts.assigned}</p>
       <p>Under review: {dashboard.alertSummary.reviewStateCounts.underReview}</p>
+      <p>{ownerIndicators.ownerId} assigned: {ownerIndicators.assignedAlerts}</p>
       <p>Pending tasks: {dashboard.tasks.items.length}</p>
       <p>AI summary: {dashboard.answer.answer}</p>
     </PageShell>

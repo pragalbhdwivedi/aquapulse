@@ -1,11 +1,16 @@
 import {
   buildAlertQueueSummary,
   evaluateFeedAlertDecisions,
+  filterAlertsByQuery,
   evaluateWaterQualityAlertDecisions,
-  findMatchingOperationalAlert
+  findMatchingOperationalAlert,
+  sortAlertsByQuery
 } from "@aquapulse/types";
 import type {
   AlertAssignActionRequest,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -66,41 +71,6 @@ import {
 
 function matchesSearch(value: string | undefined, search: string | undefined): boolean {
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
-}
-
-function sortMockAlerts(items: AlertSummary[], sortBy: AlertsListQuery["sortBy"]) {
-  const sorted = [...items];
-  switch (sortBy) {
-    case "createdAt_asc":
-      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-      break;
-    case "updatedAt_asc":
-      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
-      break;
-    case "createdAt_desc":
-      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-      break;
-    case "updatedAt_desc":
-    default:
-      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      break;
-  }
-  return sorted;
-}
-
-function filterMockAlerts(items: AlertSummary[], query?: AlertsListQuery) {
-  return items.filter(
-    (item) =>
-      (!query?.pondId || item.pondId === query.pondId) &&
-      (!query?.severity || item.severity === query.severity) &&
-      (!query?.status || item.status === query.status) &&
-      (!query?.source || item.source === query.source) &&
-      (!query?.assignedTo || item.assignedTo === query.assignedTo) &&
-      (!query?.reviewState || item.reviewState === query.reviewState) &&
-      (query?.hasLatestNote === undefined ||
-        (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-      matchesSearch(item.title, query?.search)
-  );
 }
 
 function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
@@ -212,11 +182,11 @@ export const waterQualityMockAdapter: WaterQualityApiClient = {
 export const alertsMockAdapter: AlertsApiClient = {
   async list(query?: AlertsListQuery) {
     const normalizedQuery = normalizeListQuery(query);
-    const items = filterMockAlerts(mockAlerts, query);
-    return ok(list(sortMockAlerts(items, query?.sortBy), normalizedQuery));
+    const items = filterAlertsByQuery(mockAlerts, query);
+    return ok(list(sortAlertsByQuery(items, query?.sortBy), normalizedQuery));
   },
   async summary(query?: AlertsListQuery) {
-    return ok(buildAlertQueueSummary(filterMockAlerts(mockAlerts, query)));
+    return ok(buildAlertQueueSummary(filterAlertsByQuery(mockAlerts, query)));
   },
   async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
   async acknowledge(id: string, _input: AlertLifecycleActionRequest) {
@@ -241,6 +211,16 @@ export const alertsMockAdapter: AlertsApiClient = {
     }
     return ok(updated);
   },
+  async bulkAcknowledge(input: AlertBulkLifecycleActionRequest) {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => alertsMockAdapter.acknowledge(alertId, { note: input.note }).then((result) => result.data))
+    );
+    return ok({
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    });
+  },
   async resolve(id: string, _input: AlertLifecycleActionRequest) {
     const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
     const updated = {
@@ -262,6 +242,16 @@ export const alertsMockAdapter: AlertsApiClient = {
       mockAlerts[index] = updated;
     }
     return ok(updated);
+  },
+  async bulkResolve(input: AlertBulkLifecycleActionRequest) {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) => alertsMockAdapter.resolve(alertId, { note: input.note }).then((result) => result.data))
+    );
+    return ok({
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    });
   },
   async assign(id: string, input: AlertAssignActionRequest) {
     const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
@@ -287,6 +277,18 @@ export const alertsMockAdapter: AlertsApiClient = {
       mockAlerts[index] = updated;
     }
     return ok(updated);
+  },
+  async bulkAssign(input: AlertBulkAssignActionRequest) {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        alertsMockAdapter.assign(alertId, { assignedTo: input.assignedTo, note: input.note }).then((result) => result.data)
+      )
+    );
+    return ok({
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    });
   },
   async unassign(id: string, input: AlertUnassignActionRequest) {
     const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
@@ -334,6 +336,24 @@ export const alertsMockAdapter: AlertsApiClient = {
       mockAlerts[index] = updated;
     }
     return ok(updated);
+  },
+  async bulkSetReviewState(input: AlertBulkReviewStateActionRequest) {
+    const updatedAlerts = await Promise.all(
+      input.alertIds.map((alertId) =>
+        alertsMockAdapter
+          .setReviewState(alertId, {
+            reviewState: input.reviewState,
+            reviewLabel: input.reviewLabel,
+            note: input.note
+          })
+          .then((result) => result.data)
+      )
+    );
+    return ok({
+      updatedAlerts,
+      totalRequested: input.alertIds.length,
+      totalUpdated: updatedAlerts.length
+    });
   },
   async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
 };

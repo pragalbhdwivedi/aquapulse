@@ -1,5 +1,9 @@
 import type {
   AlertAssignActionRequest,
+  AlertBulkActionResult,
+  AlertBulkAssignActionRequest,
+  AlertBulkLifecycleActionRequest,
+  AlertBulkReviewStateActionRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -12,6 +16,10 @@ import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapp
 import type {
   AcknowledgeAlertDto,
   AssignAlertDto,
+  BulkAcknowledgeAlertsDto,
+  BulkAssignAlertsDto,
+  BulkResolveAlertsDto,
+  BulkSetAlertReviewStateDto,
   CreateAlertsDto,
   QueryAlertsDto,
   ResolveAlertDto,
@@ -38,7 +46,23 @@ export function toResolveAlertInput(input: ResolveAlertDto): AlertLifecycleActio
   return input;
 }
 
+export function toBulkAcknowledgeAlertsInput(
+  input: BulkAcknowledgeAlertsDto
+): AlertBulkLifecycleActionRequest {
+  return input;
+}
+
+export function toBulkResolveAlertsInput(
+  input: BulkResolveAlertsDto
+): AlertBulkLifecycleActionRequest {
+  return input;
+}
+
 export function toAssignAlertInput(input: AssignAlertDto): AlertAssignActionRequest {
+  return input;
+}
+
+export function toBulkAssignAlertsInput(input: BulkAssignAlertsDto): AlertBulkAssignActionRequest {
   return input;
 }
 
@@ -49,6 +73,12 @@ export function toUnassignAlertInput(input: UnassignAlertDto): AlertUnassignActi
 export function toSetAlertReviewStateInput(
   input: SetAlertReviewStateDto
 ): AlertReviewStateActionRequest {
+  return input;
+}
+
+export function toBulkSetAlertReviewStateInput(
+  input: BulkSetAlertReviewStateDto
+): AlertBulkReviewStateActionRequest {
   return input;
 }
 
@@ -77,4 +107,10 @@ export function toAlertsSummaryResponse(
   summary: AlertQueueSummary
 ): ApiSuccessEnvelope<AlertQueueSummary> {
   return createItemResponse(summary);
+}
+
+export function toAlertsBulkActionResponse(
+  result: AlertBulkActionResult
+): ApiSuccessEnvelope<AlertBulkActionResult> {
+  return createItemResponse(result);
 }
