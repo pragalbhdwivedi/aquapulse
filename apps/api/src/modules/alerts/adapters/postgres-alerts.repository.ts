@@ -3,18 +3,23 @@ import {
   AQUAPULSE_SCHEMA_TABLES,
   PlaceholderDatabaseConnectionFactory,
   PostgresRowGateway,
+  alertActionHistoryRowMapper,
   alertRowMapper,
   createCompiledQueryPlan,
   createLookupQueryPlan,
   createMutationQueryPlan,
+  createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
   mapCreateAlertInputToRowWrite,
   mapUpdateAlertInputToRowPatch,
+  type AlertActionHistoryRow,
   type AlertRow,
   type AlertRowPatch,
   type AlertRowWrite,
   type CompiledQueryPlan,
   type DatabaseConfig,
+  type DatabaseClient,
+  type DatabaseTransaction,
   type DatabaseConnectionFactory
 } from "@aquapulse/database";
 import type {
@@ -23,6 +28,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertActionHistoryItem,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -70,6 +76,40 @@ interface AlertSummaryRow {
     readonly unresolvedAlerts: number;
   }> | null;
 }
+
+type AlertWriteExecutor = Pick<DatabaseClient, "query"> | DatabaseTransaction;
+
+interface AlertMutationPlans {
+  readonly update: CompiledQueryPlan;
+  readonly historyInsert: CompiledQueryPlan;
+  readonly historyRead: CompiledQueryPlan;
+}
+
+const ALERT_SELECT_COLUMNS = `
+  id,
+  title,
+  severity,
+  source,
+  pond_id,
+  status,
+  assigned_to,
+  review_state,
+  review_label,
+  latest_note,
+  created_at,
+  updated_at
+`.trim();
+
+const ALERT_HISTORY_SELECT_COLUMNS = `
+  id,
+  alert_id,
+  action,
+  note,
+  assigned_to,
+  review_state,
+  review_label,
+  created_at
+`.trim();
 
 function createAlertQueryWhereClause(
   query: Omit<AlertsListQueryContract, "page" | "pageSize" | "sortBy">
@@ -125,21 +165,22 @@ export function buildAlertByIdQueryPlan(id: string): CompiledQueryPlan {
   return createLookupQueryPlan("alerts.getById", id, {
     statement: `
       select
-        id,
-        title,
-        severity,
-        source,
-        pond_id,
-        status,
-        assigned_to,
-        review_state,
-        review_label,
-        latest_note,
-        created_at,
-        updated_at
+        ${ALERT_SELECT_COLUMNS}
       from ${AQUAPULSE_SCHEMA_TABLES.alerts}
       where id = $1
       limit 1
+    `.trim()
+  });
+}
+
+export function buildAlertActionHistoryByAlertIdQueryPlan(id: string): CompiledQueryPlan {
+  return createLookupQueryPlan("alerts.actionHistory.list", id, {
+    statement: `
+      select
+        ${ALERT_HISTORY_SELECT_COLUMNS}
+      from ${AQUAPULSE_SCHEMA_TABLES.alertActionHistory}
+      where alert_id = $1
+      order by created_at asc, id asc
     `.trim()
   });
 }
@@ -297,6 +338,232 @@ export function buildOpenAlertsQueryPlan(): CompiledQueryPlan {
   });
 }
 
+function createAlertHistoryId(
+  alertId: string,
+  action: AlertActionHistoryItem["action"],
+  occurredAt: string
+): string {
+  return `${alertId}:${action}:${occurredAt}`.replace(/[^a-zA-Z0-9:_-]/g, "-");
+}
+
+function buildAlertMutationQueryPlan(
+  key: string,
+  statement: string,
+  params: readonly unknown[],
+  filters: Readonly<Record<string, unknown>>
+): CompiledQueryPlan {
+  return createCompiledQueryPlan({
+    key,
+    statement,
+    params,
+    filters
+  });
+}
+
+function buildAlertHistoryInsertQueryPlan(row: AlertActionHistoryRow): CompiledQueryPlan {
+  return createCompiledQueryPlan({
+    key: "alerts.actionHistory.insert",
+    statement: `
+      insert into ${AQUAPULSE_SCHEMA_TABLES.alertActionHistory} (
+        id,
+        alert_id,
+        action,
+        note,
+        assigned_to,
+        review_state,
+        review_label,
+        created_at
+      )
+      values ($1, $2, $3, $4, $5, $6, $7, $8)
+    `.trim(),
+    params: [
+      row.id,
+      row.alert_id,
+      row.action,
+      row.note ?? null,
+      row.assigned_to ?? null,
+      row.review_state ?? null,
+      row.review_label ?? null,
+      row.created_at
+    ],
+    filters: {
+      alertId: row.alert_id,
+      action: row.action
+    }
+  });
+}
+
+export function buildAcknowledgeAlertQueryPlans(
+  id: string,
+  input: AlertLifecycleActionRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "acknowledged", occurredAt),
+    alert_id: id,
+    action: "acknowledged",
+    note: input.note,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.acknowledge",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          status = 'acknowledged',
+          latest_note = case when $2::text is null then latest_note else $2 end,
+          updated_at = $3
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, input.note ?? null, occurredAt],
+      { id, status: "acknowledged" }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
+export function buildResolveAlertQueryPlans(
+  id: string,
+  input: AlertLifecycleActionRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "resolved", occurredAt),
+    alert_id: id,
+    action: "resolved",
+    note: input.note,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.resolve",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          status = 'resolved',
+          latest_note = case when $2::text is null then latest_note else $2 end,
+          updated_at = $3
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, input.note ?? null, occurredAt],
+      { id, status: "resolved" }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
+export function buildAssignAlertQueryPlans(
+  id: string,
+  input: AlertAssignActionRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "assigned", occurredAt),
+    alert_id: id,
+    action: "assigned",
+    note: input.note,
+    assigned_to: input.assignedTo,
+    review_state: "under_review",
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.assign",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          assigned_to = $2,
+          review_state = 'under_review',
+          latest_note = case when $3::text is null then latest_note else $3 end,
+          updated_at = $4
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, input.assignedTo, input.note ?? null, occurredAt],
+      { id, assignedTo: input.assignedTo, reviewState: "under_review" }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
+export function buildUnassignAlertQueryPlans(
+  id: string,
+  input: AlertUnassignActionRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "unassigned", occurredAt),
+    alert_id: id,
+    action: "unassigned",
+    note: input.note,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.unassign",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          assigned_to = null,
+          latest_note = case when $2::text is null then latest_note else $2 end,
+          updated_at = $3
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, input.note ?? null, occurredAt],
+      { id, assignedTo: null }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
+export function buildSetAlertReviewStateQueryPlans(
+  id: string,
+  input: AlertReviewStateActionRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "review_state_changed", occurredAt),
+    alert_id: id,
+    action: "review_state_changed",
+    note: input.note,
+    review_state: input.reviewState,
+    review_label: input.reviewLabel,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.setReviewState",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          review_state = $2,
+          review_label = $3,
+          latest_note = case when $4::text is null then latest_note else $4 end,
+          updated_at = $5
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, input.reviewState, input.reviewLabel ?? null, input.note ?? null, occurredAt],
+      { id, reviewState: input.reviewState, reviewLabel: input.reviewLabel }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
 export function buildCreateAlertQueryPlan(row: AlertRowWrite): CompiledQueryPlan {
   return createMutationQueryPlan("alerts.create", row);
 }
@@ -341,7 +608,18 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async acknowledge(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
-    return this.update(id, { status: "acknowledged" });
+    return this.executeAlertMutation(
+      id,
+      buildAcknowledgeAlertQueryPlans(id, _input, new Date().toISOString()),
+      {
+        status: "acknowledged",
+        latestNote: _input.note
+      },
+      {
+        action: "acknowledged",
+        note: _input.note
+      }
+    );
   }
 
   async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
@@ -357,7 +635,18 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
-    return this.update(id, { status: "resolved" });
+    return this.executeAlertMutation(
+      id,
+      buildResolveAlertQueryPlans(id, _input, new Date().toISOString()),
+      {
+        status: "resolved",
+        latestNote: _input.note
+      },
+      {
+        action: "resolved",
+        note: _input.note
+      }
+    );
   }
 
   async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
@@ -373,10 +662,21 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async assign(id: string, _input: AlertAssignActionRequest): Promise<AlertSummary> {
-    return this.update(id, {
-      assignedTo: _input.assignedTo,
-      reviewState: "under_review"
-    });
+    return this.executeAlertMutation(
+      id,
+      buildAssignAlertQueryPlans(id, _input, new Date().toISOString()),
+      {
+        assignedTo: _input.assignedTo,
+        reviewState: "under_review",
+        latestNote: _input.note
+      },
+      {
+        action: "assigned",
+        note: _input.note,
+        assignedTo: _input.assignedTo,
+        reviewState: "under_review"
+      }
+    );
   }
 
   async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
@@ -394,15 +694,36 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async unassign(id: string, _input: AlertUnassignActionRequest): Promise<AlertSummary> {
-    void _input;
-    return this.update(id, { assignedTo: undefined });
+    return this.executeAlertMutation(
+      id,
+      buildUnassignAlertQueryPlans(id, _input, new Date().toISOString()),
+      {
+        assignedTo: undefined,
+        latestNote: _input.note
+      },
+      {
+        action: "unassigned",
+        note: _input.note
+      }
+    );
   }
 
   async setReviewState(id: string, _input: AlertReviewStateActionRequest): Promise<AlertSummary> {
-    return this.update(id, {
-      reviewState: _input.reviewState,
-      reviewLabel: _input.reviewLabel
-    });
+    return this.executeAlertMutation(
+      id,
+      buildSetAlertReviewStateQueryPlans(id, _input, new Date().toISOString()),
+      {
+        reviewState: _input.reviewState,
+        reviewLabel: _input.reviewLabel,
+        latestNote: _input.note
+      },
+      {
+        action: "review_state_changed",
+        note: _input.note,
+        reviewState: _input.reviewState,
+        reviewLabel: _input.reviewLabel
+      }
+    );
   }
 
   async bulkSetReviewState(
@@ -426,11 +747,23 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async getById(id: string): Promise<AlertSummary> {
-    return this.gateway.executeMappedItem(
-      buildAlertByIdQueryPlan(id),
-      alertRowMapper,
-      createPlaceholderAlertRow({ id })
-    );
+    const client = await this.connectionFactory.create(this.databaseConfig);
+
+    try {
+      const alertRows = await this.executeRowsWithClient<AlertRow>(client, buildAlertByIdQueryPlan(id));
+      const historyRows = await this.executeRowsWithClient<AlertActionHistoryRow>(
+        client,
+        buildAlertActionHistoryByAlertIdQueryPlan(id)
+      );
+
+      return this.buildAlertSummary(
+        alertRows[0],
+        historyRows,
+        createPlaceholderAlertRow({ id })
+      );
+    } finally {
+      await client.dispose();
+    }
   }
 
   async list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
@@ -519,21 +852,87 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
       databaseConfig: this.databaseConfig
     });
   }
+
+  private async executeAlertMutation(
+    id: string,
+    plans: AlertMutationPlans,
+    fallbackPatch: Partial<AlertSummary>,
+    fallbackHistory: Omit<AlertActionHistoryItem, "timestamp">
+  ): Promise<AlertSummary> {
+    const client = await this.connectionFactory.create(this.databaseConfig);
+    const fallbackRow = createPlaceholderAlertRow({
+      id,
+      status: fallbackPatch.status,
+      assigned_to: fallbackPatch.assignedTo,
+      review_state: fallbackPatch.reviewState,
+      review_label: fallbackPatch.reviewLabel,
+      latest_note: fallbackPatch.latestNote
+    });
+
+    try {
+      return await client.transaction(async (transaction) => {
+        const updatedRows = await this.executeRowsWithClient<AlertRow>(transaction, plans.update);
+        await this.executeRowsWithClient(transaction, plans.historyInsert);
+        const historyRows = await this.executeRowsWithClient<AlertActionHistoryRow>(
+          transaction,
+          plans.historyRead
+        );
+
+        return this.buildAlertSummary(
+          updatedRows[0],
+          historyRows,
+          fallbackRow,
+          {
+            ...fallbackHistory,
+            timestamp: fallbackRow.updated_at
+          }
+        );
+      });
+    } finally {
+      await client.dispose();
+    }
+  }
+
+  private async executeRowsWithClient<TRow>(
+    executor: AlertWriteExecutor,
+    plan: CompiledQueryPlan
+  ): Promise<TRow[]> {
+    const result = await executor.query<TRow>(plan.statement, plan.params);
+    return result.rows;
+  }
+
+  private buildAlertSummary(
+    alertRow: AlertRow | undefined,
+    historyRows: readonly AlertActionHistoryRow[],
+    fallbackRow: AlertRow,
+    fallbackHistory?: AlertActionHistoryItem
+  ): AlertSummary {
+    const summary = alertRowMapper.toDomain(alertRow ?? fallbackRow);
+    const mappedHistory = historyRows.map((row) => alertActionHistoryRowMapper.toDomain(row));
+
+    return {
+      ...summary,
+      actionHistory:
+        mappedHistory.length > 0 ? mappedHistory : fallbackHistory ? [fallbackHistory] : summary.actionHistory
+    };
+  }
 }
 
 export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
-  readMethods: ["getById", "list", "listOpen"],
-  writeMethods: ["create", "update"],
+  readMethods: ["getById", "list", "listOpen", "summary"],
+  writeMethods: ["create", "update", "acknowledge", "resolve", "assign", "unassign", "setReviewState"],
   rowSource: "alerts",
   queryNotes: [
     "use real SQL for getById and list against the alerts table with opt-in Postgres execution",
     "translate severity/source/status/assignment/review/note filters into parameterized where clauses",
     "derive queue summary counts from a real SQL aggregate query over the filtered alert set",
-    "keep the open-alerts path as a dedicated read slice for alert-engine compatibility"
+    "keep the open-alerts path as a dedicated read slice for alert-engine compatibility",
+    "load alert action history rows separately for detail reads and mutation results"
   ],
   mappingNotes: [
     "map alert rows into AlertSummary via the shared row mapper",
     "shape create/update DTO inputs into alert row write payloads",
-    "align SQL reads with the alerts and latest_note schema columns"
+    "align SQL reads with the alerts and latest_note schema columns",
+    "persist lifecycle and triage actions into alert_action_history and map them back into actionHistory"
   ]
 } as const;

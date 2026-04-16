@@ -1,4 +1,5 @@
 import {
+  createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
   createPlaceholderPondRow,
   createRecordingConnectionFactory,
@@ -71,6 +72,16 @@ describe("Postgres read adapter slices", () => {
     const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory(recordedQueries, {
         resolveRows(statement) {
+          if (statement.includes("from alert_action_history")) {
+            return [
+              createPlaceholderAlertActionHistoryRow({
+                id: "history-42",
+                alert_id: "alert-42",
+                action: "acknowledged"
+              })
+            ] as never[];
+          }
+
           if (statement.includes("count(*) over()::int as total_count")) {
             return [
               {
@@ -135,18 +146,21 @@ describe("Postgres read adapter slices", () => {
     const open = await repository.listOpen();
 
     expect(item.id).toBe("alert-42");
+    expect(item.actionHistory?.[0]?.action).toBe("acknowledged");
     expect(list.items[0]?.pondId).toBe("pond-42");
     expect(list.page.totalItems).toBe(1);
     expect(summary.statusCounts.open).toBe(1);
     expect(summary.noteCounts.withLatestNote).toBe(1);
     expect(open.items[0]?.status).toBe("open");
-    expect(recordedQueries).toHaveLength(4);
+    expect(recordedQueries).toHaveLength(5);
     expect(recordedQueries[0]?.statement).toContain("from alerts");
     expect(recordedQueries[0]?.statement).toContain("where id = $1");
     expect(recordedQueries[0]?.params).toEqual(["alert-42"]);
-    expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
-    expect(recordedQueries[1]?.statement).toContain("order by updated_at desc");
-    expect(recordedQueries[1]?.params).toEqual([
+    expect(recordedQueries[1]?.statement).toContain("from alert_action_history");
+    expect(recordedQueries[1]?.params).toEqual(["alert-42"]);
+    expect(recordedQueries[2]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[2]?.statement).toContain("order by updated_at desc");
+    expect(recordedQueries[2]?.params).toEqual([
       "pond-42",
       "high",
       "open",
@@ -155,9 +169,9 @@ describe("Postgres read adapter slices", () => {
       15,
       0
     ]);
-    expect(recordedQueries[2]?.statement).toContain("json_agg");
-    expect(recordedQueries[2]?.params).toEqual(["pond-42", "open", "%oxygen%"]);
-    expect(recordedQueries[3]?.statement).toContain("where status = 'open'");
+    expect(recordedQueries[3]?.statement).toContain("json_agg");
+    expect(recordedQueries[3]?.params).toEqual(["pond-42", "open", "%oxygen%"]);
+    expect(recordedQueries[4]?.statement).toContain("where status = 'open'");
     expect(buildAlertByIdQueryPlan("alert-42").filters).toEqual({ id: "alert-42" });
     expect(buildAlertsListQueryPlan({ page: 1, pageSize: 20, severity: "high", hasLatestNote: true }).filters).toEqual({
       pondId: undefined,
