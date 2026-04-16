@@ -8,6 +8,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
@@ -64,6 +66,17 @@ export class AlertsApplicationService {
     _input: AlertBulkReviewStateActionRequest
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
     return { ok: true, data: await this.alertsRepository.bulkSetReviewState(_input) };
+  }
+  async listSavedViews(): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>> {
+    return { ok: true, data: await this.alertsRepository.listSavedViews() };
+  }
+  async saveSavedView(
+    _input: AlertSavedViewCreateRequest
+  ): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>> {
+    return { ok: true, data: await this.alertsRepository.saveSavedView(_input) };
+  }
+  async removeSavedView(_id: string): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>> {
+    return { ok: true, data: await this.alertsRepository.removeSavedView(_id) };
   }
   async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
   async summary(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<AlertQueueSummary>> {

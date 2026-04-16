@@ -5,17 +5,22 @@ import {
   PostgresRowGateway,
   alertActionHistoryRowMapper,
   alertRowMapper,
+  alertSavedViewRowMapper,
   createCompiledQueryPlan,
   createLookupQueryPlan,
   createMutationQueryPlan,
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
+  createPlaceholderAlertSavedViewRow,
   mapCreateAlertInputToRowWrite,
+  mapCreateAlertSavedViewInputToRowWrite,
   mapUpdateAlertInputToRowPatch,
   type AlertActionHistoryRow,
   type AlertRow,
   type AlertRowPatch,
   type AlertRowWrite,
+  type AlertSavedViewRow,
+  type AlertSavedViewRowWrite,
   type CompiledQueryPlan,
   type DatabaseConfig,
   type DatabaseClient,
@@ -32,6 +37,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ListResponse
@@ -111,6 +118,15 @@ const ALERT_HISTORY_SELECT_COLUMNS = `
   created_at
 `.trim();
 
+const ALERT_SAVED_VIEW_SELECT_COLUMNS = `
+  id,
+  name,
+  preset_id,
+  filter_query,
+  created_at,
+  updated_at
+`.trim();
+
 function createAlertQueryWhereClause(
   query: Omit<AlertsListQueryContract, "page" | "pageSize" | "sortBy">
 ): { clause: string; params: readonly unknown[] } {
@@ -182,6 +198,19 @@ export function buildAlertActionHistoryByAlertIdQueryPlan(id: string): CompiledQ
       where alert_id = $1
       order by created_at asc, id asc
     `.trim()
+  });
+}
+
+export function buildListAlertSavedViewsQueryPlan(): CompiledQueryPlan {
+  return createCompiledQueryPlan({
+    key: "alerts.savedViews.list",
+    statement: `
+      select
+        ${ALERT_SAVED_VIEW_SELECT_COLUMNS}
+      from ${AQUAPULSE_SCHEMA_TABLES.savedAlertViews}
+      order by updated_at desc, name asc
+    `.trim(),
+    params: []
   });
 }
 
@@ -335,6 +364,48 @@ export function buildOpenAlertsQueryPlan(): CompiledQueryPlan {
     `.trim(),
     params: [],
     filters: { status: "open" }
+  });
+}
+
+export function buildSaveAlertSavedViewQueryPlan(row: AlertSavedViewRowWrite): CompiledQueryPlan {
+  return createCompiledQueryPlan({
+    key: "alerts.savedViews.save",
+    statement: `
+      insert into ${AQUAPULSE_SCHEMA_TABLES.savedAlertViews} (
+        id,
+        name,
+        preset_id,
+        filter_query,
+        created_at,
+        updated_at
+      )
+      values ($1, $2, $3, $4, $5, $6)
+      returning ${ALERT_SAVED_VIEW_SELECT_COLUMNS}
+    `.trim(),
+    params: [
+      row.id,
+      row.name,
+      row.preset_id ?? null,
+      row.filter_query,
+      row.created_at,
+      row.updated_at
+    ],
+    filters: {
+      id: row.id,
+      name: row.name
+    }
+  });
+}
+
+export function buildRemoveAlertSavedViewQueryPlan(id: string): CompiledQueryPlan {
+  return createCompiledQueryPlan({
+    key: "alerts.savedViews.remove",
+    statement: `
+      delete from ${AQUAPULSE_SCHEMA_TABLES.savedAlertViews}
+      where id = $1
+    `.trim(),
+    params: [id],
+    filters: { id }
   });
 }
 
@@ -623,15 +694,17 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    const updatedAlerts = await Promise.all(
-      input.alertIds.map((alertId) => this.acknowledge(alertId, { note: input.note }))
-    );
-
-    return {
-      updatedAlerts,
-      totalRequested: input.alertIds.length,
-      totalUpdated: updatedAlerts.length
-    };
+    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+      plans: buildAcknowledgeAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+      fallbackPatch: {
+        status: "acknowledged",
+        latestNote: input.note
+      },
+      fallbackHistory: {
+        action: "acknowledged",
+        note: input.note
+      }
+    }));
   }
 
   async resolve(id: string, _input: AlertLifecycleActionRequest): Promise<AlertSummary> {
@@ -650,15 +723,17 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    const updatedAlerts = await Promise.all(
-      input.alertIds.map((alertId) => this.resolve(alertId, { note: input.note }))
-    );
-
-    return {
-      updatedAlerts,
-      totalRequested: input.alertIds.length,
-      totalUpdated: updatedAlerts.length
-    };
+    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+      plans: buildResolveAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+      fallbackPatch: {
+        status: "resolved",
+        latestNote: input.note
+      },
+      fallbackHistory: {
+        action: "resolved",
+        note: input.note
+      }
+    }));
   }
 
   async assign(id: string, _input: AlertAssignActionRequest): Promise<AlertSummary> {
@@ -680,17 +755,24 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
-    const updatedAlerts = await Promise.all(
-      input.alertIds.map((alertId) =>
-        this.assign(alertId, { assignedTo: input.assignedTo, note: input.note })
-      )
-    );
-
-    return {
-      updatedAlerts,
-      totalRequested: input.alertIds.length,
-      totalUpdated: updatedAlerts.length
-    };
+    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+      plans: buildAssignAlertQueryPlans(
+        alertId,
+        { assignedTo: input.assignedTo, note: input.note },
+        new Date().toISOString()
+      ),
+      fallbackPatch: {
+        assignedTo: input.assignedTo,
+        reviewState: "under_review",
+        latestNote: input.note
+      },
+      fallbackHistory: {
+        action: "assigned",
+        note: input.note,
+        assignedTo: input.assignedTo,
+        reviewState: "under_review"
+      }
+    }));
   }
 
   async unassign(id: string, _input: AlertUnassignActionRequest): Promise<AlertSummary> {
@@ -729,21 +811,75 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   async bulkSetReviewState(
     input: AlertBulkReviewStateActionRequest
   ): Promise<AlertBulkActionResult> {
-    const updatedAlerts = await Promise.all(
-      input.alertIds.map((alertId) =>
-        this.setReviewState(alertId, {
+    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+      plans: buildSetAlertReviewStateQueryPlans(
+        alertId,
+        {
           reviewState: input.reviewState,
           reviewLabel: input.reviewLabel,
           note: input.note
-        })
-      )
-    );
+        },
+        new Date().toISOString()
+      ),
+      fallbackPatch: {
+        reviewState: input.reviewState,
+        reviewLabel: input.reviewLabel,
+        latestNote: input.note
+      },
+      fallbackHistory: {
+        action: "review_state_changed",
+        note: input.note,
+        reviewState: input.reviewState,
+        reviewLabel: input.reviewLabel
+      }
+    }));
+  }
 
-    return {
-      updatedAlerts,
-      totalRequested: input.alertIds.length,
-      totalUpdated: updatedAlerts.length
-    };
+  async listSavedViews(): Promise<AlertSavedViewDefinition[]> {
+    const rows = await this.gateway.executeRows<AlertSavedViewRow>(buildListAlertSavedViewsQueryPlan());
+    return rows.map((row) => alertSavedViewRowMapper.toDomain(row));
+  }
+
+  async saveSavedView(input: AlertSavedViewCreateRequest): Promise<AlertSavedViewDefinition[]> {
+    const client = await this.connectionFactory.create(this.databaseConfig);
+
+    try {
+      return await client.transaction(async (transaction) => {
+        const row = mapCreateAlertSavedViewInputToRowWrite(input, new Date().toISOString());
+        await this.executeRowsWithClient<AlertSavedViewRow>(
+          transaction,
+          buildSaveAlertSavedViewQueryPlan(row)
+        );
+        const views = await this.executeRowsWithClient<AlertSavedViewRow>(
+          transaction,
+          buildListAlertSavedViewsQueryPlan()
+        );
+
+        return views.length > 0
+          ? views.map((view) => alertSavedViewRowMapper.toDomain(view))
+          : [alertSavedViewRowMapper.toDomain(createPlaceholderAlertSavedViewRow({ id: row.id, name: row.name, preset_id: row.preset_id, filter_query: row.filter_query }))];
+      });
+    } finally {
+      await client.dispose();
+    }
+  }
+
+  async removeSavedView(id: string): Promise<AlertSavedViewDefinition[]> {
+    const client = await this.connectionFactory.create(this.databaseConfig);
+
+    try {
+      return await client.transaction(async (transaction) => {
+        await this.executeRowsWithClient(transaction, buildRemoveAlertSavedViewQueryPlan(id));
+        const views = await this.executeRowsWithClient<AlertSavedViewRow>(
+          transaction,
+          buildListAlertSavedViewsQueryPlan()
+        );
+
+        return views.map((view) => alertSavedViewRowMapper.toDomain(view));
+      });
+    } finally {
+      await client.dispose();
+    }
   }
 
   async getById(id: string): Promise<AlertSummary> {
@@ -871,17 +1007,10 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
     try {
       return await client.transaction(async (transaction) => {
-        const updatedRows = await this.executeRowsWithClient<AlertRow>(transaction, plans.update);
-        await this.executeRowsWithClient(transaction, plans.historyInsert);
-        const historyRows = await this.executeRowsWithClient<AlertActionHistoryRow>(
+        return this.executeAlertMutationWithExecutor(
           transaction,
-          plans.historyRead
-        );
-
-        return this.buildAlertSummary(
-          updatedRows[0],
-          historyRows,
           fallbackRow,
+          plans,
           {
             ...fallbackHistory,
             timestamp: fallbackRow.updated_at
@@ -891,6 +1020,78 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
     } finally {
       await client.dispose();
     }
+  }
+
+  private async executeBulkAlertMutation(
+    alertIds: readonly string[],
+    createMutation: (
+      alertId: string
+    ) => {
+      readonly plans: AlertMutationPlans;
+      readonly fallbackPatch: Partial<AlertSummary>;
+      readonly fallbackHistory: Omit<AlertActionHistoryItem, "timestamp">;
+    }
+  ): Promise<AlertBulkActionResult> {
+    const client = await this.connectionFactory.create(this.databaseConfig);
+
+    try {
+      return await client.transaction(async (transaction) => {
+        const updatedAlerts: AlertSummary[] = [];
+
+        for (const alertId of alertIds) {
+          const mutation = createMutation(alertId);
+          const fallbackRow = createPlaceholderAlertRow({
+            id: alertId,
+            status: mutation.fallbackPatch.status,
+            assigned_to: mutation.fallbackPatch.assignedTo,
+            review_state: mutation.fallbackPatch.reviewState,
+            review_label: mutation.fallbackPatch.reviewLabel,
+            latest_note: mutation.fallbackPatch.latestNote
+          });
+
+          updatedAlerts.push(
+            await this.executeAlertMutationWithExecutor(
+              transaction,
+              fallbackRow,
+              mutation.plans,
+              {
+                ...mutation.fallbackHistory,
+                timestamp: fallbackRow.updated_at
+              }
+            )
+          );
+        }
+
+        return {
+          updatedAlerts,
+          totalRequested: alertIds.length,
+          totalUpdated: updatedAlerts.length
+        };
+      });
+    } finally {
+      await client.dispose();
+    }
+  }
+
+  private async executeAlertMutationWithExecutor(
+    executor: AlertWriteExecutor,
+    fallbackRow: AlertRow,
+    plans: AlertMutationPlans,
+    fallbackHistory: AlertActionHistoryItem
+  ): Promise<AlertSummary> {
+    const updatedRows = await this.executeRowsWithClient<AlertRow>(executor, plans.update);
+    await this.executeRowsWithClient(executor, plans.historyInsert);
+    const historyRows = await this.executeRowsWithClient<AlertActionHistoryRow>(
+      executor,
+      plans.historyRead
+    );
+
+    return this.buildAlertSummary(
+      updatedRows[0],
+      historyRows,
+      fallbackRow,
+      fallbackHistory
+    );
   }
 
   private async executeRowsWithClient<TRow>(
@@ -920,19 +1121,35 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
 export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
   readMethods: ["getById", "list", "listOpen", "summary"],
-  writeMethods: ["create", "update", "acknowledge", "resolve", "assign", "unassign", "setReviewState"],
+  writeMethods: [
+    "create",
+    "update",
+    "acknowledge",
+    "bulkAcknowledge",
+    "resolve",
+    "bulkResolve",
+    "assign",
+    "bulkAssign",
+    "unassign",
+    "setReviewState",
+    "bulkSetReviewState",
+    "saveSavedView",
+    "removeSavedView"
+  ],
   rowSource: "alerts",
   queryNotes: [
     "use real SQL for getById and list against the alerts table with opt-in Postgres execution",
     "translate severity/source/status/assignment/review/note filters into parameterized where clauses",
     "derive queue summary counts from a real SQL aggregate query over the filtered alert set",
     "keep the open-alerts path as a dedicated read slice for alert-engine compatibility",
-    "load alert action history rows separately for detail reads and mutation results"
+    "load alert action history rows separately for detail reads and mutation results",
+    "persist saved alert views through the saved_alert_views table with opt-in Postgres execution"
   ],
   mappingNotes: [
     "map alert rows into AlertSummary via the shared row mapper",
     "shape create/update DTO inputs into alert row write payloads",
     "align SQL reads with the alerts and latest_note schema columns",
-    "persist lifecycle and triage actions into alert_action_history and map them back into actionHistory"
+    "persist lifecycle and triage actions into alert_action_history and map them back into actionHistory",
+    "map saved alert view rows into AlertSavedViewDefinition via the shared row mapper"
   ]
 } as const;

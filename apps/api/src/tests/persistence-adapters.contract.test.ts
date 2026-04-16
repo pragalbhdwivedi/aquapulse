@@ -43,9 +43,10 @@ describe("Persistence adapter skeletons", () => {
     const tasksRepository: TasksRepositoryPort = new PostgresTasksRepository();
     const aiRepository: AiRepositoryPort = new PostgresAiRepository();
 
-    const [ponds, alerts, attachments, batches, feed, tasks, ai] = await Promise.all([
+    const [ponds, alerts, alertSavedViews, attachments, batches, feed, tasks, ai] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.list({ page: 1, pageSize: 20 }),
+      alertsRepository.listSavedViews(),
       attachmentsRepository.list({ page: 1, pageSize: 20 }),
       batchesRepository.list({ page: 1, pageSize: 20 }),
       feedRepository.list({ page: 1, pageSize: 20 }),
@@ -55,6 +56,7 @@ describe("Persistence adapter skeletons", () => {
 
     expect(ponds.items[0]?.id).toBe("pond-1");
     expect(Array.isArray(alerts.items)).toBe(true);
+    expect(Array.isArray(alertSavedViews)).toBe(true);
     expect(attachments.items[0]?.id).toBe("attachment-1");
     expect(batches.items[0]?.id).toBe("batch-1");
     expect(feed.items[0]?.id).toBe("feed-1");

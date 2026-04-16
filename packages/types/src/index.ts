@@ -674,6 +674,24 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/alerts/bulk/review-state",
       semantics: "action"
     }),
+    listSavedViews: defineEndpoint<Record<string, never>, ApiSuccessEnvelope<AlertSavedViewDefinition[]>>({
+      id: "alerts.listSavedViews",
+      method: "GET",
+      path: "/api/alerts/views",
+      semantics: "list"
+    }),
+    saveSavedView: defineEndpoint<AlertSavedViewCreateRequest, ApiSuccessEnvelope<AlertSavedViewDefinition[]>>({
+      id: "alerts.saveSavedView",
+      method: "POST",
+      path: "/api/alerts/views",
+      semantics: "create"
+    }),
+    removeSavedView: defineEndpoint<{ readonly id: EntityId }, ApiSuccessEnvelope<AlertSavedViewDefinition[]>>({
+      id: "alerts.removeSavedView",
+      method: "POST",
+      path: "/api/alerts/views/:id/remove",
+      semantics: "action"
+    }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({
       id: "ai.alerts.explain",
       method: "POST",

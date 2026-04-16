@@ -9,6 +9,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ListResponse
@@ -41,9 +43,14 @@ const alert: AlertSummary = {
 };
 
 const alertStore = new WeakMap<InMemoryAlertsRepository, AlertSummary[]>();
+const savedViewStore = new WeakMap<InMemoryAlertsRepository, AlertSavedViewDefinition[]>();
 
 function getAlerts(repository: InMemoryAlertsRepository): AlertSummary[] {
   return alertStore.get(repository) ?? [alert];
+}
+
+function getSavedViews(repository: InMemoryAlertsRepository): AlertSavedViewDefinition[] {
+  return savedViewStore.get(repository) ?? [];
 }
 
 function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListResponse<AlertSummary> {
@@ -89,6 +96,7 @@ function applyAlertMutation(
 export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   constructor() {
     alertStore.set(this, [alert]);
+    savedViewStore.set(this, []);
   }
 
   async create(input: CreateAlertsDto): Promise<AlertSummary> {
@@ -260,6 +268,31 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       totalRequested: input.alertIds.length,
       totalUpdated: updatedAlerts.length
     };
+  }
+
+  async listSavedViews(): Promise<AlertSavedViewDefinition[]> {
+    return getSavedViews(this);
+  }
+
+  async saveSavedView(input: AlertSavedViewCreateRequest): Promise<AlertSavedViewDefinition[]> {
+    const savedViews = getSavedViews(this);
+    const created: AlertSavedViewDefinition = {
+      id: `alert-view-${savedViews.length + 1}`,
+      name: input.name,
+      presetId: input.presetId,
+      query: input.query,
+      createdAt: "2026-04-15T10:35:00.000Z",
+      updatedAt: "2026-04-15T10:35:00.000Z"
+    };
+
+    savedViews.push(created);
+    return savedViews;
+  }
+
+  async removeSavedView(id: string): Promise<AlertSavedViewDefinition[]> {
+    const next = getSavedViews(this).filter((item) => item.id !== id);
+    savedViewStore.set(this, next);
+    return next;
   }
 
   async getById(id: string): Promise<AlertSummary> {

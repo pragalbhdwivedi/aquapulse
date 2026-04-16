@@ -1,6 +1,7 @@
 import type { AlertSummary, PondSummary } from "@aquapulse/types";
 import type {
   AlertActionHistoryItem,
+  AlertSavedViewCreateRequest,
   AlertSavedViewDefinition,
   AttachmentMetadata,
   BatchSummary,
@@ -557,6 +558,22 @@ export function mapUpdateAlertInputToRowPatch(
     review_state: input.reviewState,
     review_label: input.reviewLabel,
     latest_note: input.latestNote
+  };
+}
+
+export function mapCreateAlertSavedViewInputToRowWrite(
+  input: AlertSavedViewCreateRequest & { readonly id?: string },
+  now = new Date().toISOString()
+): AlertSavedViewRowWrite {
+  const base = createPlaceholderAlertSavedViewRow(input.id ? { id: input.id } : {});
+
+  return {
+    id: input.id ?? base.id,
+    name: input.name,
+    preset_id: input.presetId,
+    filter_query: input.query,
+    created_at: now,
+    updated_at: now
   };
 }
 

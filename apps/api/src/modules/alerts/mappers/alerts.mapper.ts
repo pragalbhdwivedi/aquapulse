@@ -7,6 +7,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
@@ -20,6 +22,7 @@ import type {
   BulkAssignAlertsDto,
   BulkResolveAlertsDto,
   BulkSetAlertReviewStateDto,
+  CreateAlertSavedViewDto,
   CreateAlertsDto,
   QueryAlertsDto,
   ResolveAlertDto,
@@ -82,6 +85,12 @@ export function toBulkSetAlertReviewStateInput(
   return input;
 }
 
+export function toCreateAlertSavedViewInput(
+  input: CreateAlertSavedViewDto
+): AlertSavedViewCreateRequest {
+  return input;
+}
+
 export function toQueryAlertsInput(input: QueryAlertsDto): AlertsListQueryContract {
   return toRepositoryListQuery(input, {
     pondId: input.pondId,
@@ -113,4 +122,10 @@ export function toAlertsBulkActionResponse(
   result: AlertBulkActionResult
 ): ApiSuccessEnvelope<AlertBulkActionResult> {
   return createItemResponse(result);
+}
+
+export function toAlertSavedViewsResponse(
+  views: AlertSavedViewDefinition[]
+): ApiSuccessEnvelope<AlertSavedViewDefinition[]> {
+  return createItemResponse(views);
 }

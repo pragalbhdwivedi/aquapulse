@@ -1,10 +1,12 @@
 import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
+  createPlaceholderAlertSavedViewRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
   type AlertActionHistoryRow,
   type AlertRow,
+  type AlertSavedViewRow,
   type RecordedDatabasePlan
 } from "@aquapulse/database";
 import { describe, expect, it } from "vitest";
@@ -263,5 +265,177 @@ describe("Postgres write adapter slices", () => {
     expect(
       recordedQueries.filter((query) => query.statement.startsWith("insert into alert_action_history"))
     ).toHaveLength(3);
+  });
+
+  it("bulk alert actions use the real Postgres write path and emit history rows for each affected alert", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const alerts = new Map<string, AlertRow>([
+      ["alert-1", createPlaceholderAlertRow({ id: "alert-1", status: "open", review_state: "unreviewed" })],
+      ["alert-2", createPlaceholderAlertRow({ id: "alert-2", status: "open", review_state: "unreviewed" })]
+    ]);
+    const history = new Map<string, AlertActionHistoryRow[]>([
+      ["alert-1", [createPlaceholderAlertActionHistoryRow({ id: "history-created-1", alert_id: "alert-1", action: "created" })]],
+      ["alert-2", [createPlaceholderAlertActionHistoryRow({ id: "history-created-2", alert_id: "alert-2", action: "created" })]]
+    ]);
+
+    const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement, params) {
+          if (statement.startsWith("update alerts")) {
+            const id = params[0] as string;
+            const current = alerts.get(id) ?? createPlaceholderAlertRow({ id });
+
+            if (statement.includes("status = 'acknowledged'")) {
+              const next: AlertRow = {
+                ...current,
+                status: "acknowledged",
+                latest_note: (params[1] as string | null) ?? current.latest_note,
+                updated_at: params[2] as string
+              };
+              alerts.set(id, next);
+              return [next] as never[];
+            }
+
+            if (statement.includes("assigned_to = $2")) {
+              const next: AlertRow = {
+                ...current,
+                assigned_to: params[1] as string,
+                review_state: "under_review",
+                latest_note: (params[2] as string | null) ?? current.latest_note,
+                updated_at: params[3] as string
+              };
+              alerts.set(id, next);
+              return [next] as never[];
+            }
+
+            if (statement.includes("review_state = $2")) {
+              const next: AlertRow = {
+                ...current,
+                review_state: params[1] as AlertRow["review_state"],
+                review_label: (params[2] as string | null) ?? undefined,
+                latest_note: (params[3] as string | null) ?? current.latest_note,
+                updated_at: params[4] as string
+              };
+              alerts.set(id, next);
+              return [next] as never[];
+            }
+
+            return [] as never[];
+          }
+
+          if (statement.startsWith("insert into alert_action_history")) {
+            const row: AlertActionHistoryRow = {
+              id: params[0] as string,
+              alert_id: params[1] as string,
+              action: params[2] as AlertActionHistoryRow["action"],
+              note: (params[3] as string | null) ?? undefined,
+              assigned_to: (params[4] as string | null) ?? undefined,
+              review_state: (params[5] as AlertActionHistoryRow["review_state"] | null) ?? undefined,
+              review_label: (params[6] as string | null) ?? undefined,
+              created_at: params[7] as string
+            };
+
+            history.set(row.alert_id, [...(history.get(row.alert_id) ?? []), row]);
+            return [] as never[];
+          }
+
+          if (statement.includes("from alert_action_history")) {
+            return (history.get(params[0] as string) ?? []) as never[];
+          }
+
+          return [] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const bulkAcknowledged = await repository.bulkAcknowledge({
+      alertIds: ["alert-1", "alert-2"],
+      note: "Batch acknowledged."
+    });
+    const bulkAssigned = await repository.bulkAssign({
+      alertIds: ["alert-1", "alert-2"],
+      assignedTo: "operator-bulk",
+      note: "Batch assigned."
+    });
+    const bulkReviewed = await repository.bulkSetReviewState({
+      alertIds: ["alert-1", "alert-2"],
+      reviewState: "under_review",
+      reviewLabel: "queue-pass",
+      note: "Bulk review queued."
+    });
+
+    expect(bulkAcknowledged.totalUpdated).toBe(2);
+    expect(bulkAcknowledged.updatedAlerts.every((item) => item.status === "acknowledged")).toBe(true);
+    expect(bulkAssigned.updatedAlerts.every((item) => item.assignedTo === "operator-bulk")).toBe(true);
+    expect(bulkReviewed.updatedAlerts.every((item) => item.reviewState === "under_review")).toBe(true);
+    expect(
+      recordedQueries.filter((query) => query.statement.startsWith("insert into alert_action_history"))
+    ).toHaveLength(6);
+    expect(history.get("alert-1")?.map((item) => item.action)).toEqual([
+      "created",
+      "acknowledged",
+      "assigned",
+      "review_state_changed"
+    ]);
+  });
+
+  it("saved alert views use the real Postgres path for list, save, and remove", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const savedViews = new Map<string, AlertSavedViewRow>([
+      [
+        "alert-view-1",
+        createPlaceholderAlertSavedViewRow({
+          id: "alert-view-1",
+          name: "Open queue"
+        })
+      ]
+    ]);
+
+    const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement, params) {
+          if (statement.startsWith("insert into saved_alert_views")) {
+            const row: AlertSavedViewRow = {
+              id: params[0] as string,
+              name: params[1] as string,
+              preset_id: (params[2] as string | null) ?? undefined,
+              filter_query: params[3] as Record<string, unknown>,
+              created_at: params[4] as string,
+              updated_at: params[5] as string
+            };
+            savedViews.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.startsWith("delete from saved_alert_views")) {
+            savedViews.delete(params[0] as string);
+            return [] as never[];
+          }
+
+          if (statement.includes("from saved_alert_views")) {
+            return [...savedViews.values()].sort((left, right) => right.updated_at.localeCompare(left.updated_at)) as never[];
+          }
+
+          return [] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const listed = await repository.listSavedViews();
+    const saved = await repository.saveSavedView({
+      name: "Assigned queue",
+      presetId: "assigned_to_me",
+      query: { page: 1, pageSize: 20, assignedTo: "operator-queue" }
+    });
+    const removed = await repository.removeSavedView("alert-view-1");
+
+    expect(listed[0]?.name).toBe("Open queue");
+    expect(saved.some((item) => item.name === "Assigned queue")).toBe(true);
+    expect(removed.some((item) => item.id === "alert-view-1")).toBe(false);
+    expect(recordedQueries.some((query) => query.statement.startsWith("insert into saved_alert_views"))).toBe(true);
+    expect(recordedQueries.some((query) => query.statement.startsWith("delete from saved_alert_views"))).toBe(true);
+    expect(recordedQueries.filter((query) => query.statement.includes("from saved_alert_views")).length).toBeGreaterThanOrEqual(3);
   });
 });

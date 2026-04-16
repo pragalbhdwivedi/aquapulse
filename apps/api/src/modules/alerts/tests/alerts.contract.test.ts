@@ -49,7 +49,10 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
-      listOpen: vi.fn().mockResolvedValue(alertList)
+      listOpen: vi.fn().mockResolvedValue(alertList),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([])
     };
 
     const service = new AlertsApplicationService(repository);
@@ -75,7 +78,10 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
-      listOpen: vi.fn().mockResolvedValue(alertList)
+      listOpen: vi.fn().mockResolvedValue(alertList),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([])
     };
 
     const service = new AlertsApplicationService(repository);
@@ -104,7 +110,10 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
-      listOpen: vi.fn().mockResolvedValue(alertList)
+      listOpen: vi.fn().mockResolvedValue(alertList),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([])
     };
 
     const service = new AlertsApplicationService(repository);
@@ -144,7 +153,10 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
-      listOpen: vi.fn().mockResolvedValue(alertList)
+      listOpen: vi.fn().mockResolvedValue(alertList),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([])
     };
 
     const service = new AlertsApplicationService(repository);
@@ -188,7 +200,10 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
-      listOpen: vi.fn().mockResolvedValue(alertList)
+      listOpen: vi.fn().mockResolvedValue(alertList),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([])
     };
 
     const service = new AlertsApplicationService(repository);
@@ -199,6 +214,59 @@ describe("Alerts contracts", () => {
     expect(repository.bulkAssign).toHaveBeenCalledWith({ alertIds: ["alert-1"], assignedTo: "operator-1", note: "Bulk assign." });
     expect(acknowledged.data.totalUpdated).toBe(1);
     expect(assigned.data.totalUpdated).toBe(1);
+  });
+
+  it("application service delegates saved-view actions to the alerts repository port", async () => {
+    const savedViews = [
+      {
+        id: "alert-view-1",
+        name: "Open queue",
+        presetId: "all_open" as const,
+        query: { page: 1, pageSize: 20, status: "open" as const },
+        createdAt: "2026-04-15T10:35:00.000Z",
+        updatedAt: "2026-04-15T10:35:00.000Z"
+      }
+    ];
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      assign: vi.fn().mockResolvedValue(alert),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      unassign: vi.fn().mockResolvedValue(alert),
+      setReviewState: vi.fn().mockResolvedValue(alert),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      listSavedViews: vi.fn().mockResolvedValue(savedViews),
+      saveSavedView: vi.fn().mockResolvedValue(savedViews),
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const listed = await service.listSavedViews();
+    const saved = await service.saveSavedView({
+      name: "Open queue",
+      presetId: "all_open",
+      query: { page: 1, pageSize: 20, status: "open" }
+    });
+    const removed = await service.removeSavedView("alert-view-1");
+
+    expect(repository.listSavedViews).toHaveBeenCalled();
+    expect(repository.saveSavedView).toHaveBeenCalledWith({
+      name: "Open queue",
+      presetId: "all_open",
+      query: { page: 1, pageSize: 20, status: "open" }
+    });
+    expect(repository.removeSavedView).toHaveBeenCalledWith("alert-view-1");
+    expect(listed.data[0]?.name).toBe("Open queue");
+    expect(saved.data).toHaveLength(1);
+    expect(removed.data).toHaveLength(0);
   });
 
   it("mapper keeps alert response shapes consistent", () => {

@@ -14,6 +14,7 @@ import {
   BulkAssignAlertsDto,
   BulkResolveAlertsDto,
   BulkSetAlertReviewStateDto,
+  CreateAlertSavedViewDto,
   CreateAlertsDto,
   QueryAlertsDto,
   ResolveAlertDto,
@@ -24,6 +25,7 @@ import {
 import {
   toAcknowledgeAlertInput,
   toAssignAlertInput,
+  toAlertSavedViewsResponse,
   toAlertsBulkActionResponse,
   toAlertsItemResponse,
   toAlertsListResponse,
@@ -32,6 +34,7 @@ import {
   toBulkAssignAlertsInput,
   toBulkResolveAlertsInput,
   toBulkSetAlertReviewStateInput,
+  toCreateAlertSavedViewInput,
   toCreateAlertsInput,
   toQueryAlertsInput,
   toResolveAlertInput,
@@ -84,6 +87,41 @@ export class AlertsController {
       toQueryAlertsInput,
       (mappedQuery) => this.alertsApplicationService.summary(mappedQuery),
       toAlertsSummaryResponse
+    );
+  }
+
+  @Get("views")
+  async listSavedViews(): Promise<
+    EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.listSavedViews>
+  > {
+    return delegateList(
+      {},
+      () => undefined,
+      () => this.alertsApplicationService.listSavedViews(),
+      toAlertSavedViewsResponse
+    );
+  }
+
+  @Post("views")
+  async saveSavedView(
+    @Body() input: CreateAlertSavedViewDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.saveSavedView>> {
+    return delegateCreate(
+      input,
+      toCreateAlertSavedViewInput,
+      (mappedInput) => this.alertsApplicationService.saveSavedView(mappedInput),
+      toAlertSavedViewsResponse
+    );
+  }
+
+  @Post("views/:id/remove")
+  async removeSavedView(
+    @Param("id") id: string
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.removeSavedView>> {
+    return delegateGetById(
+      id,
+      (resourceId) => this.alertsApplicationService.removeSavedView(resourceId),
+      toAlertSavedViewsResponse
     );
   }
 

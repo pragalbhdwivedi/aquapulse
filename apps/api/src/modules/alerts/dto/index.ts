@@ -11,3 +11,4 @@ export * from "./bulk-acknowledge-alerts.dto";
 export * from "./bulk-resolve-alerts.dto";
 export * from "./bulk-assign-alerts.dto";
 export * from "./bulk-set-alert-review-state.dto";
+export * from "./create-alert-saved-view.dto";
