@@ -11,6 +11,7 @@ import {
   PostgresAlertsRepository,
   buildAlertByIdQueryPlan,
   buildAlertsListQueryPlan,
+  buildAlertsSummaryQueryPlan,
   buildOpenAlertsQueryPlan
 } from "../modules/alerts/adapters/postgres-alerts.repository";
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
@@ -69,7 +70,47 @@ describe("Postgres read adapter slices", () => {
     const recordedQueries: RecordedDatabasePlan[] = [];
     const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory(recordedQueries, {
-        rows: [createPlaceholderAlertRow({ id: "alert-42", pond_id: "pond-42", status: "open" })]
+        resolveRows(statement) {
+          if (statement.includes("count(*) over()::int as total_count")) {
+            return [
+              {
+                ...createPlaceholderAlertRow({
+                  id: "alert-42",
+                  pond_id: "pond-42",
+                  status: "open",
+                  latest_note: "Operator note"
+                }),
+                total_count: 1
+              }
+            ] as never[];
+          }
+
+          if (statement.includes("json_agg")) {
+            return [
+              {
+                total_alerts: 1,
+                open_count: 1,
+                acknowledged_count: 0,
+                resolved_count: 0,
+                assigned_count: 0,
+                unassigned_count: 1,
+                unreviewed_count: 1,
+                under_review_count: 0,
+                reviewed_count: 0,
+                deferred_count: 0,
+                with_latest_note_count: 1,
+                without_latest_note_count: 0,
+                low_count: 0,
+                medium_count: 0,
+                high_count: 1,
+                critical_count: 0,
+                owner_workloads: []
+              }
+            ] as never[];
+          }
+
+          return [createPlaceholderAlertRow({ id: "alert-42", pond_id: "pond-42", status: "open" })] as never[];
+        }
       }),
       databaseConfig: createTestDatabaseConfig()
     });
@@ -84,27 +125,58 @@ describe("Postgres read adapter slices", () => {
       source: "water-quality",
       search: "oxygen"
     });
+    const summary = await repository.summary({
+      page: 1,
+      pageSize: 15,
+      pondId: "pond-42",
+      status: "open",
+      search: "oxygen"
+    });
     const open = await repository.listOpen();
 
     expect(item.id).toBe("alert-42");
     expect(list.items[0]?.pondId).toBe("pond-42");
+    expect(list.page.totalItems).toBe(1);
+    expect(summary.statusCounts.open).toBe(1);
+    expect(summary.noteCounts.withLatestNote).toBe(1);
     expect(open.items[0]?.status).toBe("open");
-    expect(recordedQueries).toEqual([
-      { statement: "alerts.getById", params: ["alert-42"] },
-      {
-        statement: "alerts.list",
-        params: [1, 15, "pond-42", "high", "open", "water-quality", null, null, "oxygen"]
-      },
-      { statement: "alerts.listOpen", params: [] }
+    expect(recordedQueries).toHaveLength(4);
+    expect(recordedQueries[0]?.statement).toContain("from alerts");
+    expect(recordedQueries[0]?.statement).toContain("where id = $1");
+    expect(recordedQueries[0]?.params).toEqual(["alert-42"]);
+    expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("order by updated_at desc");
+    expect(recordedQueries[1]?.params).toEqual([
+      "pond-42",
+      "high",
+      "open",
+      "water-quality",
+      "%oxygen%",
+      15,
+      0
     ]);
+    expect(recordedQueries[2]?.statement).toContain("json_agg");
+    expect(recordedQueries[2]?.params).toEqual(["pond-42", "open", "%oxygen%"]);
+    expect(recordedQueries[3]?.statement).toContain("where status = 'open'");
     expect(buildAlertByIdQueryPlan("alert-42").filters).toEqual({ id: "alert-42" });
-    expect(buildAlertsListQueryPlan({ page: 1, pageSize: 20, severity: "high" }).filters).toEqual({
+    expect(buildAlertsListQueryPlan({ page: 1, pageSize: 20, severity: "high", hasLatestNote: true }).filters).toEqual({
       pondId: undefined,
       severity: "high",
       status: undefined,
       source: undefined,
       assignedTo: undefined,
       reviewState: undefined,
+      hasLatestNote: true,
+      search: undefined
+    });
+    expect(buildAlertsSummaryQueryPlan({ page: 1, pageSize: 20, assignedTo: "operator-1" }).filters).toEqual({
+      pondId: undefined,
+      severity: undefined,
+      status: undefined,
+      source: undefined,
+      assignedTo: "operator-1",
+      reviewState: undefined,
+      hasLatestNote: undefined,
       search: undefined
     });
     expect(buildOpenAlertsQueryPlan().filters).toEqual({ status: "open" });
@@ -169,6 +241,7 @@ describe("Postgres read adapter slices", () => {
             assigned_to: undefined,
             review_state: "unreviewed",
             review_label: undefined,
+            latest_note: "Placeholder alert note.",
             created_at: "2026-04-13T00:00:00.000Z",
             updated_at: "2026-04-13T00:00:00.000Z"
           }
@@ -188,6 +261,7 @@ describe("Postgres read adapter slices", () => {
             assigned_to: undefined,
             review_state: undefined,
             review_label: undefined,
+            latest_note: undefined,
             updated_at: "2026-04-13T00:00:00.000Z"
           }
         ]
@@ -199,10 +273,10 @@ describe("Postgres read adapter slices", () => {
       "pond-write-2",
       { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
-    expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", assigned_to: undefined, review_state: "unreviewed", review_label: undefined, created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
-    expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
+    expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", assigned_to: undefined, review_state: "unreviewed", review_label: undefined, latest_note: "Placeholder alert note.", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
+    expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, latest_note: undefined, updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
       "alert-write-2",
-      { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, updated_at: "2026-04-13T00:00:00.000Z" }
+      { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, latest_note: undefined, updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
   });
 });

@@ -35,6 +35,7 @@ export interface AlertRow {
   readonly assigned_to?: string;
   readonly review_state?: AlertSummary["reviewState"];
   readonly review_label?: string;
+  readonly latest_note?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -143,6 +144,7 @@ export interface AlertRowWrite {
   readonly assigned_to?: string;
   readonly review_state?: AlertSummary["reviewState"];
   readonly review_label?: string;
+  readonly latest_note?: string;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -158,6 +160,7 @@ export interface AlertRowPatch {
   readonly assigned_to?: string;
   readonly review_state?: AlertSummary["reviewState"];
   readonly review_label?: string;
+  readonly latest_note?: string;
 }
 
 export interface TaskRowWrite extends TaskRow {}
@@ -234,6 +237,7 @@ export const alertRowMapper: RowMapper<AlertRow, AlertSummary> = {
       assignedTo: row.assigned_to,
       reviewState: row.review_state,
       reviewLabel: row.review_label,
+      latestNote: row.latest_note,
       createdAt: row.created_at,
       updatedAt: row.updated_at
     };
@@ -362,6 +366,7 @@ export function createPlaceholderAlertRow(overrides: Partial<AlertRow> = {}): Al
     pond_id: "pond-1",
     status: "open",
     review_state: "unreviewed",
+    latest_note: "Placeholder alert note.",
     created_at: "2026-04-13T00:00:00.000Z",
     updated_at: "2026-04-13T00:00:00.000Z",
     ...overrides
@@ -505,6 +510,7 @@ export function mapCreateAlertInputToRowWrite(input: {
   readonly assignedTo?: string;
   readonly reviewState?: AlertSummary["reviewState"];
   readonly reviewLabel?: string;
+  readonly latestNote?: string;
 }): AlertRowWrite {
   const base = createPlaceholderAlertRow(input.id ? { id: input.id } : {});
 
@@ -518,6 +524,7 @@ export function mapCreateAlertInputToRowWrite(input: {
     assigned_to: input.assignedTo ?? base.assigned_to,
     review_state: input.reviewState ?? base.review_state,
     review_label: input.reviewLabel ?? base.review_label,
+    latest_note: input.latestNote ?? base.latest_note,
     created_at: base.created_at,
     updated_at: base.updated_at
   };
@@ -535,6 +542,7 @@ export function mapUpdateAlertInputToRowPatch(
     readonly assignedTo?: string;
     readonly reviewState?: AlertSummary["reviewState"];
     readonly reviewLabel?: string;
+    readonly latestNote?: string;
   }
 ): AlertRowPatch {
   return {
@@ -547,7 +555,8 @@ export function mapUpdateAlertInputToRowPatch(
     status: input.status,
     assigned_to: input.assignedTo,
     review_state: input.reviewState,
-    review_label: input.reviewLabel
+    review_label: input.reviewLabel,
+    latest_note: input.latestNote
   };
 }
 
