@@ -1,5 +1,12 @@
 # 🌊 AquaPulse
 
+![Status](https://img.shields.io/badge/status-active%20prototype-0ea5e9)
+![Runtime](https://img.shields.io/badge/runtime-mock%20%2F%20in--memory-success)
+![Cutover](https://img.shields.io/badge/cutover-incremental%20Postgres%20%2B%20HTTP-8b5cf6)
+![Alerts](https://img.shields.io/badge/domain-alerts%20workbench-critical)
+![Stack](https://img.shields.io/badge/stack-Next.js%20%2B%20NestJS%20%2B%20PostgreSQL-111827)
+![AI](https://img.shields.io/badge/AI-OpenAI%20nano%20planned-f59e0b)
+
 **AquaPulse** is a modern, self-hosted aquaculture operations platform for **pond culture / aquaculture farm management**.
 
 It is designed to help farm operators, supervisors, admins, owners, and data-entry teams manage:
@@ -175,6 +182,54 @@ docs/
 
 ---
 
+## 🌳 Repo Tree
+
+```text
+aquapulse/
+├─ apps/
+│  ├─ api/
+│  │  ├─ src/
+│  │  │  ├─ common/
+│  │  │  ├─ modules/
+│  │  │  │  ├─ alerts/
+│  │  │  │  ├─ ponds/
+│  │  │  │  ├─ water-quality/
+│  │  │  │  ├─ feed/
+│  │  │  │  ├─ tasks/
+│  │  │  │  └─ ai/
+│  │  │  └─ main.ts
+│  ├─ web/
+│  │  ├─ app/
+│  │  │  ├─ (protected)/
+│  │  │  └─ api/
+│  │  └─ src/
+│  │     ├─ clients/
+│  │     ├─ contracts/
+│  │     ├─ features/
+│  │     ├─ mocks/
+│  │     ├─ queries/
+│  │     ├─ repositories/
+│  │     └─ server/
+│  └─ worker/
+├─ packages/
+│  ├─ ai/
+│  ├─ database/
+│  │  ├─ migrations/
+│  │  ├─ scripts/
+│  │  └─ src/
+│  ├─ types/
+│  ├─ ui/
+│  └─ validation/
+├─ docs/
+│  └─ runbooks/
+├─ .env.example
+├─ package.json
+├─ pnpm-workspace.yaml
+└─ tsconfig.base.json
+```
+
+---
+
 ## 🔄 Runtime Strategy
 
 AquaPulse follows a **safe-by-default runtime model**.
@@ -251,6 +306,60 @@ This approach reduces risk while the app grows module by module.
 
 ---
 
+## 🖼️ Screenshots
+
+Add screenshots here as the UI matures.
+
+Suggested sections:
+
+### Dashboard
+```md
+![Dashboard](./docs/screenshots/dashboard.png)
+```
+
+### Alerts Workbench
+```md
+![Alerts Workbench](./docs/screenshots/alerts-workbench.png)
+```
+
+### Pond Detail
+```md
+![Pond Detail](./docs/screenshots/pond-detail.png)
+```
+
+### Feed Entry
+```md
+![Feed Entry](./docs/screenshots/feed-entry.png)
+```
+
+> Recommended repo path: `docs/screenshots/`
+
+---
+
+## 🌿 Branch Strategy
+
+Use a simple controlled branch flow:
+
+- `main` → stable branch
+- `develop` → optional integration branch if you want a staging stream
+- `feature/...` → all scoped implementation work
+- `fix/...` → focused bug fixes
+- `docs/...` → docs-only changes if needed
+
+### Suggested branch naming
+- `feat/runtime-health-and-diagnostics-base`
+- `feat/openai-nano-alert-explanations`
+- `feat/postgres-water-quality-cutover`
+- `fix/alerts-runtime-config`
+- `docs/local-runbook-update`
+
+### Working rule
+- one branch = one bounded outcome
+- preserve contracts whenever possible
+- merge only after typecheck + tests pass
+
+---
+
 ## 🛠️ Local Development
 
 ### Default expectation
@@ -286,6 +395,73 @@ corepack pnpm db:migrations:show
 ```
 
 > Exact local cutover setup should follow the repo runbooks and `.env.example`.
+
+---
+
+## ⚙️ Exact Local Setup Steps
+
+### 1. Clone and enter the repo
+```bash
+git clone <your-repo-url>
+cd aquapulse
+```
+
+### 2. Install dependencies
+```bash
+corepack enable
+corepack pnpm install
+```
+
+### 3. Create env file
+Copy `.env.example` and adjust only what you need.
+
+```bash
+cp .env.example .env
+```
+
+### 4. Run typechecks once
+```bash
+corepack pnpm --filter @aquapulse/api typecheck
+corepack pnpm --filter @aquapulse/web typecheck
+```
+
+### 5. Run tests
+```bash
+corepack pnpm exec vitest run
+```
+
+### 6. Start backend
+Use your current backend start command from the repo scripts.
+
+Example:
+```bash
+corepack pnpm --filter @aquapulse/api dev
+```
+
+### 7. Start frontend
+```bash
+corepack pnpm --filter @aquapulse/web dev
+```
+
+### 8. Default mode
+By default, AquaPulse should stay in:
+- mock
+- in-memory
+- safe local mode
+
+### 9. Alerts-only HTTP opt-in mode
+If you want to exercise the alerts workbench against a running backend, configure the relevant env variables in `.env` and use the documented runbook in:
+
+```text
+docs/runbooks/alerts-local-http-cutover.md
+```
+
+### 10. Verify local health
+Check:
+- frontend loads
+- alerts page shows runtime mode clearly
+- backend is reachable if alerts HTTP mode is enabled
+- tests still pass after config changes
 
 ---
 
@@ -363,6 +539,50 @@ Suggested places to look in the repo:
 
 ---
 
+## 🚀 Deployment Section
+
+### Target environment
+- self-hosted on Proxmox / Linux VMs
+- reverse proxy in front
+- API and web split cleanly
+- PostgreSQL / TimescaleDB for persistence
+- optional auth, dashboards, and ops tools as separate services later
+
+### Suggested service layout
+- `aquapulse-web`
+- `aquapulse-api`
+- `aquapulse-db`
+- `aquapulse-auth` (planned)
+- `aquapulse-ops` (planned)
+
+### Minimum deployment flow
+1. provision Linux host / VM
+2. configure DNS and reverse proxy
+3. set environment variables
+4. run migrations when DB-backed cutovers are needed
+5. deploy backend
+6. deploy frontend
+7. verify health and runtime diagnostics
+8. verify alerts workbench path
+9. verify tests and smoke checks
+
+### Recommended domains
+- `app.example.com` → frontend
+- `api.example.com` → API
+- `auth.example.com` → auth provider later
+- `ops.example.com` → dashboards later
+
+### Before production
+- backups tested
+- restore path tested
+- runtime diagnostics visible
+- env validation clean
+- cutover mode understood
+- AI keys only on backend
+- smoke checks documented
+
+---
+
 ## 🤝 Development Workflow
 
 The project is being built with a structured feature-branch approach:
@@ -401,3 +621,4 @@ This README reflects the current AquaPulse direction:
 - incremental Postgres cutover
 - strong alerts-first operator workflow
 - AI assistant layer planned on top of operational data
+- local-dev workflow and deployment path included
