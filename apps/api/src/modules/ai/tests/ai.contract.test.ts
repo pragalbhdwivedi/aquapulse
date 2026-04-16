@@ -21,6 +21,26 @@ import type { AiRepositoryPort } from "../ports/ai-repository.port";
 import { AiApplicationService } from "../application/ai.application-service";
 import { AiController } from "../ai.controller";
 
+const explainResponse: AiAlertsExplainResponse = {
+  summary: "Placeholder AI explanation for an alert.",
+  explanation: "Placeholder AI explanation for an alert.",
+  recommendations: ["Inspect aeration equipment."],
+  likelyCauses: [],
+  recommendedChecks: [],
+  suggestedActions: [],
+  confidenceNote: "Confidence is limited in this placeholder response.",
+  advisoryDisclaimer:
+    "Advisory only. AquaPulse will not mutate alerts from explanation output.",
+  metadata: {
+    mode: "fallback",
+    advisoryOnly: true,
+    generatedAt: "2026-04-16T00:00:00.000Z",
+    modelLabel: "gpt-5-nano",
+    sourceLabel: "test_placeholder",
+    usedLiveOpenAi: false
+  }
+};
+
 const aiRecord: AiResponseRecord = {
   id: "ai-response-1",
   createdAt: "2026-04-13T00:00:00.000Z",
@@ -120,10 +140,7 @@ describe("AI contracts", () => {
       update: vi.fn(),
       list: vi.fn(),
       getById: vi.fn(),
-      explainAlert: vi.fn().mockResolvedValue({
-        ok: true,
-        data: { explanation: "Placeholder AI explanation for an alert.", recommendations: ["Inspect aeration equipment."] }
-      })
+      explainAlert: vi.fn().mockResolvedValue({ ok: true, data: explainResponse })
     };
 
     const controller = new AiController(placeholderService as never, appService as never);
@@ -135,8 +152,8 @@ describe("AI contracts", () => {
 
   it("mapper outputs align with shared AI response contracts", () => {
     const explain = toAiAlertsExplainResponse({
-      explanation: "AI explanation",
-      recommendations: ["Inspect aeration equipment."]
+      ...explainResponse,
+      explanation: "AI explanation"
     });
     const dashboard = toAiDashboardQueryResponse({
       answer: "Everything looks stable.",

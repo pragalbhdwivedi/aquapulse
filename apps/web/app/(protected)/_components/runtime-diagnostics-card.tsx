@@ -59,6 +59,11 @@ export function RuntimeDiagnosticsCard({
             Backend DB: {backendProbe.runtime.database.selectedAdapter} / {backendProbe.runtime.database.connectivity.status}
           </span>
         ) : null}
+        {backendProbe?.runtime ? (
+          <span>
+            AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"}
+          </span>
+        ) : null}
         {backendProbe?.errorMessage ? (
           <span style={{ color: "#fca5a5" }}>{backendProbe.errorMessage}</span>
         ) : null}

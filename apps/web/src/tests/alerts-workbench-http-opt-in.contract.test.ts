@@ -1,4 +1,5 @@
 import type {
+  AiAlertsExplainResponse,
   AlertQueueSummary,
   AlertSavedViewDefinition,
   AlertSummary,
@@ -19,6 +20,26 @@ const alert: AlertSummary = {
   status: "open",
   reviewState: "unreviewed",
   actionHistory: [{ action: "created", timestamp: "2026-04-13T00:00:00.000Z" }]
+};
+
+const explanation: AiAlertsExplainResponse = {
+  summary: "Alert alert-1 likely reflects an operational condition that still needs a manual check.",
+  explanation: "Placeholder explanation for the current alert.",
+  recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
+  likelyCauses: [],
+  recommendedChecks: [],
+  suggestedActions: [],
+  confidenceNote: "Confidence is limited because this is a placeholder explanation.",
+  advisoryDisclaimer:
+    "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
+  metadata: {
+    mode: "fallback",
+    advisoryOnly: true,
+    generatedAt: "2026-04-16T09:00:00.000Z",
+    modelLabel: "gpt-5-nano",
+    sourceLabel: "test_placeholder",
+    usedLiveOpenAi: false
+  }
 };
 
 const summary: AlertQueueSummary = {
@@ -117,6 +138,13 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         });
       }
 
+      if (url.includes("/api/ai/alerts/explain")) {
+        return jsonResponse<ApiSuccessEnvelope<AiAlertsExplainResponse>>({
+          ok: true,
+          data: explanation
+        });
+      }
+
       if (url.includes("/api/alerts/views") && !url.includes("/remove")) {
         if (init?.method === "GET") {
           return jsonResponse<ApiSuccessEnvelope<AlertSavedViewDefinition[]>>({
@@ -166,7 +194,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       alertsMode: "http"
     });
 
-    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, listedViews, savedViewResult, removedViews] =
+    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, explained, listedViews, savedViewResult, removedViews] =
       await Promise.all([
         defaultRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
         httpRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
@@ -174,6 +202,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         httpRepositories.alerts.getById("alert-1"),
         httpRepositories.alerts.acknowledge("alert-1", { note: "HTTP operator note." }),
         httpRepositories.alerts.bulkResolve({ alertIds: ["alert-1"], note: "Bulk HTTP resolve." }),
+        httpRepositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true }),
         httpRepositories.alerts.listSavedViews(),
         httpRepositories.alerts.saveSavedView({
           name: "Assigned queue",
@@ -189,6 +218,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
     expect(httpDetail.data.id).toBe("alert-1");
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(bulkResolved.data.updatedAlerts[0]?.status).toBe("resolved");
+    expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
     expect(listedViews.data[0]?.name).toBe("Open queue");
     expect(savedViewResult.data.some((item) => item.name === "Assigned queue")).toBe(true);
     expect(removedViews.data).toHaveLength(0);

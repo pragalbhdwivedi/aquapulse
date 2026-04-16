@@ -1,6 +1,10 @@
 "use client";
 
-import type { AlertReviewState, AlertSummary } from "@aquapulse/types";
+import type {
+  AiAlertsExplainResponse,
+  AlertReviewState,
+  AlertSummary
+} from "@aquapulse/types";
 
 interface AlertsWorkbenchDetailProps {
   readonly alert: AlertSummary;
@@ -10,10 +14,14 @@ interface AlertsWorkbenchDetailProps {
   readonly reviewState: AlertReviewState;
   readonly isSubmitting: boolean;
   readonly activeAlertId: string | null;
+  readonly explanation?: AiAlertsExplainResponse;
+  readonly explanationError?: string;
+  readonly isExplaining: boolean;
   readonly onNoteChange: (value: string) => void;
   readonly onOwnerChange: (value: string) => void;
   readonly onReviewLabelChange: (value: string) => void;
   readonly onReviewStateChange: (value: AlertReviewState) => void;
+  readonly onExplain: () => void;
   readonly onAssign: () => void;
   readonly onUnassign: () => void;
   readonly onApplyReviewState: () => void;
@@ -36,10 +44,14 @@ export function AlertsWorkbenchDetail({
   reviewState,
   isSubmitting,
   activeAlertId,
+  explanation,
+  explanationError,
+  isExplaining,
   onNoteChange,
   onOwnerChange,
   onReviewLabelChange,
   onReviewStateChange,
+  onExplain,
   onAssign,
   onUnassign,
   onApplyReviewState,
@@ -74,6 +86,9 @@ export function AlertsWorkbenchDetail({
         />
       </label>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+        <button type="button" disabled={isExplaining} onClick={onExplain} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+          {isExplaining ? "Explaining..." : "Explain alert"}
+        </button>
         <button type="button" disabled={isSubmitting} onClick={onAssign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Assign"}
         </button>
@@ -115,6 +130,46 @@ export function AlertsWorkbenchDetail({
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Resolve"}
         </button>
       </div>
+      {explanation ? (
+        <div style={{ display: "grid", gap: "0.35rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
+          <strong>AI advisory explanation</strong>
+          <div>{explanation.summary}</div>
+          <div style={{ color: "#cbd5e1" }}>{explanation.explanation}</div>
+          <div style={{ color: "#94a3b8" }}>
+            Mode: {explanation.metadata.mode} / Model: {explanation.metadata.modelLabel}
+          </div>
+          <div style={{ color: "#fbbf24" }}>{explanation.advisoryDisclaimer}</div>
+          <div style={{ color: "#94a3b8" }}>{explanation.confidenceNote}</div>
+          {explanation.likelyCauses.length ? (
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {explanation.likelyCauses.map((cause) => (
+                <li key={`${cause.category}:${cause.label}`}>
+                  {cause.label} [{cause.likelihood}] - {cause.rationale}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {explanation.recommendedChecks.length ? (
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {explanation.recommendedChecks.map((step) => (
+                <li key={`check:${step.title}`}>
+                  Check: {step.title} ({step.priority}) - {step.detail}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {explanation.suggestedActions.length ? (
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {explanation.suggestedActions.map((step) => (
+                <li key={`action:${step.title}`}>
+                  Action: {step.title} ({step.priority}) - {step.detail}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+      {explanationError ? <p style={{ margin: 0, color: "#fca5a5" }}>{explanationError}</p> : null}
       {alert.actionHistory?.length ? (
         <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
           {alert.actionHistory.map((item, index) => (

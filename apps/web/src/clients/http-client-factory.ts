@@ -1,4 +1,6 @@
 import type {
+  AiAlertsExplainRequest,
+  AiAlertsExplainResponse,
   AlertAssignActionRequest,
   AlertBulkActionResult,
   AlertBulkAssignActionRequest,
@@ -218,6 +220,13 @@ export function createHttpClientFactory({
         return invokeCreateEndpoint<AlertBulkActionResult, AlertBulkReviewStateActionRequest>(
           executor,
           registry.alerts.bulkSetReviewState,
+          input
+        );
+      },
+      explain(input) {
+        return invokeCreateEndpoint<AiAlertsExplainResponse, AiAlertsExplainRequest>(
+          executor,
+          registry.alerts.explain,
           input
         );
       }

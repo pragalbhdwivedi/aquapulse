@@ -380,7 +380,48 @@ export const alertsMockAdapter: AlertsApiClient = {
       totalUpdated: updatedAlerts.length
     });
   },
-  async explain(_input: AiAlertsExplainRequest) { return ok({ explanation: "Placeholder explanation for the current alert.", recommendations: ["Inspect aeration equipment.", "Repeat the reading."] }); }
+  async explain(input: AiAlertsExplainRequest) {
+    return ok({
+      summary: `Alert ${input.alertId} likely reflects an operational condition that still needs a manual check.`,
+      explanation:
+        "Placeholder explanation for the current alert. Review the latest note, confirm the condition is still present, and treat this as advisory guidance only.",
+      recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
+      likelyCauses: [
+        {
+          category: "water_quality",
+          label: "Water-quality threshold or missing reading",
+          rationale: "This placeholder explanation assumes the alert originated from a water-quality workflow.",
+          likelihood: "medium"
+        }
+      ],
+      recommendedChecks: [
+        {
+          title: "Repeat the reading",
+          detail: "Confirm the underlying condition before making any queue-state decision.",
+          priority: "immediate"
+        }
+      ],
+      suggestedActions: [
+        {
+          title: "Document the recheck outcome",
+          detail: "Use the review note flow to record what was verified.",
+          priority: "next_round"
+        }
+      ],
+      confidenceNote:
+        "Confidence is limited because this placeholder explanation only uses alert-level context.",
+      advisoryDisclaimer:
+        "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        generatedAt: "2026-04-16T12:00:00.000Z",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false
+      }
+    });
+  }
 };
 export const tasksMockAdapter: TasksApiClient = {
   async create(input: TaskCreateRequest) {

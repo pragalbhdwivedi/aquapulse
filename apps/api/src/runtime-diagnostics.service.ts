@@ -10,6 +10,7 @@ import {
   readApiDatabaseRuntimeConfig,
   type ApiDatabaseRuntimeEnvSource
 } from "./common/config/database-runtime.config";
+import { readAlertExplanationRuntimeConfig } from "./modules/ai/config/alert-explanation.config";
 
 export interface RuntimeDiagnosticsServiceOptions {
   readonly env?: ApiDatabaseRuntimeEnvSource;
@@ -31,6 +32,7 @@ export class RuntimeDiagnosticsService {
 
   getRuntimeDiagnostics(): BackendRuntimeDiagnostics {
     const runtime = readApiDatabaseRuntimeConfig(this.env);
+    const alertExplanationRuntime = readAlertExplanationRuntimeConfig({ ...this.env });
     const selection = resolvePersistenceSelection({
       defaultAdapter: "in-memory",
       requestedAdapter: runtime.persistence.requestedAdapter,
@@ -96,6 +98,13 @@ export class RuntimeDiagnosticsService {
             ? "Database configuration is present, but no live connectivity check was attempted."
             : "No explicit database configuration was supplied, and no live connectivity check was attempted."
         }
+      },
+      aiExplanations: {
+        advisoryOnly: true,
+        mode: alertExplanationRuntime.configured ? "openai_nano" : "fallback",
+        configured: alertExplanationRuntime.configured,
+        modelLabel: alertExplanationRuntime.modelLabel,
+        warnings: alertExplanationRuntime.warnings
       },
       alerts: {
         workbenchCutoverAvailable: true,

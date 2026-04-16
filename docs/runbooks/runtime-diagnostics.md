@@ -37,4 +37,10 @@ For alerts diagnostics:
 - `transport = proxy` means alerts go through the local `/api/alerts` bridge
 - `transport = direct` means alerts point at a backend URL directly
 
+For AI alert explanations:
+
+- `mode = fallback` means AquaPulse is using the deterministic advisory explanation path
+- `mode = openai_nano` means the backend is configured to attempt a live OpenAI explanation call
+- `configured = false` means the backend will keep falling back safely even if OpenAI mode was requested
+
 These diagnostics are intentionally lightweight. They are for runtime clarity, not full monitoring or production observability.

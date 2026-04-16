@@ -1,6 +1,10 @@
 "use client";
 
-import type { AlertReviewState, AlertSummary } from "@aquapulse/types";
+import type {
+  AiAlertsExplainResponse,
+  AlertReviewState,
+  AlertSummary
+} from "@aquapulse/types";
 import { AlertsWorkbenchDetail } from "./alerts-workbench-detail";
 
 interface AlertsWorkbenchQueueProps {
@@ -13,12 +17,16 @@ interface AlertsWorkbenchQueueProps {
   readonly ownerInputs: Record<string, string>;
   readonly reviewLabels: Record<string, string>;
   readonly reviewStates: Record<string, AlertReviewState>;
+  readonly explanations: Record<string, AiAlertsExplainResponse | undefined>;
+  readonly explanationErrors: Record<string, string | undefined>;
+  readonly explainingAlertId: string | null;
   readonly onToggleSelection: (alertId: string) => void;
   readonly onToggleDetail: (alertId: string) => void;
   readonly onNoteChange: (alertId: string, value: string) => void;
   readonly onOwnerChange: (alertId: string, value: string) => void;
   readonly onReviewLabelChange: (alertId: string, value: string) => void;
   readonly onReviewStateChange: (alertId: string, value: AlertReviewState) => void;
+  readonly onExplain: (alertId: string) => void;
   readonly onAssign: (alertId: string) => void;
   readonly onUnassign: (alertId: string) => void;
   readonly onApplyReviewState: (alertId: string) => void;
@@ -37,12 +45,16 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     ownerInputs,
     reviewLabels,
     reviewStates,
+    explanations,
+    explanationErrors,
+    explainingAlertId,
     onToggleSelection,
     onToggleDetail,
     onNoteChange,
     onOwnerChange,
     onReviewLabelChange,
     onReviewStateChange,
+    onExplain,
     onAssign,
     onUnassign,
     onApplyReviewState,
@@ -96,10 +108,14 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
                 reviewState={reviewStates[alert.id] ?? alert.reviewState ?? "unreviewed"}
                 isSubmitting={isSubmitting}
                 activeAlertId={activeAlertId}
+                explanation={explanations[alert.id]}
+                explanationError={explanationErrors[alert.id]}
+                isExplaining={explainingAlertId === alert.id}
                 onNoteChange={(value) => onNoteChange(alert.id, value)}
                 onOwnerChange={(value) => onOwnerChange(alert.id, value)}
                 onReviewLabelChange={(value) => onReviewLabelChange(alert.id, value)}
                 onReviewStateChange={(value) => onReviewStateChange(alert.id, value)}
+                onExplain={() => onExplain(alert.id)}
                 onAssign={() => onAssign(alert.id)}
                 onUnassign={() => onUnassign(alert.id)}
                 onApplyReviewState={() => onApplyReviewState(alert.id)}

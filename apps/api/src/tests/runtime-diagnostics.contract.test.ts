@@ -25,6 +25,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
+    expect(diagnostics.aiExplanations.mode).toBe("fallback");
+    expect(diagnostics.aiExplanations.configured).toBe(false);
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain("POSTGRES_DISABLED");
   });

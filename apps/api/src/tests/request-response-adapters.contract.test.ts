@@ -63,7 +63,24 @@ describe("Endpoint request/response adapters", () => {
     );
     const response = adaptEndpointResponse(
       aquaPulseEndpointCatalog.ai.explainAlert,
-      { explanation: "Placeholder explanation", recommendations: ["Inspect aeration equipment."] },
+      {
+        summary: "Placeholder explanation summary",
+        explanation: "Placeholder explanation",
+        recommendations: ["Inspect aeration equipment."],
+        likelyCauses: [],
+        recommendedChecks: [],
+        suggestedActions: [],
+        confidenceNote: "Limited confidence.",
+        advisoryDisclaimer: "Advisory only.",
+        metadata: {
+          mode: "fallback",
+          advisoryOnly: true,
+          generatedAt: "2026-04-16T00:00:00.000Z",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "test",
+          usedLiveOpenAi: false
+        }
+      },
       toAiAlertsExplainResponse
     );
     const pathParams = adaptEndpointPathParams(

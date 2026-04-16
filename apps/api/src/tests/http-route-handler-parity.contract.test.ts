@@ -114,7 +114,27 @@ describe("HTTP route-handler parity", () => {
       update: vi.fn(),
       list: vi.fn(),
       getById: vi.fn().mockResolvedValue({ ok: true, data: { id: "ai-response-1" } }),
-      explainAlert: vi.fn().mockResolvedValue({ ok: true, data: { explanation: "Placeholder", recommendations: [] } }),
+      explainAlert: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          summary: "Placeholder",
+          explanation: "Placeholder",
+          recommendations: [],
+          likelyCauses: [],
+          recommendedChecks: [],
+          suggestedActions: [],
+          confidenceNote: "Limited confidence.",
+          advisoryDisclaimer: "Advisory only.",
+          metadata: {
+            mode: "fallback",
+            advisoryOnly: true,
+            generatedAt: "2026-04-16T00:00:00.000Z",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false
+          }
+        }
+      }),
       summarizePond: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", highlights: [] } }),
       generateHandover: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", actionItems: [] } }),
       rewriteText: vi.fn().mockResolvedValue({ ok: true, data: { rewrittenText: "Placeholder" } }),

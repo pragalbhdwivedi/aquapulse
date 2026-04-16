@@ -100,18 +100,20 @@ describe("HTTP client factory foundation", () => {
       executor
     });
 
-    const [listed, saved, removed] = await Promise.all([
+    const [listed, saved, removed, explained] = await Promise.all([
       clients.alerts.listSavedViews(),
       clients.alerts.saveSavedView({
         name: "HTTP queue",
         presetId: "all_open",
         query: { page: 1, pageSize: 20, status: "open" }
       }),
-      clients.alerts.removeSavedView("alert-view-1")
+      clients.alerts.removeSavedView("alert-view-1"),
+      clients.alerts.explain({ alertId: "alert-1", includeRecommendations: true })
     ]);
 
     expect(Array.isArray(listed.data)).toBe(true);
     expect(Array.isArray(saved.data)).toBe(true);
     expect(Array.isArray(removed.data)).toBe(true);
+    expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
   });
 });

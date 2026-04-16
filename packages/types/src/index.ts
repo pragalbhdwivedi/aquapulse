@@ -349,9 +349,46 @@ export interface AiAlertsExplainRequest {
   readonly includeRecommendations?: boolean;
 }
 
+export type AlertExplanationCauseCategory =
+  | "water_quality"
+  | "feed"
+  | "equipment"
+  | "operator_process"
+  | "environmental"
+  | "unknown";
+
+export interface AlertExplanationLikelyCause {
+  readonly category: AlertExplanationCauseCategory;
+  readonly label: string;
+  readonly rationale: string;
+  readonly likelihood: "low" | "medium" | "high";
+}
+
+export interface AlertExplanationSuggestedStep {
+  readonly title: string;
+  readonly detail: string;
+  readonly priority: "immediate" | "next_round" | "monitor";
+}
+
+export interface AlertExplanationMetadata {
+  readonly mode: "fallback" | "openai_nano";
+  readonly advisoryOnly: true;
+  readonly generatedAt: ISODateString;
+  readonly modelLabel: string;
+  readonly sourceLabel: string;
+  readonly usedLiveOpenAi: boolean;
+}
+
 export interface AiAlertsExplainResponse {
   readonly explanation: string;
   readonly recommendations: string[];
+  readonly summary: string;
+  readonly likelyCauses: AlertExplanationLikelyCause[];
+  readonly recommendedChecks: AlertExplanationSuggestedStep[];
+  readonly suggestedActions: AlertExplanationSuggestedStep[];
+  readonly confidenceNote: string;
+  readonly advisoryDisclaimer: string;
+  readonly metadata: AlertExplanationMetadata;
 }
 
 export interface AiPondsSummarizeRequest {
@@ -1176,6 +1213,13 @@ export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
   readonly database: DatabaseRuntimeDiagnostics;
+  readonly aiExplanations: {
+    readonly advisoryOnly: true;
+    readonly mode: "fallback" | "openai_nano";
+    readonly configured: boolean;
+    readonly modelLabel: string;
+    readonly warnings: RuntimeWarning[];
+  };
   readonly alerts: {
     readonly workbenchCutoverAvailable: boolean;
     readonly postgresReadCutoverAvailable: boolean;
