@@ -86,6 +86,20 @@ export function parseClientRuntimeConfig(
   };
 }
 
+export function resolveAlertsHttpBaseUrl(
+  config: AquaPulseClientRuntimeConfig
+): string | undefined {
+  if (config.alertsHttpBaseUrl) {
+    return config.alertsHttpBaseUrl;
+  }
+
+  if (config.alertsMode === "http" && config.enableFetchHttp) {
+    return "";
+  }
+
+  return config.httpBaseUrl;
+}
+
 export function getDefaultClientRuntimeConfig(): AquaPulseClientRuntimeConfig {
   return parseClientRuntimeConfig();
 }

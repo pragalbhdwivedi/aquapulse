@@ -7,7 +7,8 @@ import {
 } from "../clients/invocation-registry";
 import {
   getDefaultClientRuntimeConfig,
-  parseClientRuntimeConfig
+  parseClientRuntimeConfig,
+  resolveAlertsHttpBaseUrl
 } from "../clients/runtime-config";
 
 describe("Client runtime config and invocation registry", () => {
@@ -54,6 +55,15 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.alertsMode).toBe("http");
     expect(config.enableFetchHttp).toBe(true);
     expect(config.alertsHttpBaseUrl).toBe("http://alerts-backend.local");
+  });
+
+  it("defaults alerts-only fetch HTTP mode to the local proxy path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    expect(resolveAlertsHttpBaseUrl(config)).toBe("");
   });
 
   it("keeps the invocation registry aligned with the endpoint catalog", () => {

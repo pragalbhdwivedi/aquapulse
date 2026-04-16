@@ -26,6 +26,7 @@ import { createHttpClientFactory } from "./http-client-factory";
 import {
   getDefaultClientRuntimeConfig,
   parseClientRuntimeConfig,
+  resolveAlertsHttpBaseUrl,
   type AquaPulseClientRuntimeConfig,
   type AquaPulseClientRuntimeEnv,
   type AquaPulseClientRuntimeMode
@@ -99,7 +100,7 @@ export function createApiClientsFromConfig(
           },
           baseClients,
           executor: createFetchHttpExecutor({
-            baseUrl: config.alertsHttpBaseUrl ?? config.httpBaseUrl
+            baseUrl: resolveAlertsHttpBaseUrl(config)
           })
         })
       : config.enablePlaceholderHttp

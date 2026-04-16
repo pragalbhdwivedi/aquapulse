@@ -163,8 +163,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       mode: "mock",
       enablePlaceholderHttp: false,
       enableFetchHttp: true,
-      alertsMode: "http",
-      alertsHttpBaseUrl: "http://alerts-backend.local"
+      alertsMode: "http"
     });
 
     const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, listedViews, savedViewResult, removedViews] =
@@ -193,7 +192,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
     expect(listedViews.data[0]?.name).toBe("Open queue");
     expect(savedViewResult.data.some((item) => item.name === "Assigned queue")).toBe(true);
     expect(removedViews.data).toHaveLength(0);
-    expect(requests.some((request) => request.url.startsWith("http://alerts-backend.local/api/alerts"))).toBe(true);
+    expect(requests.some((request) => request.url.startsWith("/api/alerts"))).toBe(true);
     expect(requests.some((request) => request.url.endsWith("/api/alerts/views"))).toBe(true);
   });
 });
