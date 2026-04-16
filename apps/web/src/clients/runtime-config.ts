@@ -1,3 +1,11 @@
+import type {
+  AlertsRuntimeDiagnostics,
+  FrontendRuntimeDiagnostics,
+  LocalBridgeDiagnostics,
+  RuntimeModeSummary,
+  RuntimeWarning
+} from "@aquapulse/types";
+
 export type AquaPulseClientRuntimeMode = "mock" | "http";
 export type AquaPulseScopedRuntimeMode = AquaPulseClientRuntimeMode | "inherit";
 export type AquaPulseHttpTransportMode = "proxy" | "direct";
@@ -10,7 +18,7 @@ export interface AquaPulseClientRuntimeConfig {
   readonly alertsMode?: AquaPulseScopedRuntimeMode;
   readonly alertsHttpBaseUrl?: string;
   readonly alertsHttpTransport?: AquaPulseHttpTransportMode;
-  readonly warnings?: readonly string[];
+  readonly warnings?: readonly RuntimeWarning[];
 }
 
 export interface AquaPulseClientRuntimeEnv {
@@ -68,7 +76,7 @@ function tryParseAbsoluteHttpUrl(value: string): string | undefined {
 
 function normalizeHttpBaseUrl(
   value: string | undefined,
-  warnings: string[],
+  warnings: RuntimeWarning[],
   label: string
 ): string | undefined {
   const normalizedValue = normalizeEnvValue(value);
@@ -86,7 +94,10 @@ function normalizeHttpBaseUrl(
     return parsedUrl;
   }
 
-  warnings.push(`${label} was ignored because it is not a valid http/https URL.`);
+  warnings.push({
+    code: "INVALID_HTTP_URL",
+    message: `${label} was ignored because it is not a valid http/https URL.`
+  });
   return undefined;
 }
 
@@ -99,7 +110,7 @@ function coalesceEnvValue(
 export function parseClientRuntimeConfig(
   env: AquaPulseClientRuntimeEnv = {}
 ): AquaPulseClientRuntimeConfig {
-  const warnings: string[] = [];
+  const warnings: RuntimeWarning[] = [];
   const mode = parseClientRuntimeMode(
     coalesceEnvValue(env.AQUAPULSE_WEB_CLIENT_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE)
   );
@@ -144,9 +155,11 @@ export function parseClientRuntimeConfig(
   );
 
   if (alertsMode === "http" && !enableFetchHttp && !enablePlaceholderHttp) {
-    warnings.push(
-      "Alerts HTTP mode was requested, but no HTTP executor is enabled. Alerts will remain mock-backed."
-    );
+    warnings.push({
+      code: "ALERTS_HTTP_DISABLED",
+      message:
+        "Alerts HTTP mode was requested, but no HTTP executor is enabled. Alerts will remain mock-backed."
+    });
   }
 
   return {
@@ -179,16 +192,6 @@ export function resolveAlertsHttpBaseUrl(
   return config.httpBaseUrl;
 }
 
-export interface AlertsRuntimeDiagnostics {
-  readonly requestedMode: AquaPulseScopedRuntimeMode;
-  readonly effectiveMode: AquaPulseClientRuntimeMode;
-  readonly usesLocalProxy: boolean;
-  readonly transport: "mock" | AquaPulseHttpTransportMode;
-  readonly targetLabel: string;
-  readonly scopeLabel: string;
-  readonly warnings: readonly string[];
-}
-
 export function getAlertsRuntimeDiagnostics(
   config: AquaPulseClientRuntimeConfig
 ): AlertsRuntimeDiagnostics {
@@ -213,7 +216,46 @@ export function getAlertsRuntimeDiagnostics(
     transport: effectiveMode === "mock" ? "mock" : usesLocalProxy ? "proxy" : "direct",
     targetLabel,
     scopeLabel: alertsHttpRequested ? "alerts-only opt-in" : config.mode === "http" ? "global runtime" : "default mock runtime",
-    warnings: config.warnings ?? []
+    warnings: [...(config.warnings ?? [])]
+  };
+}
+
+export function getFrontendRuntimeDiagnostics(
+  config: AquaPulseClientRuntimeConfig,
+  localBridgeConfig?: { readonly backendBaseUrl?: string }
+): FrontendRuntimeDiagnostics {
+  const alerts = getAlertsRuntimeDiagnostics(config);
+  const mode: RuntimeModeSummary = {
+    defaultMode: "mock",
+    requestedMode: config.mode,
+    effectiveMode: config.mode,
+    safeFallbackActive: config.mode === "mock" && alerts.effectiveMode === "mock"
+  };
+  const localBridgeWarnings: RuntimeWarning[] = [];
+  const backendTargetLabel = localBridgeConfig?.backendBaseUrl ?? "http://localhost:4000";
+
+  if (alerts.effectiveMode === "http" && alerts.usesLocalProxy && !localBridgeConfig?.backendBaseUrl) {
+    localBridgeWarnings.push({
+      code: "LOCAL_BRIDGE_DEFAULT_TARGET",
+      message:
+        "Alerts HTTP proxy mode is using the default local backend target. Set AQUAPULSE_WEB_LOCAL_API_BACKEND_URL if your API is running elsewhere."
+    });
+  }
+
+  const localBridge: LocalBridgeDiagnostics = {
+    routePrefix: "/api/alerts",
+    transport: "proxy",
+    backendTargetLabel,
+    configured: Boolean(localBridgeConfig?.backendBaseUrl),
+    warnings: localBridgeWarnings
+  };
+
+  return {
+    service: "web",
+    mode,
+    alerts,
+    localBridge,
+    warnings: [...alerts.warnings, ...localBridgeWarnings]
   };
 }
 

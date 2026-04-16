@@ -1099,6 +1099,89 @@ export function buildAlertQueueSummary(items: readonly AlertSummary[]): AlertQue
   };
 }
 
+export type RuntimeHealthStatus = "ok" | "degraded";
+export type RuntimeServiceIdentity = "api" | "web";
+export type RuntimeConnectionCheckStatus = "not_attempted" | "configured_only" | "reachable" | "unreachable";
+export type RuntimeTransportMode = "mock" | "proxy" | "direct";
+
+export interface RuntimeWarning {
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface RuntimeModeSummary {
+  readonly defaultMode: "mock" | "in-memory";
+  readonly requestedMode?: string;
+  readonly effectiveMode: string;
+  readonly safeFallbackActive: boolean;
+}
+
+export interface DatabaseRuntimeDiagnostics {
+  readonly configured: boolean;
+  readonly selectedAdapter: "in-memory" | "postgres";
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly postgresAdaptersEnabled: boolean;
+  readonly runtimeSwitchEnabled: boolean;
+  readonly schema?: string;
+  readonly host?: string;
+  readonly port?: number;
+  readonly database?: string;
+  readonly sslMode?: "disable" | "prefer" | "require";
+  readonly healthcheckOnBoot: boolean;
+  readonly connectivity: {
+    readonly status: RuntimeConnectionCheckStatus;
+    readonly message: string;
+  };
+}
+
+export interface AlertsRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface LocalBridgeDiagnostics {
+  readonly routePrefix: string;
+  readonly transport: "proxy";
+  readonly backendTargetLabel: string;
+  readonly configured: boolean;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface FrontendRuntimeDiagnostics {
+  readonly service: "web";
+  readonly mode: RuntimeModeSummary;
+  readonly alerts: AlertsRuntimeDiagnostics;
+  readonly localBridge: LocalBridgeDiagnostics;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendRuntimeDiagnostics {
+  readonly service: "api";
+  readonly mode: RuntimeModeSummary;
+  readonly database: DatabaseRuntimeDiagnostics;
+  readonly alerts: {
+    readonly workbenchCutoverAvailable: boolean;
+    readonly postgresReadCutoverAvailable: boolean;
+    readonly postgresWriteCutoverAvailable: boolean;
+    readonly localBridgeExpectedPath: string;
+  };
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendHealthDiagnostics {
+  readonly ok: boolean;
+  readonly status: RuntimeHealthStatus;
+  readonly service: RuntimeServiceIdentity;
+  readonly version: string;
+  readonly timestamp: ISODateString;
+  readonly runtime: BackendRuntimeDiagnostics;
+}
+
 export function filterAlertsByQuery(
   items: readonly AlertSummary[],
   query: Partial<AlertsListQueryRequest> = {}

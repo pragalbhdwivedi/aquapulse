@@ -259,7 +259,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
           {runtimeIndicator.warnings.map((warning) => (
-            <span key={warning} style={{ color: "#fbbf24" }}>{warning}</span>
+            <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>{warning.message}</span>
           ))}
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>

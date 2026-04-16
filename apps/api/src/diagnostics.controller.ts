@@ -1,12 +1,12 @@
 import { Controller, Get } from "@nestjs/common";
 import { RuntimeDiagnosticsService } from "./runtime-diagnostics.service";
 
-@Controller("health")
-export class HealthController {
+@Controller("diagnostics")
+export class DiagnosticsController {
   constructor(private readonly diagnosticsService: RuntimeDiagnosticsService) {}
 
-  @Get()
-  getHealth() {
-    return this.diagnosticsService.getHealthDiagnostics();
+  @Get("runtime")
+  getRuntimeDiagnostics() {
+    return this.diagnosticsService.getRuntimeDiagnostics();
   }
 }

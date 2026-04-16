@@ -78,12 +78,16 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.mode).toBe("mock");
     expect(config.alertsHttpBaseUrl).toBeUndefined();
     expect(diagnostics.effectiveMode).toBe("mock");
-    expect(diagnostics.warnings).toContain(
-      "NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
-    );
-    expect(diagnostics.warnings).toContain(
-      "Alerts HTTP mode was requested, but no HTTP executor is enabled. Alerts will remain mock-backed."
-    );
+    expect(diagnostics.warnings).toContainEqual({
+      code: "INVALID_HTTP_URL",
+      message:
+        "NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
+    });
+    expect(diagnostics.warnings).toContainEqual({
+      code: "ALERTS_HTTP_DISABLED",
+      message:
+        "Alerts HTTP mode was requested, but no HTTP executor is enabled. Alerts will remain mock-backed."
+    });
   });
 
   it("supports direct alerts HTTP transport when explicitly configured", () => {

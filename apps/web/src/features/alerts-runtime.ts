@@ -2,12 +2,13 @@ import {
   getAlertsRuntimeDiagnostics,
   type AquaPulseClientRuntimeConfig
 } from "../clients/runtime-config";
+import type { RuntimeWarning } from "@aquapulse/types";
 
 export interface AlertsRuntimeIndicator {
   readonly modeLabel: string;
   readonly targetLabel: string;
   readonly helperText: string;
-  readonly warnings: readonly string[];
+  readonly warnings: readonly RuntimeWarning[];
 }
 
 export function deriveAlertsRuntimeIndicator(

@@ -1,5 +1,7 @@
 import { Module } from "@nestjs/common";
+import { DiagnosticsController } from "./diagnostics.controller";
 import { HealthController } from "./health.controller";
+import { RuntimeDiagnosticsService } from "./runtime-diagnostics.service";
 import { AiModule } from "./modules/ai/ai.module";
 import { AlertsModule } from "./modules/alerts/alerts.module";
 import { AttachmentsModule } from "./modules/attachments/attachments.module";
@@ -24,6 +26,7 @@ const CORE_MODULES = [
 
 @Module({
   imports: CORE_MODULES,
-  controllers: [HealthController]
+  controllers: [HealthController, DiagnosticsController],
+  providers: [RuntimeDiagnosticsService]
 })
 export class AppModule {}
