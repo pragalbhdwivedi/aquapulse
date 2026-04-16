@@ -8,6 +8,15 @@ AquaPulse now exposes a small diagnostics foundation for local development and s
 - API health endpoint: `/api/health`
 - API runtime endpoint: `/api/diagnostics/runtime`
 
+Optional local probe envs:
+
+```env
+AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES=true
+AQUAPULSE_WEB_RUNTIME_PROBE_TIMEOUT_MS=1500
+```
+
+When probing is enabled, the web runtime page will try to read the backend diagnostics endpoints using the local backend target already used by the alerts bridge.
+
 ## What The Diagnostics Mean
 
 - `defaultMode`: the safe baseline the app falls back to

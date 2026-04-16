@@ -1103,6 +1103,7 @@ export type RuntimeHealthStatus = "ok" | "degraded";
 export type RuntimeServiceIdentity = "api" | "web";
 export type RuntimeConnectionCheckStatus = "not_attempted" | "configured_only" | "reachable" | "unreachable";
 export type RuntimeTransportMode = "mock" | "proxy" | "direct";
+export type RuntimeProbeStatus = "disabled" | "reachable" | "partial" | "unreachable";
 
 export interface RuntimeWarning {
   readonly code: string;
@@ -1157,6 +1158,17 @@ export interface FrontendRuntimeDiagnostics {
   readonly mode: RuntimeModeSummary;
   readonly alerts: AlertsRuntimeDiagnostics;
   readonly localBridge: LocalBridgeDiagnostics;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendRuntimeProbeDiagnostics {
+  readonly enabled: boolean;
+  readonly status: RuntimeProbeStatus;
+  readonly targetLabel: string;
+  readonly checkedAt?: ISODateString;
+  readonly errorMessage?: string;
+  readonly health?: BackendHealthDiagnostics;
+  readonly runtime?: BackendRuntimeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }
 

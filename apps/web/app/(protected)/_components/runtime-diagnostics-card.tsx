@@ -1,10 +1,15 @@
-import type { FrontendRuntimeDiagnostics } from "@aquapulse/types";
+import type {
+  BackendRuntimeProbeDiagnostics,
+  FrontendRuntimeDiagnostics
+} from "@aquapulse/types";
 
 export function RuntimeDiagnosticsCard({
   diagnostics,
+  backendProbe,
   title = "Runtime Diagnostics"
 }: {
   diagnostics: FrontendRuntimeDiagnostics;
+  backendProbe?: BackendRuntimeProbeDiagnostics;
   title?: string;
 }) {
   return (
@@ -29,6 +34,35 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Local bridge target: {diagnostics.localBridge.backendTargetLabel}</span>
       </div>
+      <div style={{ display: "grid", gap: "0.25rem", color: "#cbd5e1" }}>
+        <span>
+          Backend probe:{" "}
+          {backendProbe
+            ? backendProbe.status === "reachable"
+              ? "reachable"
+              : backendProbe.status === "partial"
+                ? "partially reachable"
+                : backendProbe.status === "unreachable"
+                  ? "not reached"
+                  : "disabled"
+            : "not requested"}
+        </span>
+        {backendProbe ? <span>Probe target: {backendProbe.targetLabel}</span> : null}
+        {backendProbe?.checkedAt ? <span>Last probe: {backendProbe.checkedAt}</span> : null}
+        {backendProbe?.health ? (
+          <span>
+            Backend health: {backendProbe.health.status} ({backendProbe.health.runtime.mode.effectiveMode})
+          </span>
+        ) : null}
+        {backendProbe?.runtime ? (
+          <span>
+            Backend DB: {backendProbe.runtime.database.selectedAdapter} / {backendProbe.runtime.database.connectivity.status}
+          </span>
+        ) : null}
+        {backendProbe?.errorMessage ? (
+          <span style={{ color: "#fca5a5" }}>{backendProbe.errorMessage}</span>
+        ) : null}
+      </div>
       {diagnostics.warnings.length > 0 ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {diagnostics.warnings.map((warning) => (
@@ -38,6 +72,13 @@ export function RuntimeDiagnosticsCard({
       ) : (
         <span style={{ color: "#86efac" }}>Runtime config is using safe defaults with no active warnings.</span>
       )}
+      {backendProbe?.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
