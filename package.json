@@ -1,0 +1,20 @@
+{
+  "name": "aquapulse",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.11.0",
+  "scripts": {
+    "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck",
+    "test:contracts": "corepack pnpm exec vitest run",
+    "db:migrations:list": "corepack pnpm --filter @aquapulse/database db:migrations:list",
+    "db:migrations:verify": "corepack pnpm --filter @aquapulse/database db:migrations:verify",
+    "db:migrations:show": "corepack pnpm --filter @aquapulse/database db:migrations:show"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

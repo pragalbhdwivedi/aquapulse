@@ -1,0 +1,41 @@
+import {
+  probeBackendRuntimeDiagnostics,
+  readFrontendRuntimeDiagnostics,
+  readRuntimeProbeConfig
+} from "@web/features/runtime-diagnostics";
+import { PageShell } from "../_components/page-shell";
+import { RuntimeDiagnosticsCard } from "../_components/runtime-diagnostics-card";
+
+export default async function RuntimePage() {
+  const diagnostics = readFrontendRuntimeDiagnostics({
+    NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
+    NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
+    NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
+    NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
+    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE,
+    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL,
+    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT,
+    AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: process.env.AQUAPULSE_WEB_LOCAL_API_BACKEND_URL
+  });
+  const backendProbe = await probeBackendRuntimeDiagnostics(
+    readRuntimeProbeConfig({
+      AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES: process.env.AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES,
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES:
+        process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES,
+      AQUAPULSE_WEB_RUNTIME_PROBE_TIMEOUT_MS: process.env.AQUAPULSE_WEB_RUNTIME_PROBE_TIMEOUT_MS,
+      AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: process.env.AQUAPULSE_WEB_LOCAL_API_BACKEND_URL
+    })
+  );
+
+  return (
+    <PageShell
+      title="Runtime Diagnostics"
+      description="Compact runtime visibility for local development and staged cutover work."
+    >
+      <RuntimeDiagnosticsCard diagnostics={diagnostics} backendProbe={backendProbe} />
+      <p style={{ color: "#94a3b8", margin: 0 }}>
+        Backend diagnostics are also available at <code>/api/health</code> and <code>/api/diagnostics/runtime</code>.
+      </p>
+    </PageShell>
+  );
+}
