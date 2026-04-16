@@ -1,5 +1,6 @@
 import type {
   AiResponseRecord,
+  AlertSavedViewDefinition,
   AlertSummary,
   AttachmentMetadata,
   AuditEvent,
@@ -35,6 +36,7 @@ export const mockAlerts: AlertSummary[] = [
     actionHistory: [{ action: "created", timestamp: now }]
   }
 ];
+export const mockAlertSavedViews: AlertSavedViewDefinition[] = [];
 export const mockTasks: TaskSummary[] = [
   { id: "task-1", createdAt: now, updatedAt: now, title: "Inspect aeration equipment", status: "todo", assigneeId: "user-1", pondId: "pond-1" }
 ];

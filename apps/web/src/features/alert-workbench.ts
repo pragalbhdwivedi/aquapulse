@@ -8,6 +8,7 @@ import {
   type AlertSummary
 } from "@aquapulse/types";
 import type { AlertsListQuery } from "../contracts/api";
+import type { AlertsRepository } from "../repositories";
 
 export const defaultAlertWorkbenchOwner = "operator-queue";
 const alertSavedViewsStorageKey = "aquapulse.alert.savedViews";
@@ -69,6 +70,12 @@ export interface AlertSavedViewsStore {
   remove(id: string): AlertSavedViewDefinition[];
 }
 
+export interface AlertSavedViewsRepositoryStore {
+  list(): Promise<AlertSavedViewDefinition[]>;
+  save(input: AlertSavedViewCreateRequest): Promise<AlertSavedViewDefinition[]>;
+  remove(id: string): Promise<AlertSavedViewDefinition[]>;
+}
+
 export function createAlertSavedViewsStore(
   storage: Pick<Storage, "getItem" | "setItem"> | undefined
 ): AlertSavedViewsStore {
@@ -111,6 +118,25 @@ export function createAlertSavedViewsStore(
       const next = read().filter((item) => item.id !== id);
       write(next);
       return next;
+    }
+  };
+}
+
+export function createAlertSavedViewsRepositoryStore(
+  alertsRepository: Pick<AlertsRepository, "listSavedViews" | "saveSavedView" | "removeSavedView">
+): AlertSavedViewsRepositoryStore {
+  return {
+    async list() {
+      const response = await alertsRepository.listSavedViews();
+      return response.data;
+    },
+    async save(input) {
+      const response = await alertsRepository.saveSavedView(input);
+      return response.data;
+    },
+    async remove(id) {
+      const response = await alertsRepository.removeSavedView(id);
+      return response.data;
     }
   };
 }

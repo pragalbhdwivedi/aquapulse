@@ -7,6 +7,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertUnassignActionRequest,
   AiResponseRecord,
   AiAlertsExplainRequest,
@@ -96,6 +98,9 @@ export interface AlertsApiClient {
   list(query?: AlertsListQuery): ApiListContract<AlertSummary>;
   summary(query?: AlertsListQuery): ApiItemContract<AlertQueueSummary>;
   getById(id: string): ApiItemContract<AlertSummary>;
+  listSavedViews(): ApiItemContract<AlertSavedViewDefinition[]>;
+  saveSavedView(input: AlertSavedViewCreateRequest): ApiItemContract<AlertSavedViewDefinition[]>;
+  removeSavedView(id: string): ApiItemContract<AlertSavedViewDefinition[]>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;
   bulkAcknowledge(input: AlertBulkLifecycleActionRequest): ApiItemContract<AlertBulkActionResult>;
   resolve(id: string, input: AlertLifecycleActionRequest): ApiItemContract<AlertSummary>;

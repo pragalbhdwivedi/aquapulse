@@ -20,7 +20,9 @@ import {
   tasksMockAdapter,
   waterQualityMockAdapter
 } from "../mocks/adapters";
+import { createFetchHttpExecutor } from "./fetch-http-executor";
 import { createHttpPlaceholderClients as createDelegatedHttpPlaceholderClients } from "./http-placeholder";
+import { createHttpClientFactory } from "./http-client-factory";
 import {
   getDefaultClientRuntimeConfig,
   parseClientRuntimeConfig,
@@ -81,7 +83,49 @@ export function createApiClients(source: AquaPulseClientSource = "mock"): AquaPu
 export function createApiClientsFromConfig(
   config: AquaPulseClientRuntimeConfig
 ): AquaPulseApiClients {
-  return createApiClients(config.mode);
+  const baseClients = createApiClients("mock");
+
+  let clients =
+    config.mode === "http" && config.enablePlaceholderHttp
+      ? createDelegatedHttpPlaceholderClients(baseClients)
+      : baseClients;
+
+  if (config.alertsMode === "http") {
+    const alertsHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: config.alertsHttpBaseUrl ?? config.httpBaseUrl
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      alerts: alertsHttpClients.alerts
+    };
+  }
+
+  if (config.mode === "http" && config.enableFetchHttp) {
+    return createHttpClientFactory({
+      config: {
+        ...config,
+        mode: "http"
+      },
+      baseClients: clients,
+      executor: createFetchHttpExecutor({
+        baseUrl: config.httpBaseUrl
+      })
+    });
+  }
+
+  return clients;
 }
 
 export function createApiClientsFromEnv(

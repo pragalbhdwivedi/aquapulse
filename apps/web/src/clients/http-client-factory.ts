@@ -7,6 +7,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
@@ -135,6 +137,27 @@ export function createHttpClientFactory({
       },
       getById(id) {
         return invokeItemEndpoint<AlertSummary>(executor, registry.alerts.getById, { id });
+      },
+      listSavedViews() {
+        return invokeCreateEndpoint<AlertSavedViewDefinition[], Record<string, never>>(
+          executor,
+          registry.alerts.listSavedViews,
+          {}
+        );
+      },
+      saveSavedView(input: AlertSavedViewCreateRequest) {
+        return invokeCreateEndpoint<AlertSavedViewDefinition[], AlertSavedViewCreateRequest>(
+          executor,
+          registry.alerts.saveSavedView,
+          input
+        );
+      },
+      removeSavedView(id: string) {
+        return invokeCreateEndpoint<AlertSavedViewDefinition[], { readonly id: string }>(
+          executor,
+          registry.alerts.removeSavedView,
+          { id }
+        );
       },
       acknowledge(id: string, input: AlertLifecycleActionRequest) {
         return invokeCreateEndpoint<AlertSummary, { readonly id: string; readonly body: AlertLifecycleActionRequest }>(

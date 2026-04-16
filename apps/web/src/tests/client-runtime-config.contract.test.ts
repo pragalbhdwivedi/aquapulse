@@ -43,6 +43,19 @@ describe("Client runtime config and invocation registry", () => {
     expect(acknowledged.data.status).toBe("acknowledged");
   });
 
+  it("allows alerts-only HTTP override without changing the default global mode", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://alerts-backend.local"
+    });
+
+    expect(config.mode).toBe("mock");
+    expect(config.alertsMode).toBe("http");
+    expect(config.enableFetchHttp).toBe(true);
+    expect(config.alertsHttpBaseUrl).toBe("http://alerts-backend.local");
+  });
+
   it("keeps the invocation registry aligned with the endpoint catalog", () => {
     const flattened = flattenEndpointInvocationRegistry(endpointInvocationRegistry);
 
@@ -54,6 +67,9 @@ describe("Client runtime config and invocation registry", () => {
     );
     expect(flattened[aquaPulseEndpointCatalog.alerts.assign.id].path).toBe(
       aquaPulseEndpointCatalog.alerts.assign.path
+    );
+    expect(flattened[aquaPulseEndpointCatalog.alerts.listSavedViews.id].path).toBe(
+      aquaPulseEndpointCatalog.alerts.listSavedViews.path
     );
     expect(flattened[aquaPulseEndpointCatalog.waterQuality.list.id].transport.http).toBe(
       "placeholder_http"

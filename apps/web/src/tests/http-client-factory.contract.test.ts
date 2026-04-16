@@ -90,4 +90,28 @@ describe("HTTP client factory foundation", () => {
     expect(alerts.data.items[0]?.id).toBe("alert-1");
     expect(tasks.data.items[0]?.id).toBe("task-1");
   });
+
+  it("supports alert saved-view methods through the HTTP client factory seam", async () => {
+    const baseClients = createMockApiClients();
+    const executor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(baseClients));
+    const clients = createHttpClientFactory({
+      config: { mode: "http", enablePlaceholderHttp: true, enableFetchHttp: false, alertsMode: "inherit" },
+      baseClients,
+      executor
+    });
+
+    const [listed, saved, removed] = await Promise.all([
+      clients.alerts.listSavedViews(),
+      clients.alerts.saveSavedView({
+        name: "HTTP queue",
+        presetId: "all_open",
+        query: { page: 1, pageSize: 20, status: "open" }
+      }),
+      clients.alerts.removeSavedView("alert-view-1")
+    ]);
+
+    expect(Array.isArray(listed.data)).toBe(true);
+    expect(Array.isArray(saved.data)).toBe(true);
+    expect(Array.isArray(removed.data)).toBe(true);
+  });
 });

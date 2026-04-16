@@ -7,6 +7,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
@@ -62,6 +64,12 @@ type AlertBulkCapableClient<TItem> = {
   bulkResolve: (input: AlertBulkLifecycleActionRequest) => Promise<{ ok: true; data: TItem }>;
   bulkAssign: (input: AlertBulkAssignActionRequest) => Promise<{ ok: true; data: TItem }>;
   bulkSetReviewState: (input: AlertBulkReviewStateActionRequest) => Promise<{ ok: true; data: TItem }>;
+};
+
+type AlertSavedViewCapableClient<TItem> = {
+  listSavedViews: () => Promise<{ ok: true; data: TItem }>;
+  saveSavedView: (input: AlertSavedViewCreateRequest) => Promise<{ ok: true; data: TItem }>;
+  removeSavedView: (id: string) => Promise<{ ok: true; data: TItem }>;
 };
 
 function createListHandler<TItem, TQuery>(
@@ -142,6 +150,9 @@ export interface AquaPulseEndpointHandlers {
     list: EndpointHandler<EndpointCatalog["alerts"]["list"]>;
     summary: EndpointHandler<EndpointCatalog["alerts"]["summary"]>;
     getById: EndpointHandler<EndpointCatalog["alerts"]["getById"]>;
+    listSavedViews: EndpointHandler<EndpointCatalog["alerts"]["listSavedViews"]>;
+    saveSavedView: EndpointHandler<EndpointCatalog["alerts"]["saveSavedView"]>;
+    removeSavedView: EndpointHandler<EndpointCatalog["alerts"]["removeSavedView"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
     bulkAcknowledge: EndpointHandler<EndpointCatalog["alerts"]["bulkAcknowledge"]>;
@@ -287,6 +298,24 @@ export function createEndpointHandlersFromClients(
               ownerWorkloads: []
             }),
       getById: createDetailHandler(clients.alerts),
+      listSavedViews:
+        "listSavedViews" in clients.alerts
+          ? createDirectHandler(() =>
+              (clients.alerts as typeof clients.alerts & AlertSavedViewCapableClient<AlertSavedViewDefinition[]>).listSavedViews()
+            )
+          : createMutationFromValue([]),
+      saveSavedView:
+        "saveSavedView" in clients.alerts
+          ? createDirectHandler((input: AlertSavedViewCreateRequest) =>
+              (clients.alerts as typeof clients.alerts & AlertSavedViewCapableClient<AlertSavedViewDefinition[]>).saveSavedView(input)
+            )
+          : createMutationFromValue([]),
+      removeSavedView:
+        "removeSavedView" in clients.alerts
+          ? createDirectHandler((input: { readonly id: string }) =>
+              (clients.alerts as typeof clients.alerts & AlertSavedViewCapableClient<AlertSavedViewDefinition[]>).removeSavedView(input.id)
+            )
+          : createMutationFromValue([]),
       update: createMutationFromDetailHandler(clients.alerts),
       acknowledge:
         "acknowledge" in clients.alerts
@@ -471,6 +500,9 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       list: (query) => handlers.alerts.list(query ?? { page: 1, pageSize: 20 }),
       summary: (query) => handlers.alerts.summary(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.alerts.getById({ id }),
+      listSavedViews: () => handlers.alerts.listSavedViews({}),
+      saveSavedView: (input) => handlers.alerts.saveSavedView(input),
+      removeSavedView: (id) => handlers.alerts.removeSavedView({ id }),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       bulkAcknowledge: (input) => handlers.alerts.bulkAcknowledge(input),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),

@@ -9,10 +9,11 @@ import {
   type AlertSavedViewDefinition,
   type AlertSummary
 } from "@aquapulse/types";
-import { createApiClients } from "@web/clients";
 import type { AlertsListQuery } from "@web/contracts/api";
+import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
 import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
 import {
+  createAlertSavedViewsRepositoryStore,
   createAlertSavedViewsStore,
   defaultAlertWorkbenchOwner,
   deriveOwnerAlertIndicators,
@@ -26,7 +27,7 @@ import {
   type AlertUnassignSubmissionResult
 } from "@web/features/alert-triage";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
-import { createRepositories } from "@web/repositories";
+import { createRepositoriesFromConfig } from "@web/repositories";
 import { AlertsWorkbenchQueue } from "./alerts-workbench-queue";
 
 interface AlertsActionListProps {
@@ -43,8 +44,26 @@ type AlertQueueSubmissionResult =
 const reviewStateOptions: AlertReviewState[] = ["unreviewed", "under_review", "reviewed", "deferred"];
 
 export function AlertsActionList({ initialAlerts, initialSummary }: AlertsActionListProps) {
-  const repositories = useMemo(() => createRepositories(createApiClients()), []);
-  const savedViewsStore = useMemo(() => createAlertSavedViewsStore(typeof window === "undefined" ? undefined : window.localStorage), []);
+  const runtimeConfig = useMemo(
+    () =>
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL
+      }),
+    []
+  );
+  const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
+  const savedViewsStore = useMemo(
+    () =>
+      runtimeConfig.alertsMode === "http" || runtimeConfig.mode === "http"
+        ? createAlertSavedViewsRepositoryStore(repositories.alerts)
+        : createAlertSavedViewsStore(typeof window === "undefined" ? undefined : window.localStorage),
+    [repositories.alerts, runtimeConfig.alertsMode, runtimeConfig.mode]
+  );
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
   const [detailAlertId, setDetailAlertId] = useState<string | null>(null);
@@ -96,7 +115,20 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   }, [repositories.alerts, reviewQueueQuery]);
 
   useEffect(() => {
-    setSavedViews(savedViewsStore.list());
+    let cancelled = false;
+
+    async function loadSavedViews() {
+      const nextSavedViews = await savedViewsStore.list();
+      if (!cancelled) {
+        setSavedViews(nextSavedViews);
+      }
+    }
+
+    void loadSavedViews();
+
+    return () => {
+      cancelled = true;
+    };
   }, [savedViewsStore]);
 
   useEffect(() => {
@@ -166,9 +198,9 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
-          <button type="button" onClick={() => { if (!savedViewName.trim()) { setFeedbackMessage("Name the view before saving it."); return; } const nextViews = savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackMessage("Saved the current queue view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
+          <button type="button" onClick={async () => { if (!savedViewName.trim()) { setFeedbackMessage("Name the view before saving it."); return; } const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackMessage("Saved the current queue view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
-          <button type="button" disabled={!activeSavedViewId} onClick={() => { const nextViews = savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackMessage("Removed saved view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
+          <button type="button" disabled={!activeSavedViewId} onClick={async () => { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackMessage("Removed saved view."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
         </div>
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>Bulk actions</strong>

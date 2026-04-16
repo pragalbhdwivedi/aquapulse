@@ -14,6 +14,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AiAlertsExplainRequest,
   AiDashboardQueryRequest,
   AiHandoverGenerateRequest,
@@ -60,6 +62,7 @@ import { list, ok } from "../lib/api-response";
 import {
   mockAiResponses,
   mockAlerts,
+  mockAlertSavedViews,
   mockAttachments,
   mockAudit,
   mockBatches,
@@ -189,6 +192,28 @@ export const alertsMockAdapter: AlertsApiClient = {
     return ok(buildAlertQueueSummary(filterAlertsByQuery(mockAlerts, query)));
   },
   async getById(id: string) { return ok(mockAlerts.find((item) => item.id === id) ?? mockAlerts[0]); },
+  async listSavedViews() {
+    return ok([...mockAlertSavedViews]);
+  },
+  async saveSavedView(input: AlertSavedViewCreateRequest) {
+    const created: AlertSavedViewDefinition = {
+      id: `alert-view-${mockAlertSavedViews.length + 1}`,
+      name: input.name,
+      presetId: input.presetId,
+      query: input.query,
+      createdAt: "2026-04-15T10:35:00.000Z",
+      updatedAt: "2026-04-15T10:35:00.000Z"
+    };
+    mockAlertSavedViews.push(created);
+    return ok([...mockAlertSavedViews]);
+  },
+  async removeSavedView(id: string) {
+    const index = mockAlertSavedViews.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlertSavedViews.splice(index, 1);
+    }
+    return ok([...mockAlertSavedViews]);
+  },
   async acknowledge(id: string, _input: AlertLifecycleActionRequest) {
     const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
     const updated = {

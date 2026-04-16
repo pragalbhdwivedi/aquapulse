@@ -7,6 +7,8 @@ import type {
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
+  AlertSavedViewCreateRequest,
+  AlertSavedViewDefinition,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
   AiDashboardQueryRequest,
@@ -80,6 +82,9 @@ export interface AlertsRepository {
   list(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>>;
   summary(query?: AlertsListQuery): Promise<ApiSuccessEnvelope<AlertQueueSummary>>;
   getById(id: string): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  listSavedViews(): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>>;
+  saveSavedView(input: AlertSavedViewCreateRequest): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>>;
+  removeSavedView(id: string): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>>;
   acknowledge(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   resolve(id: string, input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
@@ -166,6 +171,15 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       getById(id: string) {
         return clients.alerts.getById(id);
+      },
+      listSavedViews() {
+        return clients.alerts.listSavedViews();
+      },
+      saveSavedView(input: AlertSavedViewCreateRequest) {
+        return clients.alerts.saveSavedView(input);
+      },
+      removeSavedView(id: string) {
+        return clients.alerts.removeSavedView(id);
       },
       acknowledge(id: string, input: AlertLifecycleActionRequest) {
         return clients.alerts.acknowledge(id, input);
