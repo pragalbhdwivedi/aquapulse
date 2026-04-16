@@ -104,6 +104,8 @@ export class RuntimeDiagnosticsService {
         mode: alertExplanationRuntime.configured ? "openai_nano" : "fallback",
         configured: alertExplanationRuntime.configured,
         modelLabel: alertExplanationRuntime.modelLabel,
+        cacheEnabled: true,
+        attachmentAvailable: true,
         warnings: alertExplanationRuntime.warnings
       },
       alerts: {

@@ -10,6 +10,7 @@ import { AlertsService } from "./alerts.service";
 import {
   AcknowledgeAlertDto,
   AssignAlertDto,
+  AttachAlertExplanationDto,
   BulkAcknowledgeAlertsDto,
   BulkAssignAlertsDto,
   BulkResolveAlertsDto,
@@ -30,6 +31,7 @@ import {
   toAlertsItemResponse,
   toAlertsListResponse,
   toAlertsSummaryResponse,
+  toAttachAlertExplanationInput,
   toBulkAcknowledgeAlertsInput,
   toBulkAssignAlertsInput,
   toBulkResolveAlertsInput,
@@ -122,6 +124,20 @@ export class AlertsController {
       id,
       (resourceId) => this.alertsApplicationService.removeSavedView(resourceId),
       toAlertSavedViewsResponse
+    );
+  }
+
+  @Post(":id/attach-explanation")
+  async attachExplanation(
+    @Param("id") id: string,
+    @Body() input: AttachAlertExplanationDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.attachExplanation>> {
+    return delegateUpdate(
+      id,
+      input,
+      toAttachAlertExplanationInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.attachExplanation(resourceId, mappedInput),
+      toAlertsItemResponse
     );
   }
 

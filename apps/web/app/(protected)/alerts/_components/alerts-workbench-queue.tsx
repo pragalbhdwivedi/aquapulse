@@ -20,6 +20,7 @@ interface AlertsWorkbenchQueueProps {
   readonly explanations: Record<string, AiAlertsExplainResponse | undefined>;
   readonly explanationErrors: Record<string, string | undefined>;
   readonly explainingAlertId: string | null;
+  readonly attachingExplanationAlertId: string | null;
   readonly onToggleSelection: (alertId: string) => void;
   readonly onToggleDetail: (alertId: string) => void;
   readonly onNoteChange: (alertId: string, value: string) => void;
@@ -27,6 +28,7 @@ interface AlertsWorkbenchQueueProps {
   readonly onReviewLabelChange: (alertId: string, value: string) => void;
   readonly onReviewStateChange: (alertId: string, value: AlertReviewState) => void;
   readonly onExplain: (alertId: string) => void;
+  readonly onAttachExplanation: (alertId: string) => void;
   readonly onAssign: (alertId: string) => void;
   readonly onUnassign: (alertId: string) => void;
   readonly onApplyReviewState: (alertId: string) => void;
@@ -48,6 +50,7 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     explanations,
     explanationErrors,
     explainingAlertId,
+    attachingExplanationAlertId,
     onToggleSelection,
     onToggleDetail,
     onNoteChange,
@@ -55,6 +58,7 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     onReviewLabelChange,
     onReviewStateChange,
     onExplain,
+    onAttachExplanation,
     onAssign,
     onUnassign,
     onApplyReviewState,
@@ -111,11 +115,13 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
                 explanation={explanations[alert.id]}
                 explanationError={explanationErrors[alert.id]}
                 isExplaining={explainingAlertId === alert.id}
+                isAttachingExplanation={attachingExplanationAlertId === alert.id}
                 onNoteChange={(value) => onNoteChange(alert.id, value)}
                 onOwnerChange={(value) => onOwnerChange(alert.id, value)}
                 onReviewLabelChange={(value) => onReviewLabelChange(alert.id, value)}
                 onReviewStateChange={(value) => onReviewStateChange(alert.id, value)}
                 onExplain={() => onExplain(alert.id)}
+                onAttachExplanation={() => onAttachExplanation(alert.id)}
                 onAssign={() => onAssign(alert.id)}
                 onUnassign={() => onUnassign(alert.id)}
                 onApplyReviewState={() => onApplyReviewState(alert.id)}

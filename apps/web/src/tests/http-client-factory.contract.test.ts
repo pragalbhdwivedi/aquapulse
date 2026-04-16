@@ -115,5 +115,24 @@ describe("HTTP client factory foundation", () => {
     expect(Array.isArray(saved.data)).toBe(true);
     expect(Array.isArray(removed.data)).toBe(true);
     expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
+    expect(explained.data.cache.status).toBe("fresh");
+  });
+
+  it("supports explanation attachment through the HTTP client factory seam", async () => {
+    const baseClients = createMockApiClients();
+    const executor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(baseClients));
+    const clients = createHttpClientFactory({
+      config: { mode: "http", enablePlaceholderHttp: true },
+      baseClients,
+      executor
+    });
+
+    const explanation = await clients.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+    const attached = await clients.alerts.attachExplanation("alert-1", {
+      explanation: explanation.data
+    });
+
+    expect(attached.data.actionHistory?.at(-1)?.action).toBe("ai_explanation_snapshot");
+    expect(attached.data.latestNote).toContain("AI explanation snapshot");
   });
 });

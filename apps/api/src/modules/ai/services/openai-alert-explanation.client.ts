@@ -224,7 +224,13 @@ export class OpenAiAlertExplanationClient {
         typeof parsed.advisoryDisclaimer === "string"
           ? parsed.advisoryDisclaimer
           : "Advisory only. Review the alert in context before taking any operational action.",
-      metadata: buildMetadata(this.now(), this.config)
+      metadata: buildMetadata(this.now(), this.config),
+      cache: {
+        status: "fresh",
+        cachedAt: this.now(),
+        freshness: "fresh",
+        explanationVersion: "v1"
+      }
     };
   }
 }

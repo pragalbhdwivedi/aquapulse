@@ -5,6 +5,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -66,6 +67,12 @@ export class AlertsApplicationService {
     _input: AlertBulkReviewStateActionRequest
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
     return { ok: true, data: await this.alertsRepository.bulkSetReviewState(_input) };
+  }
+  async attachExplanation(
+    _id: string,
+    _input: AlertExplanationAttachmentRequest
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    return { ok: true, data: await this.alertsRepository.attachExplanation(_id, _input) };
   }
   async listSavedViews(): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>> {
     return { ok: true, data: await this.alertsRepository.listSavedViews() };

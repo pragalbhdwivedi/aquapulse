@@ -52,7 +52,8 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList),
       listSavedViews: vi.fn().mockResolvedValue([]),
       saveSavedView: vi.fn().mockResolvedValue([]),
-      removeSavedView: vi.fn().mockResolvedValue([])
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
     const service = new AlertsApplicationService(repository);
@@ -81,7 +82,8 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList),
       listSavedViews: vi.fn().mockResolvedValue([]),
       saveSavedView: vi.fn().mockResolvedValue([]),
-      removeSavedView: vi.fn().mockResolvedValue([])
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
     const service = new AlertsApplicationService(repository);
@@ -113,7 +115,8 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList),
       listSavedViews: vi.fn().mockResolvedValue([]),
       saveSavedView: vi.fn().mockResolvedValue([]),
-      removeSavedView: vi.fn().mockResolvedValue([])
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
     const service = new AlertsApplicationService(repository);
@@ -156,7 +159,8 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList),
       listSavedViews: vi.fn().mockResolvedValue([]),
       saveSavedView: vi.fn().mockResolvedValue([]),
-      removeSavedView: vi.fn().mockResolvedValue([])
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
     const service = new AlertsApplicationService(repository);
@@ -203,7 +207,8 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList),
       listSavedViews: vi.fn().mockResolvedValue([]),
       saveSavedView: vi.fn().mockResolvedValue([]),
-      removeSavedView: vi.fn().mockResolvedValue([])
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
     const service = new AlertsApplicationService(repository);
@@ -242,6 +247,7 @@ describe("Alerts contracts", () => {
       listSavedViews: vi.fn().mockResolvedValue(savedViews),
       saveSavedView: vi.fn().mockResolvedValue(savedViews),
       removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert),
       getById: vi.fn().mockResolvedValue(alert),
       list: vi.fn().mockResolvedValue(alertList),
       summary: vi.fn().mockResolvedValue(alertSummary),
@@ -272,5 +278,78 @@ describe("Alerts contracts", () => {
   it("mapper keeps alert response shapes consistent", () => {
     expect(toAlertsItemResponse(alert).data.source).toBe("water-quality");
     expect(toAlertsListResponse(alertList).data.items[0]?.title).toContain("oxygen");
+  });
+
+  it("application service delegates explanation attachment to the alerts repository port", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue(alert),
+      bulkAcknowledge: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      assign: vi.fn().mockResolvedValue(alert),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      unassign: vi.fn().mockResolvedValue(alert),
+      setReviewState: vi.fn().mockResolvedValue(alert),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      attachExplanation: vi.fn().mockResolvedValue({
+        ...alert,
+        latestNote: "AI explanation snapshot",
+        actionHistory: [
+          ...(alert.actionHistory ?? []),
+          {
+            action: "ai_explanation_snapshot",
+            note: "AI explanation snapshot",
+            timestamp: "2026-04-16T10:00:00.000Z"
+          }
+        ]
+      }),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+
+    const service = new AlertsApplicationService(repository);
+    const result = await service.attachExplanation("alert-1", {
+      explanation: {
+        summary: "Alert explanation summary",
+        explanation: "Alert explanation body",
+        recommendations: ["Inspect aeration equipment."],
+        likelyCauses: [],
+        recommendedChecks: [],
+        suggestedActions: [],
+        confidenceNote: "Limited confidence.",
+        advisoryDisclaimer: "Advisory only.",
+        metadata: {
+          mode: "fallback",
+          advisoryOnly: true,
+          generatedAt: "2026-04-16T10:00:00.000Z",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "test",
+          usedLiveOpenAi: false
+        },
+        cache: {
+          status: "fresh",
+          cachedAt: "2026-04-16T10:00:00.000Z",
+          freshness: "fresh",
+          explanationVersion: "v1"
+        }
+      }
+    });
+
+    expect(repository.attachExplanation).toHaveBeenCalledWith(
+      "alert-1",
+      expect.objectContaining({
+        explanation: expect.objectContaining({
+          summary: "Alert explanation summary"
+        })
+      })
+    );
+    expect(result.data.actionHistory?.at(-1)?.action).toBe("ai_explanation_snapshot");
   });
 });

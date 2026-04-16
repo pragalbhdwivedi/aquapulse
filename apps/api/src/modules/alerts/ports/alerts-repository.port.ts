@@ -4,6 +4,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertSavedViewCreateRequest,
   AlertSavedViewDefinition,
   AlertQueueSummary,
@@ -30,6 +31,7 @@ export interface AlertsRepositoryPort {
   unassign(id: string, input: AlertUnassignActionRequest): Promise<AlertSummary>;
   setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<AlertSummary>;
   bulkSetReviewState(input: AlertBulkReviewStateActionRequest): Promise<AlertBulkActionResult>;
+  attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<AlertSummary>;
   listSavedViews(): Promise<AlertSavedViewDefinition[]>;
   saveSavedView(input: AlertSavedViewCreateRequest): Promise<AlertSavedViewDefinition[]>;
   removeSavedView(id: string): Promise<AlertSavedViewDefinition[]>;

@@ -11,6 +11,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -118,6 +119,22 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
   };
   mockAlerts.push(created);
   return created;
+}
+
+function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
+  const detailParts = [
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel})`,
+    input.explanation.summary,
+    input.explanation.recommendedChecks[0]?.title
+      ? `Next check: ${input.explanation.recommendedChecks[0].title}`
+      : undefined,
+    input.explanation.suggestedActions[0]?.title
+      ? `Suggested action: ${input.explanation.suggestedActions[0].title}`
+      : undefined,
+    input.note?.trim() ? `Operator note: ${input.note.trim()}` : undefined
+  ].filter(Boolean);
+
+  return detailParts.join(" | ");
 }
 
 export const pondsMockAdapter: PondsApiClient = {
@@ -381,6 +398,7 @@ export const alertsMockAdapter: AlertsApiClient = {
     });
   },
   async explain(input: AiAlertsExplainRequest) {
+    const generatedAt = "2026-04-16T12:00:00.000Z";
     return ok({
       summary: `Alert ${input.alertId} likely reflects an operational condition that still needs a manual check.`,
       explanation:
@@ -415,12 +433,40 @@ export const alertsMockAdapter: AlertsApiClient = {
       metadata: {
         mode: "fallback",
         advisoryOnly: true,
-        generatedAt: "2026-04-16T12:00:00.000Z",
+        generatedAt,
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false
+      },
+      cache: {
+        status: "fresh",
+        cachedAt: generatedAt,
+        freshness: "fresh",
+        explanationVersion: "v1"
       }
     });
+  },
+  async attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
+    const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];
+    const note = formatAttachedExplanationNote(input);
+    const updated = {
+      ...existing,
+      latestNote: note,
+      actionHistory: [
+        ...(existing.actionHistory ?? []),
+        {
+          action: "ai_explanation_snapshot" as const,
+          note,
+          timestamp: input.explanation.cache.cachedAt
+        }
+      ],
+      updatedAt: input.explanation.cache.cachedAt
+    };
+    const index = mockAlerts.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockAlerts[index] = updated;
+    }
+    return ok(updated);
   }
 };
 export const tasksMockAdapter: TasksApiClient = {

@@ -64,6 +64,11 @@ export function RuntimeDiagnosticsCard({
             AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"}
           </span>
         ) : null}
+        {backendProbe?.runtime ? (
+          <span>
+            AI cache: {backendProbe.runtime.aiExplanations.cacheEnabled ? "enabled" : "disabled"} / Manual attach: {backendProbe.runtime.aiExplanations.attachmentAvailable ? "available" : "unavailable"}
+          </span>
+        ) : null}
         {backendProbe?.errorMessage ? (
           <span style={{ color: "#fca5a5" }}>{backendProbe.errorMessage}</span>
         ) : null}

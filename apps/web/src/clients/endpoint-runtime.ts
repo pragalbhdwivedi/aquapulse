@@ -4,6 +4,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -153,6 +154,7 @@ export interface AquaPulseEndpointHandlers {
     listSavedViews: EndpointHandler<EndpointCatalog["alerts"]["listSavedViews"]>;
     saveSavedView: EndpointHandler<EndpointCatalog["alerts"]["saveSavedView"]>;
     removeSavedView: EndpointHandler<EndpointCatalog["alerts"]["removeSavedView"]>;
+    attachExplanation: EndpointHandler<EndpointCatalog["alerts"]["attachExplanation"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
     bulkAcknowledge: EndpointHandler<EndpointCatalog["alerts"]["bulkAcknowledge"]>;
@@ -316,6 +318,20 @@ export function createEndpointHandlersFromClients(
               (clients.alerts as typeof clients.alerts & AlertSavedViewCapableClient<AlertSavedViewDefinition[]>).removeSavedView(input.id)
             )
           : createMutationFromValue([]),
+      attachExplanation:
+        "attachExplanation" in clients.alerts
+          ? createDirectHandler(
+              (request: { readonly id: string; readonly body: AlertExplanationAttachmentRequest }) =>
+                (
+                  clients.alerts as typeof clients.alerts & {
+                    attachExplanation: (
+                      id: string,
+                      input: AlertExplanationAttachmentRequest
+                    ) => Promise<{ ok: true; data: AlertSummary }>;
+                  }
+                ).attachExplanation(request.id, request.body)
+            )
+          : createMutationFromDetailHandler(clients.alerts),
       update: createMutationFromDetailHandler(clients.alerts),
       acknowledge:
         "acknowledge" in clients.alerts
@@ -503,6 +519,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       listSavedViews: () => handlers.alerts.listSavedViews({}),
       saveSavedView: (input) => handlers.alerts.saveSavedView(input),
       removeSavedView: (id) => handlers.alerts.removeSavedView({ id }),
+      attachExplanation: (id, input) => handlers.alerts.attachExplanation({ id, body: input }),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       bulkAcknowledge: (input) => handlers.alerts.bulkAcknowledge(input),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),

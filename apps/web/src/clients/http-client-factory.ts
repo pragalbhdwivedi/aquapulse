@@ -6,6 +6,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -229,6 +230,12 @@ export function createHttpClientFactory({
           registry.alerts.explain,
           input
         );
+      },
+      attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
+        return invokeCreateEndpoint<
+          AlertSummary,
+          { readonly id: string; readonly body: AlertExplanationAttachmentRequest }
+        >(executor, registry.alerts.attachExplanation, { id, body: input });
       }
     },
     feed: {

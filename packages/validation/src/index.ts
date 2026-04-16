@@ -105,7 +105,33 @@ export const aiTextRewriteRequestSchema = z.object({
 
 export const aiAlertExplanationRequestSchema = z.object({
   alertId: z.string().min(1),
-  includeRecommendations: z.boolean().optional()
+  includeRecommendations: z.boolean().optional(),
+  reuseCached: z.boolean().optional()
+});
+
+export const alertExplanationAttachmentSchema = z.object({
+  explanation: z.object({
+    summary: z.string().min(1),
+    explanation: z.string().min(1),
+    recommendations: z.array(z.string()),
+    confidenceNote: z.string().min(1),
+    advisoryDisclaimer: z.string().min(1),
+    metadata: z.object({
+      mode: z.enum(["fallback", "openai_nano"]),
+      advisoryOnly: z.literal(true),
+      generatedAt: z.string().min(1),
+      modelLabel: z.string().min(1),
+      sourceLabel: z.string().min(1),
+      usedLiveOpenAi: z.boolean()
+    }),
+    cache: z.object({
+      status: z.enum(["fresh", "reused"]),
+      cachedAt: z.string().min(1),
+      freshness: z.enum(["fresh", "stale"]),
+      explanationVersion: z.literal("v1")
+    })
+  }),
+  note: z.string().min(1).optional()
 });
 
 export const aiDashboardQueryRequestSchema = z.object({

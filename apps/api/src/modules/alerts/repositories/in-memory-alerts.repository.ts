@@ -6,6 +6,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -63,6 +64,22 @@ function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListRespons
       totalPages: Math.max(1, Math.ceil(items.length / pageSize))
     }
   };
+}
+
+function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
+  const detailParts = [
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel})`,
+    input.explanation.summary,
+    input.explanation.recommendedChecks[0]?.title
+      ? `Next check: ${input.explanation.recommendedChecks[0].title}`
+      : undefined,
+    input.explanation.suggestedActions[0]?.title
+      ? `Suggested action: ${input.explanation.suggestedActions[0].title}`
+      : undefined,
+    input.note?.trim() ? `Operator note: ${input.note.trim()}` : undefined
+  ].filter(Boolean);
+
+  return detailParts.join(" | ");
 }
 
 function applyAlertMutation(
@@ -268,6 +285,21 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       totalRequested: input.alertIds.length,
       totalUpdated: updatedAlerts.length
     };
+  }
+
+  async attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<AlertSummary> {
+    const note = formatAttachedExplanationNote(input);
+    return applyAlertMutation(
+      this,
+      id,
+      { latestNote: note },
+      {
+        action: "ai_explanation_snapshot",
+        note,
+        timestamp: input.explanation.cache.cachedAt
+      },
+      input.explanation.cache.cachedAt
+    );
   }
 
   async listSavedViews(): Promise<AlertSavedViewDefinition[]> {

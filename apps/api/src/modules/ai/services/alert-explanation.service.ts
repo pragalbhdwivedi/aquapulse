@@ -149,6 +149,32 @@ function buildMetadata(
   };
 }
 
+function buildCacheKey(input: AiAlertsExplainRequest): string {
+  return [input.alertId, input.includeRecommendations === false ? "without-recommendations" : "with-recommendations"].join(":");
+}
+
+function toFreshCachedResponse(response: AiAlertsExplainResponse): AiAlertsExplainResponse {
+  return {
+    ...response,
+    cache: {
+      status: "fresh",
+      cachedAt: response.metadata.generatedAt,
+      freshness: "fresh",
+      explanationVersion: "v1"
+    }
+  };
+}
+
+function toReusedCachedResponse(response: AiAlertsExplainResponse): AiAlertsExplainResponse {
+  return {
+    ...response,
+    cache: {
+      ...response.cache,
+      status: "reused"
+    }
+  };
+}
+
 function buildFallbackExplanation(
   alert: AlertSummary,
   config: AlertExplanationRuntimeConfig,
@@ -175,7 +201,13 @@ function buildFallbackExplanation(
       "This explanation is generated from the alert context only. It should be treated as advisory guidance, not as proof of the root cause.",
     advisoryDisclaimer:
       "Advisory only. AquaPulse will not acknowledge, resolve, assign, or otherwise mutate alerts from AI output.",
-    metadata: buildMetadata(now, config, false)
+    metadata: buildMetadata(now, config, false),
+    cache: {
+      status: "fresh",
+      cachedAt: now,
+      freshness: "fresh",
+      explanationVersion: "v1"
+    }
   };
 }
 
@@ -184,6 +216,7 @@ export class AlertExplanationService {
   private readonly config: AlertExplanationRuntimeConfig;
   private readonly openAiClient: OpenAiAlertExplanationClient;
   private readonly now: () => string;
+  private readonly explanationCache = new Map<string, AiAlertsExplainResponse>();
 
   constructor(
     private readonly alertsApplicationService: AlertsApplicationService
@@ -201,11 +234,21 @@ export class AlertExplanationService {
       mode: this.config.configured ? "openai_nano" as const : "fallback" as const,
       configured: this.config.configured,
       modelLabel: this.config.modelLabel,
+      cacheEnabled: true,
+      attachmentAvailable: true,
       warnings: this.config.warnings
     };
   }
 
   async explainAlert(input: AiAlertsExplainRequest): Promise<AiAlertsExplainResponse> {
+    const cacheKey = buildCacheKey(input);
+    const shouldReuseCached = input.reuseCached !== false;
+    const cached = shouldReuseCached ? this.explanationCache.get(cacheKey) : undefined;
+
+    if (cached) {
+      return toReusedCachedResponse(cached);
+    }
+
     const alert = (await this.alertsApplicationService.getById(input.alertId)).data;
     const includeRecommendations = input.includeRecommendations ?? true;
     const context: AlertExplanationContext = {
@@ -218,13 +261,17 @@ export class AlertExplanationService {
       try {
         const response = await this.openAiClient.explain(context);
         if (response) {
-          return response;
+          const freshResponse = toFreshCachedResponse(response);
+          this.explanationCache.set(cacheKey, freshResponse);
+          return freshResponse;
         }
       } catch {
         // Intentionally fall back to the deterministic advisory path.
       }
     }
 
-    return buildFallbackExplanation(alert, this.config, this.now(), includeRecommendations);
+    const fallbackResponse = buildFallbackExplanation(alert, this.config, this.now(), includeRecommendations);
+    this.explanationCache.set(cacheKey, fallbackResponse);
+    return fallbackResponse;
   }
 }

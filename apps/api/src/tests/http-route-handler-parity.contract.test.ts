@@ -132,6 +132,12 @@ describe("HTTP route-handler parity", () => {
             modelLabel: "gpt-5-nano",
             sourceLabel: "test",
             usedLiveOpenAi: false
+          },
+          cache: {
+            status: "fresh",
+            cachedAt: "2026-04-16T00:00:00.000Z",
+            freshness: "fresh",
+            explanationVersion: "v1"
           }
         }
       }),

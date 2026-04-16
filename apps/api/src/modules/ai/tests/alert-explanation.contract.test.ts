@@ -55,6 +55,27 @@ describe("Alert explanation service", () => {
     expect(response.metadata.usedLiveOpenAi).toBe(false);
     expect(response.advisoryDisclaimer).toContain("Advisory only");
     expect(response.suggestedActions.length).toBeGreaterThan(0);
+    expect(response.cache.status).toBe("fresh");
+  });
+
+  it("reuses the cached explanation snapshot when cache reuse is allowed", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const first = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+    const second = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+
+    expect(first.cache.status).toBe("fresh");
+    expect(second.cache.status).toBe("reused");
+    expect(second.summary).toBe(first.summary);
+    expect(second.cache.cachedAt).toBe(first.cache.cachedAt);
   });
 
   it("falls back safely when OpenAI mode is enabled but the backend call fails", async () => {

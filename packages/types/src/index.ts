@@ -271,7 +271,8 @@ export interface AlertActionHistoryItem {
     | "resolved"
     | "assigned"
     | "unassigned"
-    | "review_state_changed";
+    | "review_state_changed"
+    | "ai_explanation_snapshot";
   readonly note?: string;
   readonly timestamp: ISODateString;
   readonly assignedTo?: EntityId;
@@ -347,6 +348,7 @@ export interface AiActionDraftRecord extends BaseEntity {
 export interface AiAlertsExplainRequest {
   readonly alertId: EntityId;
   readonly includeRecommendations?: boolean;
+  readonly reuseCached?: boolean;
 }
 
 export type AlertExplanationCauseCategory =
@@ -379,6 +381,13 @@ export interface AlertExplanationMetadata {
   readonly usedLiveOpenAi: boolean;
 }
 
+export interface AlertExplanationCacheState {
+  readonly status: "fresh" | "reused";
+  readonly cachedAt: ISODateString;
+  readonly freshness: "fresh" | "stale";
+  readonly explanationVersion: "v1";
+}
+
 export interface AiAlertsExplainResponse {
   readonly explanation: string;
   readonly recommendations: string[];
@@ -389,6 +398,12 @@ export interface AiAlertsExplainResponse {
   readonly confidenceNote: string;
   readonly advisoryDisclaimer: string;
   readonly metadata: AlertExplanationMetadata;
+  readonly cache: AlertExplanationCacheState;
+}
+
+export interface AlertExplanationAttachmentRequest {
+  readonly explanation: AiAlertsExplainResponse;
+  readonly note?: string;
 }
 
 export interface AiPondsSummarizeRequest {
@@ -727,6 +742,15 @@ export const aquaPulseEndpointCatalog = {
       id: "alerts.removeSavedView",
       method: "POST",
       path: "/api/alerts/views/:id/remove",
+      semantics: "action"
+    }),
+    attachExplanation: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertExplanationAttachmentRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.attachExplanation",
+      method: "POST",
+      path: "/api/alerts/:id/attach-explanation",
       semantics: "action"
     }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({
@@ -1218,6 +1242,8 @@ export interface BackendRuntimeDiagnostics {
     readonly mode: "fallback" | "openai_nano";
     readonly configured: boolean;
     readonly modelLabel: string;
+    readonly cacheEnabled: boolean;
+    readonly attachmentAvailable: boolean;
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: {

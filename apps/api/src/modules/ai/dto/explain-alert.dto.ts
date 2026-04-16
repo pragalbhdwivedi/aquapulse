@@ -11,4 +11,5 @@ export class ExplainAlertResponseDto implements AiAlertsExplainResponse {
   confidenceNote!: string;
   advisoryDisclaimer!: string;
   metadata!: AiAlertsExplainResponse["metadata"];
+  cache!: AiAlertsExplainResponse["cache"];
 }

@@ -86,6 +86,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [explanations, setExplanations] = useState<Record<string, AiAlertsExplainResponse | undefined>>({});
   const [explanationErrors, setExplanationErrors] = useState<Record<string, string | undefined>>({});
   const [explainingAlertId, setExplainingAlertId] = useState<string | null>(null);
+  const [attachingExplanationAlertId, setAttachingExplanationAlertId] = useState<string | null>(null);
   const [savedViews, setSavedViews] = useState<AlertSavedViewDefinition[]>([]);
   const [activeSavedViewId, setActiveSavedViewId] = useState("");
   const [savedViewName, setSavedViewName] = useState("");
@@ -170,6 +171,37 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
       }
     },
     [repositories.alerts, reportRuntimeError]
+  );
+
+  const handleAttachExplanation = useCallback(
+    async (alertId: string) => {
+      const explanation = explanations[alertId];
+      if (!explanation) {
+        setFeedbackTone("error");
+        setFeedbackMessage("Generate or load an explanation before attaching it to alert history.");
+        return;
+      }
+
+      setAttachingExplanationAlertId(alertId);
+      try {
+        await repositories.alerts.attachExplanation(alertId, {
+          explanation,
+          note: notes[alertId]?.trim() || undefined
+        });
+        const refreshed = await refreshQueue();
+        setFeedbackTone("success");
+        setFeedbackMessage(
+          refreshed
+            ? "Attached the advisory explanation snapshot to alert history."
+            : "Attached the advisory explanation snapshot, but the queue refresh did not complete."
+        );
+      } catch (error) {
+        reportRuntimeError(error);
+      } finally {
+        setAttachingExplanationAlertId(null);
+      }
+    },
+    [explanations, notes, refreshQueue, reportRuntimeError, repositories.alerts]
   );
 
   useEffect(() => {
@@ -341,6 +373,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         explanations={explanations}
         explanationErrors={explanationErrors}
         explainingAlertId={explainingAlertId}
+        attachingExplanationAlertId={attachingExplanationAlertId}
         onToggleSelection={(alertId) => setSelectedAlertIds((current) => current.includes(alertId) ? current.filter((item) => item !== alertId) : [...current, alertId])}
         onToggleDetail={(alertId) => setDetailAlertId((current) => current === alertId ? null : alertId)}
         onNoteChange={(alertId, value) => setNotes((current) => ({ ...current, [alertId]: value }))}
@@ -348,6 +381,7 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         onReviewLabelChange={(alertId, value) => setReviewLabels((current) => ({ ...current, [alertId]: value }))}
         onReviewStateChange={(alertId, value) => setReviewStates((current) => ({ ...current, [alertId]: value }))}
         onExplain={handleExplainAlert}
+        onAttachExplanation={handleAttachExplanation}
         onAssign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("assign", alertId, { assignedTo: ownerInputs[alertId]?.trim() ?? defaultAlertWorkbenchOwner, note: notes[alertId]?.trim() || undefined }), "Alert owner updated.")}
         onUnassign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("unassign", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert returned to the general queue.")}
         onApplyReviewState={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("setReviewState", alertId, { reviewState: reviewStates[alertId] ?? "under_review", reviewLabel: reviewLabels[alertId]?.trim() || undefined, note: notes[alertId]?.trim() || undefined }), "Review flow updated.")}

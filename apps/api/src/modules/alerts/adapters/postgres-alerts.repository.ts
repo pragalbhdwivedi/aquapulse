@@ -34,6 +34,7 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertActionHistoryItem,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -417,6 +418,22 @@ function createAlertHistoryId(
   return `${alertId}:${action}:${occurredAt}`.replace(/[^a-zA-Z0-9:_-]/g, "-");
 }
 
+function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
+  const detailParts = [
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel})`,
+    input.explanation.summary,
+    input.explanation.recommendedChecks[0]?.title
+      ? `Next check: ${input.explanation.recommendedChecks[0].title}`
+      : undefined,
+    input.explanation.suggestedActions[0]?.title
+      ? `Suggested action: ${input.explanation.suggestedActions[0].title}`
+      : undefined,
+    input.note?.trim() ? `Operator note: ${input.note.trim()}` : undefined
+  ].filter(Boolean);
+
+  return detailParts.join(" | ");
+}
+
 function buildAlertMutationQueryPlan(
   key: string,
   statement: string,
@@ -635,6 +652,39 @@ export function buildSetAlertReviewStateQueryPlans(
   };
 }
 
+export function buildAttachExplanationQueryPlans(
+  id: string,
+  input: AlertExplanationAttachmentRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const note = formatAttachedExplanationNote(input);
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "ai_explanation_snapshot", occurredAt),
+    alert_id: id,
+    action: "ai_explanation_snapshot",
+    note,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.attachExplanation",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          latest_note = $2,
+          updated_at = $3
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, note, occurredAt],
+      { id, latestNote: note }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
 export function buildCreateAlertQueryPlan(row: AlertRowWrite): CompiledQueryPlan {
   return createMutationQueryPlan("alerts.create", row);
 }
@@ -833,6 +883,21 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
         reviewLabel: input.reviewLabel
       }
     }));
+  }
+
+  async attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<AlertSummary> {
+    const note = formatAttachedExplanationNote(input);
+    return this.executeAlertMutation(
+      id,
+      buildAttachExplanationQueryPlans(id, input, input.explanation.cache.cachedAt),
+      {
+        latestNote: note
+      },
+      {
+        action: "ai_explanation_snapshot",
+        note
+      }
+    );
   }
 
   async listSavedViews(): Promise<AlertSavedViewDefinition[]> {
@@ -1133,6 +1198,7 @@ export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
     "unassign",
     "setReviewState",
     "bulkSetReviewState",
+    "attachExplanation",
     "saveSavedView",
     "removeSavedView"
   ],

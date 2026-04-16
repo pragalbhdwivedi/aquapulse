@@ -17,11 +17,13 @@ interface AlertsWorkbenchDetailProps {
   readonly explanation?: AiAlertsExplainResponse;
   readonly explanationError?: string;
   readonly isExplaining: boolean;
+  readonly isAttachingExplanation: boolean;
   readonly onNoteChange: (value: string) => void;
   readonly onOwnerChange: (value: string) => void;
   readonly onReviewLabelChange: (value: string) => void;
   readonly onReviewStateChange: (value: AlertReviewState) => void;
   readonly onExplain: () => void;
+  readonly onAttachExplanation: () => void;
   readonly onAssign: () => void;
   readonly onUnassign: () => void;
   readonly onApplyReviewState: () => void;
@@ -47,11 +49,13 @@ export function AlertsWorkbenchDetail({
   explanation,
   explanationError,
   isExplaining,
+  isAttachingExplanation,
   onNoteChange,
   onOwnerChange,
   onReviewLabelChange,
   onReviewStateChange,
   onExplain,
+  onAttachExplanation,
   onAssign,
   onUnassign,
   onApplyReviewState,
@@ -88,6 +92,14 @@ export function AlertsWorkbenchDetail({
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <button type="button" disabled={isExplaining} onClick={onExplain} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isExplaining ? "Explaining..." : "Explain alert"}
+        </button>
+        <button
+          type="button"
+          disabled={isAttachingExplanation || !explanation}
+          onClick={onAttachExplanation}
+          style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+        >
+          {isAttachingExplanation ? "Attaching..." : "Attach explanation to history"}
         </button>
         <button type="button" disabled={isSubmitting} onClick={onAssign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Assign"}
@@ -137,6 +149,9 @@ export function AlertsWorkbenchDetail({
           <div style={{ color: "#cbd5e1" }}>{explanation.explanation}</div>
           <div style={{ color: "#94a3b8" }}>
             Mode: {explanation.metadata.mode} / Model: {explanation.metadata.modelLabel}
+          </div>
+          <div style={{ color: "#94a3b8" }}>
+            Explanation source: {explanation.cache.status === "reused" ? "cached reuse" : "fresh generation"} / Cached at: {explanation.cache.cachedAt}
           </div>
           <div style={{ color: "#fbbf24" }}>{explanation.advisoryDisclaimer}</div>
           <div style={{ color: "#94a3b8" }}>{explanation.confidenceNote}</div>
