@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AiAlertsExplainResponse,
   type AlertExplanationFeedbackValue,
@@ -22,6 +22,7 @@ import {
   createAlertSavedViewsStore,
   defaultAlertWorkbenchOwner,
   deriveOwnerAlertIndicators,
+  buildAlertQueuePageResetKey,
   getAlertPresetQuery,
   getAlertSummaryQuery
 } from "@web/features/alert-workbench";
@@ -108,11 +109,28 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [result, setResult] = useState<AlertQueueSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isRefreshingQueue, setIsRefreshingQueue] = useState(false);
+  const [queuePage, setQueuePage] = useState(1);
+  const [queuePageSize] = useState(20);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
-  const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: 1, pageSize: 20, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, reviewStateFilter, sortBy, statusFilter]);
+  const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: queuePage, pageSize: queuePageSize, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, queuePage, queuePageSize, reviewStateFilter, sortBy, statusFilter]);
+  const queueResetKey = useMemo(
+    () =>
+      buildAlertQueuePageResetKey({
+        presetId,
+        savedViewId: activeSavedViewId || undefined,
+        status: statusFilter,
+        hasLatestNote: hasLatestNoteOnly,
+        pondId: pondIdFilter,
+        assignedTo: assignedToFilter,
+        reviewState: reviewStateFilter,
+        sortBy
+      }),
+    [activeSavedViewId, assignedToFilter, hasLatestNoteOnly, pondIdFilter, presetId, reviewStateFilter, sortBy, statusFilter]
+  );
+  const previousQueueResetKeyRef = useRef(queueResetKey);
   const allVisibleSelected = alerts.length > 0 && alerts.every((alert) => selectedAlertIds.includes(alert.id));
   const reportRuntimeError = useCallback(
     (error: unknown) => {
@@ -129,6 +147,13 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
     setHasLatestNoteOnly(Boolean(query.hasLatestNote));
     setPondIdFilter(query.pondId ?? "");
     setAssignedToFilter(query.assignedTo ?? "");
+  }, []);
+
+  const resetQueuePagination = useCallback(() => {
+    setQueuePage(1);
+    setSelectedAlertIds([]);
+    setDetailAlertId(null);
+    setActiveAlertId(null);
   }, []);
 
   const refreshQueue = useCallback(async () => {
@@ -151,6 +176,15 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
       setIsRefreshingQueue(false);
     }
   }, [repositories.alerts, reportRuntimeError, reviewQueueQuery]);
+
+  useEffect(() => {
+    if (previousQueueResetKeyRef.current === queueResetKey) {
+      return;
+    }
+
+    previousQueueResetKeyRef.current = queueResetKey;
+    resetQueuePagination();
+  }, [queueResetKey, resetQueuePagination]);
 
   const handleExplainAlertWithOptions = useCallback(
     async (alertId: string, options: { readonly reuseCached?: boolean } = {}) => {
@@ -381,19 +415,19 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
           <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Preset view</span><select value={presetId} onChange={(event) => { const nextPresetId = event.target.value as AlertQueuePresetId | "custom"; setPresetId(nextPresetId); setActiveSavedViewId(""); applyQueryState(nextPresetId === "custom" ? {} : getAlertPresetQuery(nextPresetId, defaultAlertWorkbenchOwner)); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="custom">Custom</option>{alertQueuePresetDefinitions.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</select></label>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Status</span><select value={statusFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setStatusFilter(event.target.value as AlertsListQuery["status"] | "all"); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select></label>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={reviewStateFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setReviewStateFilter(event.target.value as AlertReviewState | "all"); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Sort</span><select value={sortBy} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="updatedAt_desc">Newest updated</option><option value="updatedAt_asc">Oldest updated</option><option value="createdAt_desc">Newest created</option><option value="createdAt_asc">Oldest created</option></select></label>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Pond</span><input value={pondIdFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setPondIdFilter(event.target.value); }} placeholder="pond-1" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={assignedToFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setAssignedToFilter(event.target.value); }} placeholder="operator-queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
-          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}><input type="checkbox" checked={hasLatestNoteOnly} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setHasLatestNoteOnly(event.target.checked); }} /><span>With notes only</span></label>
-          <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); setFeedbackTone("success"); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Preset view</span><select value={presetId} onChange={(event) => { const nextPresetId = event.target.value as AlertQueuePresetId | "custom"; setPresetId(nextPresetId); setActiveSavedViewId(""); applyQueryState(nextPresetId === "custom" ? {} : getAlertPresetQuery(nextPresetId, defaultAlertWorkbenchOwner)); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="custom">Custom</option>{alertQueuePresetDefinitions.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Status</span><select value={statusFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setStatusFilter(event.target.value as AlertsListQuery["status"] | "all"); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={reviewStateFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setReviewStateFilter(event.target.value as AlertReviewState | "all"); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Sort</span><select value={sortBy} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setSortBy(event.target.value as NonNullable<AlertsListQuery["sortBy"]>); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="updatedAt_desc">Newest updated</option><option value="updatedAt_asc">Oldest updated</option><option value="createdAt_desc">Newest created</option><option value="createdAt_asc">Oldest created</option></select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Pond</span><input value={pondIdFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setPondIdFilter(event.target.value); resetQueuePagination(); }} placeholder="pond-1" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={assignedToFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setAssignedToFilter(event.target.value); resetQueuePagination(); }} placeholder="operator-queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
+          <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}><input type="checkbox" checked={hasLatestNoteOnly} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setHasLatestNoteOnly(event.target.checked); resetQueuePagination(); }} /><span>With notes only</span></label>
+          <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); resetQueuePagination(); setFeedbackTone("success"); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
           <button type="button" onClick={async () => { if (!savedViewName.trim()) { setFeedbackTone("error"); setFeedbackMessage("Name the view before saving it."); return; } try { const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackTone("success"); setFeedbackMessage("Saved the current queue view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
-          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); setFeedbackTone("success"); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
+          <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); resetQueuePagination(); setFeedbackTone("success"); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
           <button type="button" disabled={!activeSavedViewId} onClick={async () => { try { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackTone("success"); setFeedbackMessage("Removed saved view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
         </div>
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
@@ -412,7 +446,13 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkSetReviewState")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk review-state update</button>
           </div>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "#94a3b8" }}><input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedAlertIds((current) => allVisibleSelected ? current.filter((id) => !alerts.some((alert) => alert.id === id)) : [...new Set([...current, ...alerts.map((alert) => alert.id)])])} /><span>{isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}. Selected: ${selectedAlertIds.length}.`}</span></div>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "#94a3b8", flexWrap: "wrap" }}>
+          <input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedAlertIds((current) => allVisibleSelected ? current.filter((id) => !alerts.some((alert) => alert.id === id)) : [...new Set([...current, ...alerts.map((alert) => alert.id)])])} />
+          <span>{isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}. Selected: ${selectedAlertIds.length}.`}</span>
+          <button type="button" disabled={queuePage === 1 || isRefreshingQueue} onClick={() => setQueuePage((current) => Math.max(1, current - 1))} style={{ padding: "0.4rem 0.65rem", borderRadius: "0.45rem", border: "1px solid #475569" }}>Previous page</button>
+          <button type="button" disabled={isRefreshingQueue || alerts.length < queuePageSize} onClick={() => setQueuePage((current) => current + 1)} style={{ padding: "0.4rem 0.65rem", borderRadius: "0.45rem", border: "1px solid #475569" }}>Next page</button>
+          <span>Page {queuePage}</span>
+        </div>
       </div>
 
       <AlertsWorkbenchQueue

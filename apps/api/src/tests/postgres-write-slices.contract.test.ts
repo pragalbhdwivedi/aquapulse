@@ -4,6 +4,7 @@ import {
   createPlaceholderAlertSavedViewRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
+  type DatabaseConnectionFactory,
   type AlertActionHistoryRow,
   type AlertRow,
   type AlertSavedViewRow,
@@ -14,6 +15,158 @@ import { PostgresAlertsRepository } from "../modules/alerts/adapters/postgres-al
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
 
 describe("Postgres write adapter slices", () => {
+  function createQueryResult<TRow>(rows: readonly TRow[]) {
+    return {
+      rows: rows as TRow[],
+      rowCount: rows.length
+    };
+  }
+
+  function createRollbackAwareConnectionFactory(
+    recordedQueries: RecordedDatabasePlan[],
+    state: {
+      alerts: Map<string, AlertRow>;
+      history: Map<string, AlertActionHistoryRow[]>;
+    }
+  ): DatabaseConnectionFactory {
+    return {
+      async create() {
+        return {
+          async query<TRow = Record<string, unknown>>(statement: string, params: readonly unknown[] = []) {
+            recordedQueries.push({ statement, params });
+
+            if (statement.startsWith("update alerts")) {
+              const id = params[0] as string;
+              const current = state.alerts.get(id) ?? createPlaceholderAlertRow({ id });
+              const next: AlertRow = statement.includes("status = 'acknowledged'")
+                ? {
+                    ...current,
+                    status: "acknowledged",
+                    latest_note: (params[1] as string | null) ?? current.latest_note,
+                    updated_at: params[2] as string
+                  }
+                : current;
+              state.alerts.set(id, next);
+              if (id === "alert-2" && statement.includes("status = 'acknowledged'")) {
+                throw new Error("bulk mutation failed");
+              }
+              return createQueryResult([next] as never[] as TRow[]);
+            }
+
+            if (statement.startsWith("insert into alert_action_history")) {
+              const row: AlertActionHistoryRow = {
+                id: params[0] as string,
+                alert_id: params[1] as string,
+                action: params[2] as AlertActionHistoryRow["action"],
+                note: (params[3] as string | null) ?? undefined,
+                assigned_to: (params[4] as string | null) ?? undefined,
+                review_state: (params[5] as AlertActionHistoryRow["review_state"] | null) ?? undefined,
+                review_label: (params[6] as string | null) ?? undefined,
+                created_at: params[7] as string
+              };
+              state.history.set(row.alert_id, [...(state.history.get(row.alert_id) ?? []), row]);
+              return createQueryResult([] as TRow[]);
+            }
+
+            if (statement.includes("from alert_action_history")) {
+              const alertId = params[0] as string;
+              const rows = state.history.get(alertId) ?? [];
+              return createQueryResult(rows as TRow[]);
+            }
+
+            if (statement.includes("from alerts") && statement.includes("where id = $1")) {
+              const row = state.alerts.get(params[0] as string);
+              return createQueryResult((row ? [row] : []) as TRow[]);
+            }
+
+            return createQueryResult([] as TRow[]);
+          },
+          async transaction(callback) {
+            const snapshot = {
+              alerts: new Map(state.alerts),
+              history: new Map(Array.from(state.history.entries(), ([key, value]) => [key, [...value]]))
+            };
+
+            try {
+              return await callback({
+                async query<TRow = Record<string, unknown>>(statement: string, params: readonly unknown[] = []) {
+                  recordedQueries.push({ statement, params });
+
+                  if (statement.startsWith("update alerts")) {
+                    const id = params[0] as string;
+                    const current = state.alerts.get(id) ?? createPlaceholderAlertRow({ id });
+                    const next: AlertRow = statement.includes("status = 'acknowledged'")
+                      ? {
+                          ...current,
+                          status: "acknowledged",
+                          latest_note: (params[1] as string | null) ?? current.latest_note,
+                          updated_at: params[2] as string
+                        }
+                      : statement.includes("status = 'resolved'")
+                        ? {
+                            ...current,
+                            status: "resolved",
+                            latest_note: (params[1] as string | null) ?? current.latest_note,
+                            updated_at: params[2] as string
+                          }
+                        : current;
+                    state.alerts.set(id, next);
+                    if (id === "alert-2" && statement.includes("status = 'acknowledged'")) {
+                      throw new Error("bulk mutation failed");
+                    }
+                    return createQueryResult([next] as TRow[]);
+                  }
+
+                  if (statement.startsWith("insert into alert_action_history")) {
+                    const row: AlertActionHistoryRow = {
+                      id: params[0] as string,
+                      alert_id: params[1] as string,
+                      action: params[2] as AlertActionHistoryRow["action"],
+                      note: (params[3] as string | null) ?? undefined,
+                      assigned_to: (params[4] as string | null) ?? undefined,
+                      review_state: (params[5] as AlertActionHistoryRow["review_state"] | null) ?? undefined,
+                      review_label: (params[6] as string | null) ?? undefined,
+                      created_at: params[7] as string
+                    };
+                    state.history.set(row.alert_id, [...(state.history.get(row.alert_id) ?? []), row]);
+                    return createQueryResult([] as TRow[]);
+                  }
+
+                  if (statement.includes("from alert_action_history")) {
+                    const alertId = params[0] as string;
+                    const rows = state.history.get(alertId) ?? [];
+                    return createQueryResult(rows as TRow[]);
+                  }
+
+                  if (statement.includes("from alerts") && statement.includes("where id = $1")) {
+                    const row = state.alerts.get(params[0] as string);
+                    return createQueryResult((row ? [row] : []) as TRow[]);
+                  }
+
+                  return createQueryResult([] as TRow[]);
+                }
+              });
+            } catch (error) {
+              state.alerts = snapshot.alerts;
+              state.history = snapshot.history;
+              throw error;
+            }
+          },
+          async dispose() {
+            return;
+          }
+        };
+      },
+      async checkReadiness() {
+        return {
+          ready: false,
+          message: "Rollback-aware test factory does not check live readiness.",
+          checkedAt: new Date(0).toISOString()
+        };
+      }
+    };
+  }
+
   it("acknowledge and resolve use the real Postgres alert write path and persist action history", async () => {
     const recordedQueries: RecordedDatabasePlan[] = [];
     const alerts = new Map<string, AlertRow>([
@@ -127,6 +280,60 @@ describe("Postgres write adapter slices", () => {
     expect(
       recordedQueries.filter((query) => query.statement.startsWith("insert into alert_action_history"))
     ).toHaveLength(2);
+  });
+
+  it("rolls back a bulk mutation when one item fails inside the transaction", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const state = {
+      alerts: new Map<string, AlertRow>([
+        [
+          "alert-1",
+          createPlaceholderAlertRow({
+            id: "alert-1",
+            status: "open",
+            review_state: "unreviewed"
+          })
+        ],
+        [
+          "alert-2",
+          createPlaceholderAlertRow({
+            id: "alert-2",
+            status: "open",
+            review_state: "unreviewed"
+          })
+        ]
+      ]),
+      history: new Map<string, AlertActionHistoryRow[]>([
+        [
+          "alert-1",
+          [createPlaceholderAlertActionHistoryRow({ id: "history-created-1", alert_id: "alert-1", action: "created" })]
+        ],
+        [
+          "alert-2",
+          [createPlaceholderAlertActionHistoryRow({ id: "history-created-2", alert_id: "alert-2", action: "created" })]
+        ]
+      ])
+    };
+
+    const repository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
+      connectionFactory: createRollbackAwareConnectionFactory(recordedQueries, state),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    await expect(
+      repository.bulkAcknowledge({
+        alertIds: ["alert-1", "alert-2"],
+        note: "Batch acknowledge should roll back."
+      })
+    ).rejects.toThrow("bulk mutation failed");
+
+    expect(state.alerts.get("alert-1")?.status).toBe("open");
+    expect(state.alerts.get("alert-2")?.status).toBe("open");
+    expect(state.history.get("alert-1")?.map((item) => item.action)).toEqual(["created"]);
+    expect(state.history.get("alert-2")?.map((item) => item.action)).toEqual(["created"]);
+    expect(
+      recordedQueries.filter((query) => query.statement.startsWith("insert into alert_action_history"))
+    ).toHaveLength(1);
   });
 
   it("assign, review-state update, and unassign use the real Postgres alert write path with history metadata", async () => {
@@ -372,6 +579,12 @@ describe("Postgres write adapter slices", () => {
     expect(
       recordedQueries.filter((query) => query.statement.startsWith("insert into alert_action_history"))
     ).toHaveLength(6);
+    const historyInsertTimestamps = recordedQueries
+      .filter((query) => query.statement.startsWith("insert into alert_action_history"))
+      .map((query) => query.params[7]);
+    expect(historyInsertTimestamps[0]).toBe(historyInsertTimestamps[1]);
+    expect(historyInsertTimestamps[2]).toBe(historyInsertTimestamps[3]);
+    expect(historyInsertTimestamps[4]).toBe(historyInsertTimestamps[5]);
     expect(history.get("alert-1")?.map((item) => item.action)).toEqual([
       "created",
       "acknowledged",

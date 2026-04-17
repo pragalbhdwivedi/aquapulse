@@ -77,6 +77,40 @@ import {
 
 const alertExplanationResponseCache = new Map<string, Awaited<ReturnType<AlertsApiClient["explain"]>>["data"]>();
 const alertExplanationFeedbackStore = new Map<string, AlertExplanationFeedbackRecord>();
+const initialMockAlerts = structuredClone(mockAlerts);
+const initialMockSavedViews = structuredClone(mockAlertSavedViews);
+const MAX_ALERT_STORE_SIZE = 100;
+const MAX_ALERT_HISTORY_ENTRIES = 25;
+const MAX_SAVED_VIEW_STORE_SIZE = 25;
+
+function trimAlertHistory(
+  entries: AlertSummary["actionHistory"] | undefined
+): AlertSummary["actionHistory"] {
+  if (!entries) {
+    return undefined;
+  }
+
+  return entries.length > MAX_ALERT_HISTORY_ENTRIES ? entries.slice(-MAX_ALERT_HISTORY_ENTRIES) : [...entries];
+}
+
+function trimAlertStore() {
+  if (mockAlerts.length > MAX_ALERT_STORE_SIZE) {
+    mockAlerts.splice(0, mockAlerts.length - MAX_ALERT_STORE_SIZE);
+  }
+}
+
+function trimSavedViewStore() {
+  if (mockAlertSavedViews.length > MAX_SAVED_VIEW_STORE_SIZE) {
+    mockAlertSavedViews.splice(0, mockAlertSavedViews.length - MAX_SAVED_VIEW_STORE_SIZE);
+  }
+}
+
+export function resetAlertsMockState() {
+  mockAlerts.splice(0, mockAlerts.length, ...structuredClone(initialMockAlerts));
+  mockAlertSavedViews.splice(0, mockAlertSavedViews.length, ...structuredClone(initialMockSavedViews));
+  alertExplanationResponseCache.clear();
+  alertExplanationFeedbackStore.clear();
+}
 
 function matchesSearch(value: string | undefined, search: string | undefined): boolean {
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
@@ -94,7 +128,8 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
       pondId: decision.pondId,
       status: decision.status,
       latestNote: decision.summary,
-      updatedAt: decision.observedAt
+      updatedAt: decision.observedAt,
+      actionHistory: trimAlertHistory(existing.actionHistory)
     };
     const index = mockAlerts.findIndex((item) => item.id === existing.id);
     if (index >= 0) {
@@ -103,8 +138,8 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
     return updated;
   }
 
-  const created: AlertSummary = {
-    id: `alert-${mockAlerts.length + 1}`,
+    const created: AlertSummary = {
+      id: `alert-${mockAlerts.length + 1}`,
     createdAt: decision.observedAt,
     updatedAt: decision.observedAt,
     title: decision.title,
@@ -114,17 +149,18 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
     status: decision.status,
     reviewState: "unreviewed",
     latestNote: decision.summary,
-    actionHistory: [
-      {
-        action: "created",
-        note: decision.summary,
-        timestamp: decision.observedAt
-      }
-    ]
-  };
-  mockAlerts.push(created);
-  return created;
-}
+      actionHistory: trimAlertHistory([
+        {
+          action: "created",
+          note: decision.summary,
+          timestamp: decision.observedAt
+        }
+      ])
+    };
+    mockAlerts.push(created);
+    trimAlertStore();
+    return created;
+  }
 
 function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
   const detailParts = [
@@ -295,6 +331,7 @@ export const alertsMockAdapter: AlertsApiClient = {
       updatedAt: "2026-04-15T10:35:00.000Z"
     };
     mockAlertSavedViews.push(created);
+    trimSavedViewStore();
     return ok([...mockAlertSavedViews]);
   },
   async removeSavedView(id: string) {
@@ -310,14 +347,14 @@ export const alertsMockAdapter: AlertsApiClient = {
       ...existing,
       status: "acknowledged" as const,
       latestNote: _input.note ?? existing.latestNote,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "acknowledged" as const,
           note: _input.note,
           timestamp: "2026-04-15T10:10:00.000Z"
         }
-      ],
+      ]),
       updatedAt: "2026-04-15T10:10:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -342,14 +379,14 @@ export const alertsMockAdapter: AlertsApiClient = {
       ...existing,
       status: "resolved" as const,
       latestNote: _input.note ?? existing.latestNote,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "resolved" as const,
           note: _input.note,
           timestamp: "2026-04-15T10:15:00.000Z"
         }
-      ],
+      ]),
       updatedAt: "2026-04-15T10:15:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -375,7 +412,7 @@ export const alertsMockAdapter: AlertsApiClient = {
       assignedTo: input.assignedTo,
       reviewState: "under_review" as const,
       latestNote: input.note ?? existing.latestNote,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "assigned" as const,
@@ -384,7 +421,7 @@ export const alertsMockAdapter: AlertsApiClient = {
           note: input.note,
           timestamp: "2026-04-15T10:20:00.000Z"
         }
-      ],
+      ]),
       updatedAt: "2026-04-15T10:20:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -411,14 +448,14 @@ export const alertsMockAdapter: AlertsApiClient = {
       ...existing,
       assignedTo: undefined,
       latestNote: input.note ?? existing.latestNote,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "unassigned" as const,
           note: input.note,
           timestamp: "2026-04-15T10:25:00.000Z"
         }
-      ],
+      ]),
       updatedAt: "2026-04-15T10:25:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -434,7 +471,7 @@ export const alertsMockAdapter: AlertsApiClient = {
       reviewState: input.reviewState,
       reviewLabel: input.reviewLabel,
       latestNote: input.note ?? existing.latestNote,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "review_state_changed" as const,
@@ -443,7 +480,7 @@ export const alertsMockAdapter: AlertsApiClient = {
           note: input.note,
           timestamp: "2026-04-15T10:30:00.000Z"
         }
-      ],
+      ]),
       updatedAt: "2026-04-15T10:30:00.000Z"
     };
     const index = mockAlerts.findIndex((item) => item.id === id);
@@ -512,14 +549,14 @@ export const alertsMockAdapter: AlertsApiClient = {
     const updated = {
       ...existing,
       latestNote: note,
-      actionHistory: [
+      actionHistory: trimAlertHistory([
         ...(existing.actionHistory ?? []),
         {
           action: "ai_explanation_snapshot" as const,
           note,
           timestamp: input.explanation.cache.cachedAt
         }
-      ],
+      ]),
       updatedAt: input.explanation.cache.cachedAt
     };
     const index = mockAlerts.findIndex((item) => item.id === id);

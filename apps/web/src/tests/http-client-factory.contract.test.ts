@@ -1,5 +1,5 @@
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { createMockApiClients } from "../clients";
 import { createHttpClientFactory } from "../clients/http-client-factory";
 import {
@@ -16,8 +16,33 @@ import {
 import { endpointInvocationRegistry } from "../clients/invocation-registry";
 import { createFetchPlaceholderExecutor } from "../clients/http-placeholder";
 import { createEndpointHandlersFromClients } from "../clients/endpoint-runtime";
+import { resetAlertsMockState } from "../mocks/adapters";
 
 describe("HTTP client factory foundation", () => {
+  beforeEach(() => {
+    resetAlertsMockState();
+  });
+
+  it("keeps explanation cache state isolated across runtime-seam tests", async () => {
+    const baseClients = createMockApiClients();
+    const executor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(baseClients));
+    const clients = createHttpClientFactory({
+      config: { mode: "http", enablePlaceholderHttp: true },
+      baseClients,
+      executor
+    });
+
+    const first = await clients.alerts.explain({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+    const second = await clients.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+
+    expect(first.data.cache.generation).toBe("fresh_fallback");
+    expect(second.data.cache.generation).toBe("cached_reuse");
+  });
+
   it("builds expected HTTP-style request shapes from endpoint invocations", () => {
     const request = buildHttpRequestFromInvocation(endpointInvocationRegistry.ponds.getById, {
       id: "pond-1"

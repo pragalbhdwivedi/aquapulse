@@ -1,4 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  filterAlertsByQuery,
+  sortAlertsByQuery
+} from "@aquapulse/types";
 import { alertsRepository, auditRepository, pondsRepository, tasksRepository } from "../repositories";
 import {
   getAlertsPageData,
@@ -8,8 +12,13 @@ import {
   getPondsPageData,
   getReportsPageData
 } from "../queries";
+import { resetAlertsMockState } from "../mocks/adapters";
 
 describe("Frontend query layer", () => {
+  beforeEach(() => {
+    resetAlertsMockState();
+  });
+
   it("builds dashboard data without exposing the client implementation", async () => {
     const dashboard = await getDashboardPageData();
 
@@ -125,5 +134,50 @@ describe("Frontend query layer", () => {
       underReviewAlerts: 1,
       unresolvedAlerts: 1
     });
+  });
+
+  it("keeps shared alert filter and descending sort semantics aligned with SQL-style expectations", () => {
+    const alerts = [
+      {
+        id: "alert-a",
+        createdAt: "2026-04-16T09:00:00.000Z",
+        updatedAt: "2026-04-16T09:05:00.000Z",
+        title: "Alpha oxygen warning",
+        severity: "high" as const,
+        source: "water-quality",
+        pondId: "pond-1",
+        status: "open" as const,
+        reviewState: "unreviewed" as const,
+        latestNote: undefined
+      },
+      {
+        id: "alert-b",
+        createdAt: "2026-04-16T09:00:00.000Z",
+        updatedAt: "2026-04-16T09:05:00.000Z",
+        title: "Beta feeding note",
+        severity: "medium" as const,
+        source: "feed",
+        pondId: "pond-1",
+        status: "open" as const,
+        reviewState: "unreviewed" as const,
+        latestNote: "Manual oxygen follow-up required"
+      }
+    ];
+
+    expect(filterAlertsByQuery(alerts, { search: "oxygen" }).map((item) => item.id)).toEqual([
+      "alert-a",
+      "alert-b"
+    ]);
+    expect(filterAlertsByQuery(alerts, { hasLatestNote: true }).map((item) => item.id)).toEqual([
+      "alert-b"
+    ]);
+    expect(sortAlertsByQuery(alerts, "updatedAt_desc").map((item) => item.id)).toEqual([
+      "alert-b",
+      "alert-a"
+    ]);
+    expect(sortAlertsByQuery(alerts, "createdAt_desc").map((item) => item.id)).toEqual([
+      "alert-b",
+      "alert-a"
+    ]);
   });
 });

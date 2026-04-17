@@ -73,6 +73,7 @@ export async function proxyAlertsApiRequest(
 
     return new Response(await response.arrayBuffer(), {
       status: response.status,
+      statusText: response.statusText,
       headers: response.headers
     });
   } catch {

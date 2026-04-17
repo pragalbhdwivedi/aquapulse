@@ -96,6 +96,43 @@ describe("Alerts local API proxy", () => {
     });
   });
 
+  it("preserves backend validation errors without flattening the payload", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(
+        {
+          ok: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "assignedTo is required",
+            fieldErrors: { assignedTo: "Required" }
+          }
+        },
+        422
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await alertsCatchAllPost(
+      new Request("http://localhost:3000/api/alerts/alert-1/assign", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({})
+      })
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "assignedTo is required",
+        fieldErrors: { assignedTo: "Required" }
+      }
+    });
+  });
+
   it("can proxy directly through the shared helper", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse({ ok: true, data: { totalAlerts: 1 } })

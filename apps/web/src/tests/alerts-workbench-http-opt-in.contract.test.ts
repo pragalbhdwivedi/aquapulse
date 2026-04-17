@@ -6,7 +6,8 @@ import type {
   ApiSuccessEnvelope,
   ListResponse
 } from "@aquapulse/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetAlertsMockState } from "../mocks/adapters";
 import { createRepositoriesFromConfig } from "../repositories";
 
 const alert: AlertSummary = {
@@ -80,6 +81,53 @@ function jsonResponse<TBody>(body: TBody) {
 }
 
 describe("Alerts workbench opt-in HTTP runtime", () => {
+  beforeEach(() => {
+    resetAlertsMockState();
+  });
+
+  it("keeps explanation cache state isolated for the opt-in HTTP workbench path", async () => {
+    resetAlertsMockState();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+
+      if (url.includes("/api/ai/alerts/explain")) {
+        return jsonResponse<ApiSuccessEnvelope<AiAlertsExplainResponse>>({
+          ok: true,
+          data: {
+            ...explanation,
+            cache: {
+              ...explanation.cache,
+              generation: body?.reuseCached === false ? "fresh_fallback" : "cached_reuse",
+              status: body?.reuseCached === false ? "fresh" : "reused"
+            }
+          }
+        });
+      }
+
+      throw new Error(`Unhandled fetch request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const repositories = createRepositoriesFromConfig({
+      mode: "mock",
+      enablePlaceholderHttp: false,
+      enableFetchHttp: true,
+      alertsMode: "http"
+    });
+
+    const first = await repositories.alerts.explain({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+    const second = await repositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+
+    expect(first.data.cache.generation).toBe("fresh_fallback");
+    expect(second.data.cache.generation).toBe("cached_reuse");
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

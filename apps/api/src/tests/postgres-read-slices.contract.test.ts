@@ -159,7 +159,8 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[1]?.statement).toContain("from alert_action_history");
     expect(recordedQueries[1]?.params).toEqual(["alert-42"]);
     expect(recordedQueries[2]?.statement).toContain("count(*) over()::int as total_count");
-    expect(recordedQueries[2]?.statement).toContain("order by updated_at desc");
+    expect(recordedQueries[2]?.statement).toContain("order by updated_at desc, id desc");
+    expect(recordedQueries[2]?.statement).toContain("lower(coalesce(latest_note, '')) like");
     expect(recordedQueries[2]?.params).toEqual([
       "pond-42",
       "high",

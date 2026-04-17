@@ -1302,6 +1302,8 @@ export function filterAlertsByQuery(
   items: readonly AlertSummary[],
   query: Partial<AlertsListQueryRequest> = {}
 ): AlertSummary[] {
+  const normalizedSearch = query.search?.trim().toLowerCase();
+
   return items.filter(
     (item) =>
       (!query.pondId || item.pondId === query.pondId) &&
@@ -1312,7 +1314,10 @@ export function filterAlertsByQuery(
       (!query.reviewState || item.reviewState === query.reviewState) &&
       (query.hasLatestNote === undefined ||
         (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-      (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
+      (!normalizedSearch ||
+        item.title.toLowerCase().includes(normalizedSearch) ||
+        item.source.toLowerCase().includes(normalizedSearch) ||
+        Boolean(item.latestNote?.toLowerCase().includes(normalizedSearch)))
   );
 }
 
@@ -1322,23 +1327,35 @@ export function sortAlertsByQuery(
 ): AlertSummary[] {
   const sorted = [...items];
 
-  switch (sortBy) {
-    case "createdAt_asc":
-      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-      break;
-    case "updatedAt_asc":
-      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
-      break;
-    case "createdAt_desc":
-      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-      break;
-    case "updatedAt_desc":
-    default:
-      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      break;
-  }
+  sorted.sort((left, right) => compareAlertsBySort(left, right, sortBy));
 
   return sorted;
+}
+
+function toAlertSortTimestamp(value: string | undefined): number {
+  return value ? Date.parse(value) : 0;
+}
+
+function compareAlertStrings(left: string | undefined, right: string | undefined): number {
+  return (left ?? "").localeCompare(right ?? "");
+}
+
+export function compareAlertsBySort(
+  left: AlertSummary,
+  right: AlertSummary,
+  sortBy: AlertsListQueryRequest["sortBy"] = "updatedAt_desc"
+): number {
+  switch (sortBy) {
+    case "createdAt_asc":
+      return toAlertSortTimestamp(left.createdAt) - toAlertSortTimestamp(right.createdAt) || compareAlertStrings(left.id, right.id);
+    case "updatedAt_asc":
+      return toAlertSortTimestamp(left.updatedAt) - toAlertSortTimestamp(right.updatedAt) || compareAlertStrings(left.id, right.id);
+    case "createdAt_desc":
+      return toAlertSortTimestamp(right.createdAt) - toAlertSortTimestamp(left.createdAt) || compareAlertStrings(right.id, left.id);
+    case "updatedAt_desc":
+    default:
+      return toAlertSortTimestamp(right.updatedAt) - toAlertSortTimestamp(left.updatedAt) || compareAlertStrings(right.id, left.id);
+  }
 }
 
 export function getAlertQueuePresetQuery(

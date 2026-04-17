@@ -167,14 +167,14 @@ function createAlertQueryWhereClause(
 function resolveAlertSort(sortBy: AlertsListQueryContract["sortBy"]): string {
   switch (sortBy) {
     case "createdAt_asc":
-      return "created_at asc";
+      return "created_at asc, id asc";
     case "updatedAt_asc":
-      return "updated_at asc";
+      return "updated_at asc, id asc";
     case "createdAt_desc":
-      return "created_at desc";
+      return "created_at desc, id desc";
     case "updatedAt_desc":
     default:
-      return "updated_at desc";
+      return "updated_at desc, id desc";
   }
 }
 
@@ -361,7 +361,7 @@ export function buildOpenAlertsQueryPlan(): CompiledQueryPlan {
         count(*) over()::int as total_count
       from ${AQUAPULSE_SCHEMA_TABLES.alerts}
       where status = 'open'
-      order by updated_at desc
+      order by updated_at desc, id desc
     `.trim(),
     params: [],
     filters: { status: "open" }
@@ -747,8 +747,9 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
-      plans: buildAcknowledgeAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
+      plans: buildAcknowledgeAlertQueryPlans(alertId, { note: input.note }, timestamp),
       fallbackPatch: {
         status: "acknowledged",
         latestNote: input.note
@@ -776,8 +777,9 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
-      plans: buildResolveAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
+      plans: buildResolveAlertQueryPlans(alertId, { note: input.note }, timestamp),
       fallbackPatch: {
         status: "resolved",
         latestNote: input.note
@@ -808,11 +810,12 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
       plans: buildAssignAlertQueryPlans(
         alertId,
         { assignedTo: input.assignedTo, note: input.note },
-        new Date().toISOString()
+        timestamp
       ),
       fallbackPatch: {
         assignedTo: input.assignedTo,
@@ -864,7 +867,8 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   async bulkSetReviewState(
     input: AlertBulkReviewStateActionRequest
   ): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
       plans: buildSetAlertReviewStateQueryPlans(
         alertId,
         {
@@ -872,7 +876,7 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
           reviewLabel: input.reviewLabel,
           note: input.note
         },
-        new Date().toISOString()
+        timestamp
       ),
       fallbackPatch: {
         reviewState: input.reviewState,
@@ -1092,8 +1096,10 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
   private async executeBulkAlertMutation(
     alertIds: readonly string[],
+    occurredAt: string,
     createMutation: (
-      alertId: string
+      alertId: string,
+      occurredAt: string
     ) => {
       readonly plans: AlertMutationPlans;
       readonly fallbackPatch: Partial<AlertSummary>;
@@ -1107,7 +1113,7 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
         const updatedAlerts: AlertSummary[] = [];
 
         for (const alertId of alertIds) {
-          const mutation = createMutation(alertId);
+          const mutation = createMutation(alertId, occurredAt);
           const fallbackRow = createPlaceholderAlertRow({
             id: alertId,
             status: mutation.fallbackPatch.status,

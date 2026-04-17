@@ -45,6 +45,9 @@ const alert: AlertSummary = {
 
 const alertStore = new WeakMap<InMemoryAlertsRepository, AlertSummary[]>();
 const savedViewStore = new WeakMap<InMemoryAlertsRepository, AlertSavedViewDefinition[]>();
+const MAX_ALERT_STORE_SIZE = 100;
+const MAX_ALERT_HISTORY_ENTRIES = 25;
+const MAX_SAVED_VIEW_STORE_SIZE = 25;
 
 function getAlerts(repository: InMemoryAlertsRepository): AlertSummary[] {
   return alertStore.get(repository) ?? [alert];
@@ -52,6 +55,14 @@ function getAlerts(repository: InMemoryAlertsRepository): AlertSummary[] {
 
 function getSavedViews(repository: InMemoryAlertsRepository): AlertSavedViewDefinition[] {
   return savedViewStore.get(repository) ?? [];
+}
+
+function trimAlertHistory(entries: readonly AlertActionHistoryItem[] | undefined): AlertActionHistoryItem[] | undefined {
+  if (!entries) {
+    return entries;
+  }
+
+  return entries.length > MAX_ALERT_HISTORY_ENTRIES ? entries.slice(-MAX_ALERT_HISTORY_ENTRIES) : [...entries];
 }
 
 function createPage(items: AlertSummary[], page = 1, pageSize = 20): ListResponse<AlertSummary> {
@@ -99,8 +110,8 @@ function applyAlertMutation(
     ...patch,
     latestNote: actionHistoryItem?.note ?? patch.latestNote ?? current.latestNote,
     actionHistory: actionHistoryItem
-      ? [...(current.actionHistory ?? []), actionHistoryItem]
-      : current.actionHistory,
+      ? trimAlertHistory([...(current.actionHistory ?? []), actionHistoryItem])
+      : trimAlertHistory(current.actionHistory),
     updatedAt
   };
   const index = alerts.findIndex((item) => item.id === id);
@@ -108,6 +119,9 @@ function applyAlertMutation(
     alerts[index] = updated;
   } else {
     alerts.push(updated);
+    if (alerts.length > MAX_ALERT_STORE_SIZE) {
+      alerts.splice(0, alerts.length - MAX_ALERT_STORE_SIZE);
+    }
   }
   return updated;
 }
@@ -143,6 +157,9 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
       latestNote: input.latestNote
     };
     alerts.push(created);
+    if (alerts.length > MAX_ALERT_STORE_SIZE) {
+      alerts.splice(0, alerts.length - MAX_ALERT_STORE_SIZE);
+    }
     return created;
   }
 
@@ -321,6 +338,9 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
     };
 
     savedViews.push(created);
+    if (savedViews.length > MAX_SAVED_VIEW_STORE_SIZE) {
+      savedViews.splice(0, savedViews.length - MAX_SAVED_VIEW_STORE_SIZE);
+    }
     return savedViews;
   }
 
@@ -346,4 +366,13 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   async listOpen(): Promise<ListResponse<AlertSummary>> {
     return createPage(getAlerts(this).filter((item) => item.status === "open"));
   }
+}
+
+export function resetInMemoryAlertsRepositoryState(repository?: InMemoryAlertsRepository): void {
+  if (!repository) {
+    return;
+  }
+
+  alertStore.set(repository, [alert]);
+  savedViewStore.set(repository, []);
 }
