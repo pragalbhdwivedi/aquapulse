@@ -5,6 +5,8 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -113,6 +115,7 @@ export interface AlertsApiClient {
   bulkSetReviewState(input: AlertBulkReviewStateActionRequest): ApiItemContract<AlertBulkActionResult>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
   attachExplanation(id: string, input: AlertExplanationAttachmentRequest): ApiItemContract<AlertSummary>;
+  submitExplanationFeedback(input: AlertExplanationFeedbackRequest): ApiItemContract<AlertExplanationFeedbackRecord>;
 }
 
 export interface TasksApiClient {

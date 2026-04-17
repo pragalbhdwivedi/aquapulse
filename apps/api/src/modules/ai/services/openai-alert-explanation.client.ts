@@ -229,7 +229,8 @@ export class OpenAiAlertExplanationClient {
         status: "fresh",
         cachedAt: this.now(),
         freshness: "fresh",
-        explanationVersion: "v1"
+        explanationVersion: "v1",
+        generation: "fresh_openai_nano"
       }
     };
   }

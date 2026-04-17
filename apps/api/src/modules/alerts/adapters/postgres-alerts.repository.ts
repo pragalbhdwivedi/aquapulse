@@ -420,8 +420,11 @@ function createAlertHistoryId(
 
 function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
   const detailParts = [
-    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel})`,
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel}/${input.explanation.cache.generation})`,
     input.explanation.summary,
+    input.explanation.feedbackSummary?.latest
+      ? `Feedback: ${input.explanation.feedbackSummary.latest.value}`
+      : undefined,
     input.explanation.recommendedChecks[0]?.title
       ? `Next check: ${input.explanation.recommendedChecks[0].title}`
       : undefined,

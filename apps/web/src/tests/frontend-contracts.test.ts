@@ -28,11 +28,17 @@ describe("Frontend contract boundaries", () => {
     const repositories: AquaPulseRepositories = createRepositories(createMockApiClients());
     const ponds = await repositories.ponds.list({ page: 2, pageSize: 10, status: "active" });
     const explanation = await repositories.alerts.explain({ alertId: "alert-1" });
+    const feedback = await repositories.alerts.submitExplanationFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      explanation: explanation.data
+    });
     const alertDetail = await repositories.alerts.getById("alert-1");
     const alertSummary = await repositories.alerts.summary({ page: 1, pageSize: 20 });
 
     expect(ponds.data.items).toHaveLength(1);
     expect(explanation.data.explanation).toContain("Placeholder");
+    expect(feedback.data.value).toBe("useful");
     expect(alertDetail.data.id).toBe("alert-1");
     expect(alertSummary.data.totalAlerts).toBeGreaterThan(0);
 

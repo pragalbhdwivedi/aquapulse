@@ -337,7 +337,8 @@ describe("Alerts contracts", () => {
           status: "fresh",
           cachedAt: "2026-04-16T10:00:00.000Z",
           freshness: "fresh",
-          explanationVersion: "v1"
+          explanationVersion: "v1",
+          generation: "fresh_fallback"
         }
       }
     });

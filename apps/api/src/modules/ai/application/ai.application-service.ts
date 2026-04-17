@@ -5,6 +5,7 @@ import type {
   AiHandoverGenerateResponse,
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
+  AlertExplanationFeedbackRecord,
   AiResponseRecord,
   AiTextRewriteResponse,
   ApiSuccessEnvelope,
@@ -14,6 +15,7 @@ import type {
   CreateAiDto,
   DashboardQueryDto,
   DraftIncidentDto,
+  AlertExplanationFeedbackDto,
   ExplainAlertDto,
   GenerateHandoverDto,
   QueryAiDto,
@@ -65,8 +67,28 @@ export class AiApplicationService {
           status: "fresh",
           cachedAt: "2026-04-16T00:00:00.000Z",
           freshness: "fresh",
-          explanationVersion: "v1"
+          explanationVersion: "v1",
+          generation: "fresh_fallback"
         }
+      }
+    };
+  }
+  async submitAlertExplanationFeedback(
+    _input: AlertExplanationFeedbackDto
+  ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>> {
+    if (this.alertExplanationService) {
+      return { ok: true, data: await this.alertExplanationService.submitFeedback(_input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        alertId: _input.alertId,
+        value: _input.value,
+        note: _input.note?.trim() || undefined,
+        submittedAt: "2026-04-16T00:00:00.000Z",
+        generation: _input.explanation.cache.generation,
+        sourceMode: _input.explanation.metadata.mode
       }
     };
   }

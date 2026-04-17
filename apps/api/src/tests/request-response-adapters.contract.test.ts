@@ -58,7 +58,7 @@ describe("Endpoint request/response adapters", () => {
   it("adapts AI action requests and item responses through the same seam", () => {
     const request = adaptEndpointRequest(
       aquaPulseEndpointCatalog.ai.explainAlert,
-      { alertId: "alert-1", includeRecommendations: true },
+      { alertId: "alert-1", includeRecommendations: true, reuseCached: false },
       toExplainAlertInput
     );
     const response = adaptEndpointResponse(
@@ -84,7 +84,8 @@ describe("Endpoint request/response adapters", () => {
           status: "fresh",
           cachedAt: "2026-04-16T00:00:00.000Z",
           freshness: "fresh",
-          explanationVersion: "v1"
+          explanationVersion: "v1",
+          generation: "fresh_fallback"
         }
       },
       toAiAlertsExplainResponse
@@ -96,6 +97,7 @@ describe("Endpoint request/response adapters", () => {
     );
 
     expect(request.alertId).toBe("alert-1");
+    expect(request.reuseCached).toBe(false);
     expect(response.data.recommendations).toHaveLength(1);
     expect(pathParams.id).toBe("pond-1");
   });

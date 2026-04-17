@@ -62,6 +62,9 @@ export const endpointInvocationRegistry = {
     saveSavedView: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.saveSavedView),
     removeSavedView: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.removeSavedView),
     attachExplanation: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.attachExplanation),
+    submitExplanationFeedback: defineEndpointInvocationConfig(
+      aquaPulseEndpointCatalog.alerts.submitExplanationFeedback
+    ),
     update: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.update),
     acknowledge: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.acknowledge),
     bulkAcknowledge: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.bulkAcknowledge),
@@ -141,6 +144,7 @@ export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRe
     [registry.alerts.saveSavedView.endpointId]: registry.alerts.saveSavedView,
     [registry.alerts.removeSavedView.endpointId]: registry.alerts.removeSavedView,
     [registry.alerts.attachExplanation.endpointId]: registry.alerts.attachExplanation,
+    [registry.alerts.submitExplanationFeedback.endpointId]: registry.alerts.submitExplanationFeedback,
     [registry.alerts.update.endpointId]: registry.alerts.update,
     [registry.alerts.acknowledge.endpointId]: registry.alerts.acknowledge,
     [registry.alerts.bulkAcknowledge.endpointId]: registry.alerts.bulkAcknowledge,

@@ -4,6 +4,7 @@ import type {
   AiHandoverGenerateResponse,
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
+  AlertExplanationFeedbackRecord,
   AiResponseRecord,
   AiTextRewriteResponse,
   ApiSuccessEnvelope,
@@ -13,6 +14,7 @@ import type {
   CreateAiDto,
   DashboardQueryDto,
   DraftIncidentDto,
+  AlertExplanationFeedbackDto,
   ExplainAlertDto,
   GenerateHandoverDto,
   QueryAiDto,
@@ -41,6 +43,12 @@ export function toQueryAiInput(input: QueryAiDto): AiResponseLogQueryContract {
 }
 
 export function toExplainAlertInput(input: ExplainAlertDto): ExplainAlertDto {
+  return input;
+}
+
+export function toAlertExplanationFeedbackInput(
+  input: AlertExplanationFeedbackDto
+): AlertExplanationFeedbackDto {
   return input;
 }
 
@@ -75,6 +83,12 @@ export function toAiListResponse(list: ListResponse<AiResponseRecord>): ApiSucce
 export function toAiAlertsExplainResponse(
   item: AiAlertsExplainResponse
 ): ApiSuccessEnvelope<AiAlertsExplainResponse> {
+  return createItemResponse(item);
+}
+
+export function toAlertExplanationFeedbackResponse(
+  item: AlertExplanationFeedbackRecord
+): ApiSuccessEnvelope<AlertExplanationFeedbackRecord> {
   return createItemResponse(item);
 }
 

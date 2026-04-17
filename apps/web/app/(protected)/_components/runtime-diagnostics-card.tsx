@@ -66,7 +66,7 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime ? (
           <span>
-            AI cache: {backendProbe.runtime.aiExplanations.cacheEnabled ? "enabled" : "disabled"} / Manual attach: {backendProbe.runtime.aiExplanations.attachmentAvailable ? "available" : "unavailable"}
+            AI cache: {backendProbe.runtime.aiExplanations.cacheEnabled ? "enabled" : "disabled"} / Manual attach: {backendProbe.runtime.aiExplanations.attachmentAvailable ? "available" : "unavailable"} / Feedback: {backendProbe.runtime.aiExplanations.feedbackEnabled ? "enabled" : "disabled"}
           </span>
         ) : null}
         {backendProbe?.errorMessage ? (

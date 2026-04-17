@@ -7,8 +7,10 @@ import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
 import { delegateAction, delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AiApplicationService } from "./application/ai.application-service";
 import { AiService } from "./ai.service";
-import { CreateAiDto, DashboardQueryDto, DraftIncidentDto, ExplainAlertDto, GenerateHandoverDto, QueryAiDto, RewriteTextDto, SummarizePondDto, UpdateAiDto } from "./dto";
+import { AlertExplanationFeedbackDto, CreateAiDto, DashboardQueryDto, DraftIncidentDto, ExplainAlertDto, GenerateHandoverDto, QueryAiDto, RewriteTextDto, SummarizePondDto, UpdateAiDto } from "./dto";
 import {
+  toAlertExplanationFeedbackInput,
+  toAlertExplanationFeedbackResponse,
   toAiAlertsExplainResponse,
   toAiDashboardQueryResponse,
   toAiHandoverGenerateResponse,
@@ -95,6 +97,18 @@ export class AiController {
       toExplainAlertInput,
       (mappedInput) => this.aiApplicationService.explainAlert(mappedInput),
       toAiAlertsExplainResponse
+    );
+  }
+
+  @Post("alerts/explain/feedback")
+  async submitAlertExplanationFeedback(
+    @Body() input: AlertExplanationFeedbackDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.submitExplanationFeedback>> {
+    return delegateAction(
+      input,
+      toAlertExplanationFeedbackInput,
+      (mappedInput) => this.aiApplicationService.submitAlertExplanationFeedback(mappedInput),
+      toAlertExplanationFeedbackResponse
     );
   }
 

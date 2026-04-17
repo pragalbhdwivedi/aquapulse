@@ -25,6 +25,7 @@ export function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
     [endpointInvocationRegistry.alerts.saveSavedView.endpointId]: handlers.alerts.saveSavedView,
     [endpointInvocationRegistry.alerts.removeSavedView.endpointId]: handlers.alerts.removeSavedView,
     [endpointInvocationRegistry.alerts.attachExplanation.endpointId]: handlers.alerts.attachExplanation,
+    [endpointInvocationRegistry.alerts.submitExplanationFeedback.endpointId]: handlers.alerts.submitExplanationFeedback,
     [endpointInvocationRegistry.alerts.update.endpointId]: handlers.alerts.update,
     [endpointInvocationRegistry.alerts.acknowledge.endpointId]: handlers.alerts.acknowledge,
     [endpointInvocationRegistry.alerts.bulkAcknowledge.endpointId]: handlers.alerts.bulkAcknowledge,

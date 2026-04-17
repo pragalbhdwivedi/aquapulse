@@ -1,6 +1,10 @@
 import type { AiAlertsExplainRequest, AiAlertsExplainResponse } from "@aquapulse/types";
 
-export class ExplainAlertDto implements AiAlertsExplainRequest { alertId!: string; includeRecommendations?: boolean; }
+export class ExplainAlertDto implements AiAlertsExplainRequest {
+  alertId!: string;
+  includeRecommendations?: boolean;
+  reuseCached?: boolean;
+}
 export class ExplainAlertResponseDto implements AiAlertsExplainResponse {
   explanation!: string;
   recommendations!: string[];
@@ -12,4 +16,5 @@ export class ExplainAlertResponseDto implements AiAlertsExplainResponse {
   advisoryDisclaimer!: string;
   metadata!: AiAlertsExplainResponse["metadata"];
   cache!: AiAlertsExplainResponse["cache"];
+  feedbackSummary?: AiAlertsExplainResponse["feedbackSummary"];
 }

@@ -8,3 +8,4 @@ export * from "./generate-handover.dto";
 export * from "./rewrite-text.dto";
 export * from "./dashboard-query.dto";
 export * from "./draft-incident.dto";
+export * from "./alert-explanation-feedback.dto";

@@ -44,7 +44,8 @@ const explanation: AiAlertsExplainResponse = {
     status: "fresh",
     cachedAt: "2026-04-16T09:00:00.000Z",
     freshness: "fresh",
-    explanationVersion: "v1"
+    explanationVersion: "v1",
+    generation: "fresh_fallback"
   }
 };
 
@@ -145,9 +146,49 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       }
 
       if (url.includes("/api/ai/alerts/explain")) {
+        if (url.includes("/feedback")) {
+          return jsonResponse<ApiSuccessEnvelope<{
+            alertId: string;
+            value: "useful";
+            note?: string;
+            submittedAt: string;
+            sourceMode: "fallback";
+            generation: "fresh_fallback";
+          }>>({
+            ok: true,
+            data: {
+              alertId: body?.alertId ?? "alert-1",
+              value: "useful",
+              note: body?.note,
+              submittedAt: "2026-04-16T09:15:00.000Z",
+              sourceMode: "fallback",
+              generation: "fresh_fallback"
+            }
+          });
+        }
+
         return jsonResponse<ApiSuccessEnvelope<AiAlertsExplainResponse>>({
           ok: true,
-          data: explanation
+          data: {
+            ...explanation,
+            cache: {
+              ...explanation.cache,
+              generation: body?.reuseCached === false ? "fresh_fallback" : "cached_reuse",
+              status: body?.reuseCached === false ? "fresh" : "reused"
+            },
+            feedbackSummary: body?.reuseCached === false
+              ? undefined
+              : {
+                  latest: {
+                    alertId: "alert-1",
+                    value: "useful",
+                    note: "Helpful starting point",
+                    submittedAt: "2026-04-16T09:15:00.000Z",
+                    sourceMode: "fallback",
+                    generation: "fresh_fallback"
+                  }
+                }
+          }
         });
       }
 
@@ -200,7 +241,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       alertsMode: "http"
     });
 
-    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, explained, listedViews, savedViewResult, removedViews] =
+    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, explained, regenerated, listedViews, savedViewResult, removedViews] =
       await Promise.all([
         defaultRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
         httpRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
@@ -209,6 +250,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         httpRepositories.alerts.acknowledge("alert-1", { note: "HTTP operator note." }),
         httpRepositories.alerts.bulkResolve({ alertIds: ["alert-1"], note: "Bulk HTTP resolve." }),
         httpRepositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true }),
+        httpRepositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true, reuseCached: false }),
         httpRepositories.alerts.listSavedViews(),
         httpRepositories.alerts.saveSavedView({
           name: "Assigned queue",
@@ -217,6 +259,12 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         }),
         httpRepositories.alerts.removeSavedView("alert-view-1")
       ]);
+    const feedback = await httpRepositories.alerts.submitExplanationFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      note: "Helpful starting point",
+      explanation: regenerated.data
+    });
 
     expect(defaultList.data.items[0]?.id).toBe("alert-1");
     expect(httpList.data.items[0]?.id).toBe("alert-1");
@@ -225,6 +273,9 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(bulkResolved.data.updatedAlerts[0]?.status).toBe("resolved");
     expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
+    expect(explained.data.cache.generation).toBe("cached_reuse");
+    expect(regenerated.data.cache.generation).toBe("fresh_fallback");
+    expect(feedback.data.value).toBe("useful");
     expect(listedViews.data[0]?.name).toBe("Open queue");
     expect(savedViewResult.data.some((item) => item.name === "Assigned queue")).toBe(true);
     expect(removedViews.data).toHaveLength(0);

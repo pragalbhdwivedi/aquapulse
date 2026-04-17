@@ -5,6 +5,8 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -97,6 +99,9 @@ export interface AlertsRepository {
   bulkSetReviewState(input: AlertBulkReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   explain(input: AiAlertsExplainRequest): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>>;
   attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  submitExplanationFeedback(
+    input: AlertExplanationFeedbackRequest
+  ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>>;
 }
 
 export interface TasksRepository {
@@ -215,6 +220,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
         return clients.alerts.attachExplanation(id, input);
+      },
+      submitExplanationFeedback(input: AlertExplanationFeedbackRequest) {
+        return clients.alerts.submitExplanationFeedback(input);
       }
     },
     tasks: {

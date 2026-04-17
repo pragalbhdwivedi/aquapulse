@@ -116,6 +116,7 @@ describe("HTTP client factory foundation", () => {
     expect(Array.isArray(removed.data)).toBe(true);
     expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
     expect(explained.data.cache.status).toBe("fresh");
+    expect(explained.data.cache.generation).toBe("fresh_fallback");
   });
 
   it("supports explanation attachment through the HTTP client factory seam", async () => {
@@ -134,5 +135,40 @@ describe("HTTP client factory foundation", () => {
 
     expect(attached.data.actionHistory?.at(-1)?.action).toBe("ai_explanation_snapshot");
     expect(attached.data.latestNote).toContain("AI explanation snapshot");
+  });
+
+  it("supports explanation feedback and regeneration controls through the HTTP client factory seam", async () => {
+    const baseClients = createMockApiClients();
+    const executor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(baseClients));
+    const clients = createHttpClientFactory({
+      config: { mode: "http", enablePlaceholderHttp: true },
+      baseClients,
+      executor
+    });
+
+    const first = await clients.alerts.explain({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+    const reused = await clients.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+    const regenerated = await clients.alerts.explain({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+    const feedback = await clients.alerts.submitExplanationFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      note: "Helpful starting point",
+      explanation: regenerated.data
+    });
+    const afterFeedback = await clients.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+
+    expect(first.data.cache.generation).toBe("fresh_fallback");
+    expect(reused.data.cache.generation).toBe("cached_reuse");
+    expect(regenerated.data.cache.generation).toBe("fresh_fallback");
+    expect(feedback.data.value).toBe("useful");
+    expect(afterFeedback.data.feedbackSummary?.latest?.value).toBe("useful");
   });
 });

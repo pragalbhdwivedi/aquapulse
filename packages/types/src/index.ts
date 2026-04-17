@@ -351,6 +351,8 @@ export interface AiAlertsExplainRequest {
   readonly reuseCached?: boolean;
 }
 
+export type AlertExplanationFeedbackValue = "useful" | "not_useful" | "neutral";
+
 export type AlertExplanationCauseCategory =
   | "water_quality"
   | "feed"
@@ -386,6 +388,27 @@ export interface AlertExplanationCacheState {
   readonly cachedAt: ISODateString;
   readonly freshness: "fresh" | "stale";
   readonly explanationVersion: "v1";
+  readonly generation: "cached_reuse" | "fresh_fallback" | "fresh_openai_nano";
+}
+
+export interface AlertExplanationFeedbackRecord {
+  readonly alertId: EntityId;
+  readonly value: AlertExplanationFeedbackValue;
+  readonly note?: string;
+  readonly submittedAt: ISODateString;
+  readonly generation: AlertExplanationCacheState["generation"];
+  readonly sourceMode: AlertExplanationMetadata["mode"];
+}
+
+export interface AlertExplanationFeedbackSummary {
+  readonly latest?: AlertExplanationFeedbackRecord;
+}
+
+export interface AlertExplanationFeedbackRequest {
+  readonly alertId: EntityId;
+  readonly value: AlertExplanationFeedbackValue;
+  readonly note?: string;
+  readonly explanation: AiAlertsExplainResponse;
 }
 
 export interface AiAlertsExplainResponse {
@@ -399,6 +422,7 @@ export interface AiAlertsExplainResponse {
   readonly advisoryDisclaimer: string;
   readonly metadata: AlertExplanationMetadata;
   readonly cache: AlertExplanationCacheState;
+  readonly feedbackSummary?: AlertExplanationFeedbackSummary;
 }
 
 export interface AlertExplanationAttachmentRequest {
@@ -757,6 +781,15 @@ export const aquaPulseEndpointCatalog = {
       id: "ai.alerts.explain",
       method: "POST",
       path: "/api/ai/alerts/explain",
+      semantics: "action"
+    }),
+    submitExplanationFeedback: defineEndpoint<
+      AlertExplanationFeedbackRequest,
+      ApiSuccessEnvelope<AlertExplanationFeedbackRecord>
+    >({
+      id: "ai.alerts.submitExplanationFeedback",
+      method: "POST",
+      path: "/api/ai/alerts/explain/feedback",
       semantics: "action"
     })
   },
@@ -1244,6 +1277,7 @@ export interface BackendRuntimeDiagnostics {
     readonly modelLabel: string;
     readonly cacheEnabled: boolean;
     readonly attachmentAvailable: boolean;
+    readonly feedbackEnabled: boolean;
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: {

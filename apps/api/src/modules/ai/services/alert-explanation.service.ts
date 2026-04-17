@@ -2,6 +2,8 @@ import { Injectable } from "@nestjs/common";
 import type {
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertExplanationLikelyCause,
   AlertExplanationMetadata,
   AlertExplanationSuggestedStep,
@@ -160,7 +162,8 @@ function toFreshCachedResponse(response: AiAlertsExplainResponse): AiAlertsExpla
       status: "fresh",
       cachedAt: response.metadata.generatedAt,
       freshness: "fresh",
-      explanationVersion: "v1"
+      explanationVersion: "v1",
+      generation: response.metadata.mode === "openai_nano" ? "fresh_openai_nano" : "fresh_fallback"
     }
   };
 }
@@ -170,8 +173,23 @@ function toReusedCachedResponse(response: AiAlertsExplainResponse): AiAlertsExpl
     ...response,
     cache: {
       ...response.cache,
-      status: "reused"
+      status: "reused",
+      generation: "cached_reuse"
     }
+  };
+}
+
+function withFeedbackSummary(
+  response: AiAlertsExplainResponse,
+  feedback: AlertExplanationFeedbackRecord | undefined
+): AiAlertsExplainResponse {
+  return {
+    ...response,
+    feedbackSummary: feedback
+      ? {
+          latest: feedback
+        }
+      : undefined
   };
 }
 
@@ -206,7 +224,8 @@ function buildFallbackExplanation(
       status: "fresh",
       cachedAt: now,
       freshness: "fresh",
-      explanationVersion: "v1"
+      explanationVersion: "v1",
+      generation: "fresh_fallback"
     }
   };
 }
@@ -217,6 +236,7 @@ export class AlertExplanationService {
   private readonly openAiClient: OpenAiAlertExplanationClient;
   private readonly now: () => string;
   private readonly explanationCache = new Map<string, AiAlertsExplainResponse>();
+  private readonly feedbackStore = new Map<string, AlertExplanationFeedbackRecord>();
 
   constructor(
     private readonly alertsApplicationService: AlertsApplicationService
@@ -236,17 +256,34 @@ export class AlertExplanationService {
       modelLabel: this.config.modelLabel,
       cacheEnabled: true,
       attachmentAvailable: true,
+      feedbackEnabled: true,
       warnings: this.config.warnings
     };
+  }
+
+  async submitFeedback(
+    input: AlertExplanationFeedbackRequest
+  ): Promise<AlertExplanationFeedbackRecord> {
+    const record: AlertExplanationFeedbackRecord = {
+      alertId: input.alertId,
+      value: input.value,
+      note: input.note?.trim() || undefined,
+      submittedAt: this.now(),
+      generation: input.explanation.cache.generation,
+      sourceMode: input.explanation.metadata.mode
+    };
+    this.feedbackStore.set(input.alertId, record);
+    return record;
   }
 
   async explainAlert(input: AiAlertsExplainRequest): Promise<AiAlertsExplainResponse> {
     const cacheKey = buildCacheKey(input);
     const shouldReuseCached = input.reuseCached !== false;
     const cached = shouldReuseCached ? this.explanationCache.get(cacheKey) : undefined;
+    const latestFeedback = this.feedbackStore.get(input.alertId);
 
     if (cached) {
-      return toReusedCachedResponse(cached);
+      return withFeedbackSummary(toReusedCachedResponse(cached), latestFeedback);
     }
 
     const alert = (await this.alertsApplicationService.getById(input.alertId)).data;
@@ -263,7 +300,7 @@ export class AlertExplanationService {
         if (response) {
           const freshResponse = toFreshCachedResponse(response);
           this.explanationCache.set(cacheKey, freshResponse);
-          return freshResponse;
+          return withFeedbackSummary(freshResponse, latestFeedback);
         }
       } catch {
         // Intentionally fall back to the deterministic advisory path.
@@ -272,6 +309,6 @@ export class AlertExplanationService {
 
     const fallbackResponse = buildFallbackExplanation(alert, this.config, this.now(), includeRecommendations);
     this.explanationCache.set(cacheKey, fallbackResponse);
-    return fallbackResponse;
+    return withFeedbackSummary(fallbackResponse, latestFeedback);
   }
 }

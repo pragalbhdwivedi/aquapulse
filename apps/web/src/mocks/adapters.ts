@@ -12,6 +12,8 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -73,6 +75,9 @@ import {
   mockWaterQuality
 } from "./data";
 
+const alertExplanationResponseCache = new Map<string, Awaited<ReturnType<AlertsApiClient["explain"]>>["data"]>();
+const alertExplanationFeedbackStore = new Map<string, AlertExplanationFeedbackRecord>();
+
 function matchesSearch(value: string | undefined, search: string | undefined): boolean {
   return search ? (value ?? "").toLowerCase().includes(search.toLowerCase()) : true;
 }
@@ -123,8 +128,11 @@ function upsertMockOperationalAlert(decision: OperationalAlertDecision) {
 
 function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
   const detailParts = [
-    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel})`,
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel}/${input.explanation.cache.generation})`,
     input.explanation.summary,
+    input.explanation.feedbackSummary?.latest
+      ? `Feedback: ${input.explanation.feedbackSummary.latest.value}`
+      : undefined,
     input.explanation.recommendedChecks[0]?.title
       ? `Next check: ${input.explanation.recommendedChecks[0].title}`
       : undefined,
@@ -135,6 +143,71 @@ function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest)
   ].filter(Boolean);
 
   return detailParts.join(" | ");
+}
+
+function buildExplanationCacheKey(input: AiAlertsExplainRequest): string {
+  return [input.alertId, input.includeRecommendations === false ? "without-recommendations" : "with-recommendations"].join(":");
+}
+
+function buildMockExplanation(
+  input: AiAlertsExplainRequest,
+  generation: "cached_reuse" | "fresh_fallback"
+): Awaited<ReturnType<AlertsApiClient["explain"]>>["data"] {
+  const generatedAt = "2026-04-16T12:00:00.000Z";
+  const latestFeedback = alertExplanationFeedbackStore.get(input.alertId);
+
+  return {
+    summary: `Alert ${input.alertId} likely reflects an operational condition that still needs a manual check.`,
+    explanation:
+      "Placeholder explanation for the current alert. Review the latest note, confirm the condition is still present, and treat this as advisory guidance only.",
+    recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
+    likelyCauses: [
+      {
+        category: "water_quality",
+        label: "Water-quality threshold or missing reading",
+        rationale: "This placeholder explanation assumes the alert originated from a water-quality workflow.",
+        likelihood: "medium"
+      }
+    ],
+    recommendedChecks: [
+      {
+        title: "Repeat the reading",
+        detail: "Confirm the underlying condition before making any queue-state decision.",
+        priority: "immediate"
+      }
+    ],
+    suggestedActions: [
+      {
+        title: "Document the recheck outcome",
+        detail: "Use the review note flow to record what was verified.",
+        priority: "next_round"
+      }
+    ],
+    confidenceNote:
+      "Confidence is limited because this placeholder explanation only uses alert-level context.",
+    advisoryDisclaimer:
+      "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
+    metadata: {
+      mode: "fallback",
+      advisoryOnly: true,
+      generatedAt,
+      modelLabel: "gpt-5-nano",
+      sourceLabel: "frontend_mock_fallback",
+      usedLiveOpenAi: false
+    },
+    cache: {
+      status: generation === "cached_reuse" ? "reused" : "fresh",
+      cachedAt: generatedAt,
+      freshness: "fresh",
+      explanationVersion: "v1",
+      generation
+    },
+    feedbackSummary: latestFeedback
+      ? {
+          latest: latestFeedback
+        }
+      : undefined
+  };
 }
 
 export const pondsMockAdapter: PondsApiClient = {
@@ -398,53 +471,40 @@ export const alertsMockAdapter: AlertsApiClient = {
     });
   },
   async explain(input: AiAlertsExplainRequest) {
-    const generatedAt = "2026-04-16T12:00:00.000Z";
-    return ok({
-      summary: `Alert ${input.alertId} likely reflects an operational condition that still needs a manual check.`,
-      explanation:
-        "Placeholder explanation for the current alert. Review the latest note, confirm the condition is still present, and treat this as advisory guidance only.",
-      recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
-      likelyCauses: [
-        {
-          category: "water_quality",
-          label: "Water-quality threshold or missing reading",
-          rationale: "This placeholder explanation assumes the alert originated from a water-quality workflow.",
-          likelihood: "medium"
-        }
-      ],
-      recommendedChecks: [
-        {
-          title: "Repeat the reading",
-          detail: "Confirm the underlying condition before making any queue-state decision.",
-          priority: "immediate"
-        }
-      ],
-      suggestedActions: [
-        {
-          title: "Document the recheck outcome",
-          detail: "Use the review note flow to record what was verified.",
-          priority: "next_round"
-        }
-      ],
-      confidenceNote:
-        "Confidence is limited because this placeholder explanation only uses alert-level context.",
-      advisoryDisclaimer:
-        "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
-      metadata: {
-        mode: "fallback",
-        advisoryOnly: true,
-        generatedAt,
-        modelLabel: "gpt-5-nano",
-        sourceLabel: "frontend_mock_fallback",
-        usedLiveOpenAi: false
-      },
-      cache: {
-        status: "fresh",
-        cachedAt: generatedAt,
-        freshness: "fresh",
-        explanationVersion: "v1"
-      }
-    });
+    const cacheKey = buildExplanationCacheKey(input);
+    const cached = alertExplanationResponseCache.get(cacheKey);
+
+    if (cached && input.reuseCached !== false) {
+      return ok({
+        ...cached,
+        cache: {
+          ...cached.cache,
+          status: "reused",
+          generation: "cached_reuse"
+        },
+        feedbackSummary: alertExplanationFeedbackStore.get(input.alertId)
+          ? {
+              latest: alertExplanationFeedbackStore.get(input.alertId)!
+            }
+          : cached.feedbackSummary
+      });
+    }
+
+    const next = buildMockExplanation(input, "fresh_fallback");
+    alertExplanationResponseCache.set(cacheKey, next);
+    return ok(next);
+  },
+  async submitExplanationFeedback(input: AlertExplanationFeedbackRequest) {
+    const feedback: AlertExplanationFeedbackRecord = {
+      alertId: input.alertId,
+      value: input.value,
+      note: input.note?.trim() || undefined,
+      submittedAt: "2026-04-17T09:30:00.000Z",
+      sourceMode: input.explanation.metadata.mode,
+      generation: input.explanation.cache.generation
+    };
+    alertExplanationFeedbackStore.set(input.alertId, feedback);
+    return ok(feedback);
   },
   async attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
     const existing = mockAlerts.find((item) => item.id === id) ?? mockAlerts[0];

@@ -5,6 +5,8 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -155,6 +157,7 @@ export interface AquaPulseEndpointHandlers {
     saveSavedView: EndpointHandler<EndpointCatalog["alerts"]["saveSavedView"]>;
     removeSavedView: EndpointHandler<EndpointCatalog["alerts"]["removeSavedView"]>;
     attachExplanation: EndpointHandler<EndpointCatalog["alerts"]["attachExplanation"]>;
+    submitExplanationFeedback: EndpointHandler<EndpointCatalog["alerts"]["submitExplanationFeedback"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
     bulkAcknowledge: EndpointHandler<EndpointCatalog["alerts"]["bulkAcknowledge"]>;
@@ -332,6 +335,24 @@ export function createEndpointHandlersFromClients(
                 ).attachExplanation(request.id, request.body)
             )
           : createMutationFromDetailHandler(clients.alerts),
+      submitExplanationFeedback:
+        "submitExplanationFeedback" in clients.alerts
+          ? createDirectHandler((request: AlertExplanationFeedbackRequest) =>
+              (
+                clients.alerts as typeof clients.alerts & {
+                  submitExplanationFeedback: (
+                    input: AlertExplanationFeedbackRequest
+                  ) => Promise<{ ok: true; data: AlertExplanationFeedbackRecord }>;
+                }
+              ).submitExplanationFeedback(request)
+            )
+          : createMutationFromValue({
+              alertId: "alert-1",
+              value: "neutral",
+              submittedAt: "2026-04-16T00:00:00.000Z",
+              generation: "fresh_fallback",
+              sourceMode: "fallback"
+            }),
       update: createMutationFromDetailHandler(clients.alerts),
       acknowledge:
         "acknowledge" in clients.alerts
@@ -520,6 +541,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       saveSavedView: (input) => handlers.alerts.saveSavedView(input),
       removeSavedView: (id) => handlers.alerts.removeSavedView({ id }),
       attachExplanation: (id, input) => handlers.alerts.attachExplanation({ id, body: input }),
+      submitExplanationFeedback: (input) => handlers.alerts.submitExplanationFeedback(input),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       bulkAcknowledge: (input) => handlers.alerts.bulkAcknowledge(input),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),

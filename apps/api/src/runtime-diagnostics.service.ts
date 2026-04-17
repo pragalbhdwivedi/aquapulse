@@ -106,6 +106,7 @@ export class RuntimeDiagnosticsService {
         modelLabel: alertExplanationRuntime.modelLabel,
         cacheEnabled: true,
         attachmentAvailable: true,
+        feedbackEnabled: true,
         warnings: alertExplanationRuntime.warnings
       },
       alerts: {

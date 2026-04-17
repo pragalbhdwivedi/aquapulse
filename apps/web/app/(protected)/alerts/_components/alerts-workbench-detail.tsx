@@ -2,6 +2,7 @@
 
 import type {
   AiAlertsExplainResponse,
+  AlertExplanationFeedbackValue,
   AlertReviewState,
   AlertSummary
 } from "@aquapulse/types";
@@ -18,11 +19,16 @@ interface AlertsWorkbenchDetailProps {
   readonly explanationError?: string;
   readonly isExplaining: boolean;
   readonly isAttachingExplanation: boolean;
+  readonly feedbackNote: string;
+  readonly isSubmittingFeedback: boolean;
   readonly onNoteChange: (value: string) => void;
   readonly onOwnerChange: (value: string) => void;
   readonly onReviewLabelChange: (value: string) => void;
   readonly onReviewStateChange: (value: AlertReviewState) => void;
   readonly onExplain: () => void;
+  readonly onRegenerate: () => void;
+  readonly onFeedbackNoteChange: (value: string) => void;
+  readonly onSubmitFeedback: (value: AlertExplanationFeedbackValue) => void;
   readonly onAttachExplanation: () => void;
   readonly onAssign: () => void;
   readonly onUnassign: () => void;
@@ -50,11 +56,16 @@ export function AlertsWorkbenchDetail({
   explanationError,
   isExplaining,
   isAttachingExplanation,
+  feedbackNote,
+  isSubmittingFeedback,
   onNoteChange,
   onOwnerChange,
   onReviewLabelChange,
   onReviewStateChange,
   onExplain,
+  onRegenerate,
+  onFeedbackNoteChange,
+  onSubmitFeedback,
   onAttachExplanation,
   onAssign,
   onUnassign,
@@ -92,6 +103,9 @@ export function AlertsWorkbenchDetail({
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
         <button type="button" disabled={isExplaining} onClick={onExplain} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isExplaining ? "Explaining..." : "Explain alert"}
+        </button>
+        <button type="button" disabled={isExplaining} onClick={onRegenerate} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+          {isExplaining ? "Regenerating..." : "Regenerate explanation"}
         </button>
         <button
           type="button"
@@ -151,10 +165,51 @@ export function AlertsWorkbenchDetail({
             Mode: {explanation.metadata.mode} / Model: {explanation.metadata.modelLabel}
           </div>
           <div style={{ color: "#94a3b8" }}>
-            Explanation source: {explanation.cache.status === "reused" ? "cached reuse" : "fresh generation"} / Cached at: {explanation.cache.cachedAt}
+            Explanation source: {explanation.cache.generation} / Cached at: {explanation.cache.cachedAt}
           </div>
+          {explanation.feedbackSummary?.latest ? (
+            <div style={{ color: "#94a3b8" }}>
+              Latest feedback: {explanation.feedbackSummary.latest.value}
+              {explanation.feedbackSummary.latest.note ? ` - ${explanation.feedbackSummary.latest.note}` : ""}
+            </div>
+          ) : null}
           <div style={{ color: "#fbbf24" }}>{explanation.advisoryDisclaimer}</div>
           <div style={{ color: "#94a3b8" }}>{explanation.confidenceNote}</div>
+          <label style={{ display: "grid", gap: "0.35rem" }}>
+            <span>Explanation feedback note</span>
+            <input
+              value={feedbackNote}
+              onChange={(event) => onFeedbackNoteChange(event.target.value)}
+              placeholder="Optional note about whether this explanation helped"
+              style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            />
+          </label>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              disabled={isSubmittingFeedback}
+              onClick={() => onSubmitFeedback("useful")}
+              style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              {isSubmittingFeedback ? "Saving..." : "Mark useful"}
+            </button>
+            <button
+              type="button"
+              disabled={isSubmittingFeedback}
+              onClick={() => onSubmitFeedback("not_useful")}
+              style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              {isSubmittingFeedback ? "Saving..." : "Mark not useful"}
+            </button>
+            <button
+              type="button"
+              disabled={isSubmittingFeedback}
+              onClick={() => onSubmitFeedback("neutral")}
+              style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
+            >
+              {isSubmittingFeedback ? "Saving..." : "Mark neutral"}
+            </button>
+          </div>
           {explanation.likelyCauses.length ? (
             <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
               {explanation.likelyCauses.map((cause) => (

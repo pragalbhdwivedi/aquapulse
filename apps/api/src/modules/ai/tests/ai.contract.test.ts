@@ -7,6 +7,7 @@ import type {
   AiPromptTemplateRecord,
   AiRequestRecord,
   AiResponseRecord,
+  AlertExplanationFeedbackRecord,
   ApiSuccessEnvelope,
   ListResponse
 } from "@aquapulse/types";
@@ -43,7 +44,8 @@ const explainResponse: AiAlertsExplainResponse = {
     status: "fresh",
     cachedAt: "2026-04-16T00:00:00.000Z",
     freshness: "fresh",
-    explanationVersion: "v1"
+    explanationVersion: "v1",
+    generation: "fresh_fallback"
   }
 };
 
@@ -141,19 +143,36 @@ describe("AI contracts", () => {
 
   it("controller keeps AI action routes inside the standard success envelope", async () => {
     const placeholderService = { getPlaceholder: vi.fn().mockResolvedValue({ ok: true }) };
+    const feedbackRecord: AlertExplanationFeedbackRecord = {
+      alertId: "alert-1",
+      value: "useful",
+      note: "Helpful",
+      submittedAt: "2026-04-16T00:10:00.000Z",
+      sourceMode: "fallback",
+      generation: "fresh_fallback"
+    };
     const appService = {
       create: vi.fn(),
       update: vi.fn(),
       list: vi.fn(),
       getById: vi.fn(),
-      explainAlert: vi.fn().mockResolvedValue({ ok: true, data: explainResponse })
+      explainAlert: vi.fn().mockResolvedValue({ ok: true, data: explainResponse }),
+      submitAlertExplanationFeedback: vi.fn().mockResolvedValue({ ok: true, data: feedbackRecord })
     };
 
     const controller = new AiController(placeholderService as never, appService as never);
-    const response = await controller.explainAlert(new ExplainAlertDto());
+    const [response, feedback] = await Promise.all([
+      controller.explainAlert(new ExplainAlertDto()),
+      controller.submitAlertExplanationFeedback({
+        alertId: "alert-1",
+        value: "useful",
+        explanation: explainResponse
+      } as never)
+    ]);
 
     expect(response.ok).toBe(true);
     expect(response.data.explanation).toContain("Placeholder");
+    expect(feedback.data.value).toBe("useful");
   });
 
   it("mapper outputs align with shared AI response contracts", () => {

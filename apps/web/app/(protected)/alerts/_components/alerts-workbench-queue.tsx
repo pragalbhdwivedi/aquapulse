@@ -2,6 +2,7 @@
 
 import type {
   AiAlertsExplainResponse,
+  AlertExplanationFeedbackValue,
   AlertReviewState,
   AlertSummary
 } from "@aquapulse/types";
@@ -21,13 +22,17 @@ interface AlertsWorkbenchQueueProps {
   readonly explanationErrors: Record<string, string | undefined>;
   readonly explainingAlertId: string | null;
   readonly attachingExplanationAlertId: string | null;
+  readonly feedbackNotes: Record<string, string>;
+  readonly submittingFeedbackAlertId: string | null;
   readonly onToggleSelection: (alertId: string) => void;
   readonly onToggleDetail: (alertId: string) => void;
   readonly onNoteChange: (alertId: string, value: string) => void;
   readonly onOwnerChange: (alertId: string, value: string) => void;
   readonly onReviewLabelChange: (alertId: string, value: string) => void;
   readonly onReviewStateChange: (alertId: string, value: AlertReviewState) => void;
-  readonly onExplain: (alertId: string) => void;
+  readonly onExplain: (alertId: string, options?: { readonly reuseCached?: boolean }) => void;
+  readonly onFeedbackNoteChange: (alertId: string, value: string) => void;
+  readonly onSubmitFeedback: (alertId: string, value: AlertExplanationFeedbackValue) => void;
   readonly onAttachExplanation: (alertId: string) => void;
   readonly onAssign: (alertId: string) => void;
   readonly onUnassign: (alertId: string) => void;
@@ -51,6 +56,8 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     explanationErrors,
     explainingAlertId,
     attachingExplanationAlertId,
+    feedbackNotes,
+    submittingFeedbackAlertId,
     onToggleSelection,
     onToggleDetail,
     onNoteChange,
@@ -58,6 +65,8 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     onReviewLabelChange,
     onReviewStateChange,
     onExplain,
+    onFeedbackNoteChange,
+    onSubmitFeedback,
     onAttachExplanation,
     onAssign,
     onUnassign,
@@ -116,11 +125,16 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
                 explanationError={explanationErrors[alert.id]}
                 isExplaining={explainingAlertId === alert.id}
                 isAttachingExplanation={attachingExplanationAlertId === alert.id}
+                feedbackNote={feedbackNotes[alert.id] ?? ""}
+                isSubmittingFeedback={submittingFeedbackAlertId === alert.id}
                 onNoteChange={(value) => onNoteChange(alert.id, value)}
                 onOwnerChange={(value) => onOwnerChange(alert.id, value)}
                 onReviewLabelChange={(value) => onReviewLabelChange(alert.id, value)}
                 onReviewStateChange={(value) => onReviewStateChange(alert.id, value)}
                 onExplain={() => onExplain(alert.id)}
+                onRegenerate={() => onExplain(alert.id, { reuseCached: false })}
+                onFeedbackNoteChange={(value) => onFeedbackNoteChange(alert.id, value)}
+                onSubmitFeedback={(value) => onSubmitFeedback(alert.id, value)}
                 onAttachExplanation={() => onAttachExplanation(alert.id)}
                 onAssign={() => onAssign(alert.id)}
                 onUnassign={() => onUnassign(alert.id)}
