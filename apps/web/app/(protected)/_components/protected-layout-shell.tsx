@@ -4,10 +4,12 @@ import { protectedNavigation } from "./navigation";
 
 export function ProtectedLayoutShell({
   children,
-  authLabel
+  authLabel,
+  sessionLabel
 }: {
   children: ReactNode;
   authLabel?: string;
+  sessionLabel?: string;
 }) {
   return (
     <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "240px 1fr" }}>
@@ -15,6 +17,9 @@ export function ProtectedLayoutShell({
         <h2>AquaPulse</h2>
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
           Auth: {authLabel ?? "disabled"}
+        </p>
+        <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
+          Session: {sessionLabel ?? "bypassed"}
         </p>
         <ul style={{ listStyle: "none", padding: 0 }}>
           {protectedNavigation.map((item) => (

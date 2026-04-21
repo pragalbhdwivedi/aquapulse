@@ -5,6 +5,7 @@ import {
   type AiAlertsExplainResponse,
   type AlertExplanationFeedbackValue,
   type FrontendAuthRuntimeDiagnostics,
+  type FrontendSessionBootstrapStatus,
   alertQueuePresetDefinitions,
   type AlertQueuePresetId,
   type AlertQueueSummary,
@@ -52,6 +53,7 @@ interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
   readonly initialSummary: AlertQueueSummary;
   readonly authDiagnostics: FrontendAuthRuntimeDiagnostics;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
 type AlertQueueSubmissionResult =
@@ -65,7 +67,8 @@ const reviewStateOptions: AlertReviewState[] = ["unreviewed", "under_review", "r
 export function AlertsActionList({
   initialAlerts,
   initialSummary,
-  authDiagnostics
+  authDiagnostics,
+  session
 }: AlertsActionListProps) {
   const runtimeConfig = useMemo(
     () =>
@@ -471,6 +474,7 @@ export function AlertsActionList({
             <span>Target: {runtimeIndicator.targetLabel}</span>
             <span>Live updates: {liveUpdatesState}</span>
             <span>Auth mode: {authDiagnostics.effectiveMode}</span>
+            <span>Session: {session.bootstrapState}</span>
             <span>Auth forwarding: {authDiagnostics.forwardingMode}</span>
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
@@ -481,6 +485,11 @@ export function AlertsActionList({
             Protected operator slice: {authDiagnostics.protectedOperatorSliceLabel}. Enforced:{" "}
             {authDiagnostics.protectedOperatorSliceEnforced ? "yes" : "no"}. Forwarded auth present:{" "}
             {authDiagnostics.forwardedAuthPresent ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Session bootstrap enabled: {session.bootstrapEnabled ? "yes" : "no"}. UI state:{" "}
+            {session.protectedOperatorUiState}. Secondary guarded slice:{" "}
+            {session.secondaryGuardedSliceLabel ?? "none"}.
           </span>
           {lastLiveEventAt ? (
             <span style={{ color: "#94a3b8" }}>Last live event: {lastLiveEventAt}</span>
@@ -568,6 +577,7 @@ export function AlertsActionList({
         attachingExplanationAlertId={attachingExplanationAlertId}
         feedbackNotes={feedbackNotes}
         submittingFeedbackAlertId={submittingFeedbackAlertId}
+        session={session}
         onToggleSelection={(alertId) => setSelectedAlertIds((current) => current.includes(alertId) ? current.filter((item) => item !== alertId) : [...current, alertId])}
         onToggleDetail={(alertId) => setDetailAlertId((current) => current === alertId ? null : alertId)}
         onNoteChange={(alertId, value) => setNotes((current) => ({ ...current, [alertId]: value }))}

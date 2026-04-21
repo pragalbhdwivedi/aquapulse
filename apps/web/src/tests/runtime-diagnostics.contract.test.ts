@@ -22,6 +22,9 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
+    expect(diagnostics.session.bootstrapState).toBe("bypassed");
+    expect(diagnostics.session.sessionPresent).toBe(true);
+    expect(diagnostics.session.protectedOperatorUiState).toBe("bypassed");
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -42,6 +45,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.keycloakConfigured).toBe(false);
     expect(diagnostics.auth.verificationState).toBe("disabled");
     expect(diagnostics.auth.forwardingActive).toBe(false);
+    expect(diagnostics.session.bootstrapState).toBe("degraded");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
     );
@@ -61,6 +65,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
+    expect(diagnostics.session.bootstrapState).toBe("active");
+    expect(diagnostics.session.protectedOperatorUiState).toBe("enabled");
   });
 
   it("represents alerts-only HTTP proxy mode and bridge assumptions consistently", () => {

@@ -3,9 +3,11 @@
 import type {
   AiAlertsExplainResponse,
   AlertExplanationFeedbackValue,
+  FrontendSessionBootstrapStatus,
   AlertReviewState,
   AlertSummary
 } from "@aquapulse/types";
+import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 
 interface AlertsWorkbenchDetailProps {
   readonly alert: AlertSummary;
@@ -21,6 +23,7 @@ interface AlertsWorkbenchDetailProps {
   readonly isAttachingExplanation: boolean;
   readonly feedbackNote: string;
   readonly isSubmittingFeedback: boolean;
+  readonly session: FrontendSessionBootstrapStatus;
   readonly onNoteChange: (value: string) => void;
   readonly onOwnerChange: (value: string) => void;
   readonly onReviewLabelChange: (value: string) => void;
@@ -58,6 +61,7 @@ export function AlertsWorkbenchDetail({
   isAttachingExplanation,
   feedbackNote,
   isSubmittingFeedback,
+  session,
   onNoteChange,
   onOwnerChange,
   onReviewLabelChange,
@@ -73,6 +77,12 @@ export function AlertsWorkbenchDetail({
   onAcknowledge,
   onResolve
 }: AlertsWorkbenchDetailProps) {
+  const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
+  const triageGuard = deriveProtectedOperatorUiGuard(session, {
+    sliceLabel: session.secondaryGuardedSliceLabel,
+    enforcedByBackend: false
+  });
+
   return (
     <div style={{ display: "grid", gap: "0.5rem" }}>
       <div>Status: {alert.status}</div>
@@ -115,10 +125,10 @@ export function AlertsWorkbenchDetail({
         >
           {isAttachingExplanation ? "Attaching..." : "Attach explanation to history"}
         </button>
-        <button type="button" disabled={isSubmitting} onClick={onAssign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+        <button type="button" disabled={isSubmitting || !triageGuard.enabled} onClick={onAssign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Assign"}
         </button>
-        <button type="button" disabled={isSubmitting || !alert.assignedTo} onClick={onUnassign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+        <button type="button" disabled={isSubmitting || !alert.assignedTo || !triageGuard.enabled} onClick={onUnassign} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Unassign"}
         </button>
       </div>
@@ -146,16 +156,21 @@ export function AlertsWorkbenchDetail({
         />
       </label>
       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-        <button type="button" disabled={isSubmitting} onClick={onApplyReviewState} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+        <button type="button" disabled={isSubmitting || !triageGuard.enabled} onClick={onApplyReviewState} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Apply review state"}
         </button>
-        <button type="button" disabled={isSubmitting || alert.status !== "open"} onClick={onAcknowledge} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+        <button type="button" disabled={isSubmitting || alert.status !== "open" || !lifecycleGuard.enabled} onClick={onAcknowledge} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Acknowledge"}
         </button>
-        <button type="button" disabled={isSubmitting || alert.status === "resolved"} onClick={onResolve} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
+        <button type="button" disabled={isSubmitting || alert.status === "resolved" || !lifecycleGuard.enabled} onClick={onResolve} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
           {isSubmitting && activeAlertId === alert.id ? "Working..." : "Resolve"}
         </button>
       </div>
+      {!lifecycleGuard.enabled || !triageGuard.enabled ? (
+        <p style={{ margin: 0, color: "#fbbf24" }}>
+          {!lifecycleGuard.enabled ? lifecycleGuard.message : triageGuard.message}
+        </p>
+      ) : null}
       {explanation ? (
         <div style={{ display: "grid", gap: "0.35rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>AI advisory explanation</strong>

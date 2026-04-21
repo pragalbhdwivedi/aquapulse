@@ -37,6 +37,7 @@ export function RuntimeDiagnosticsCard({
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Auth runtime: {diagnostics.auth.effectiveMode}</span>
+        <span>Session bootstrap: {diagnostics.session.bootstrapState}</span>
         <span>Auth verification: {diagnostics.auth.verificationState}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
         <span>Feed runtime: {diagnostics.feed.effectiveMode}</span>
@@ -58,6 +59,14 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.bypassActive ? "yes" : "no"}
         </span>
         <span>
+          Session present: {diagnostics.session.sessionPresent ? "yes" : "no"} / Forwarded auth:{" "}
+          {diagnostics.session.forwardedAuthPresent ? "yes" : "no"}
+        </span>
+        <span>
+          Session bootstrap enabled: {diagnostics.session.bootstrapEnabled ? "yes" : "no"} / UI state:{" "}
+          {diagnostics.session.protectedOperatorUiState}
+        </span>
+        <span>
           Auth provider target: {diagnostics.auth.issuerLabel}
           {diagnostics.auth.realm ? ` / realm ${diagnostics.auth.realm}` : ""}
           {diagnostics.auth.clientId ? ` / client ${diagnostics.auth.clientId}` : ""}
@@ -70,6 +79,10 @@ export function RuntimeDiagnosticsCard({
         <span>
           Protected operator slice: {diagnostics.auth.protectedOperatorSliceLabel} / Enforced:{" "}
           {diagnostics.auth.protectedOperatorSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
+          Secondary guarded slice: {diagnostics.session.secondaryGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.session.secondaryGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
           Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}

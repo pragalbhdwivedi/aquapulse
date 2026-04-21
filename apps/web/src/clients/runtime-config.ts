@@ -3,6 +3,7 @@ import type {
   AlertsLiveUpdatesRuntimeDiagnostics,
   AquaPulseAuthMode,
   FrontendAuthRuntimeDiagnostics,
+  FrontendSessionBootstrapStatus,
   FeedRuntimeDiagnostics,
   FrontendRuntimeDiagnostics,
   TasksRuntimeDiagnostics,
@@ -11,6 +12,7 @@ import type {
   RuntimeModeSummary,
   RuntimeWarning
 } from "@aquapulse/types";
+import { deriveFrontendSessionBootstrap } from "../features/auth-session";
 
 export type AquaPulseClientRuntimeMode = "mock" | "http";
 export type AquaPulseScopedRuntimeMode = AquaPulseClientRuntimeMode | "inherit";
@@ -787,6 +789,7 @@ export function getFrontendRuntimeDiagnostics(
   }
 ): FrontendRuntimeDiagnostics {
   const auth = getAuthRuntimeDiagnostics(config, authForwarding);
+  const session: FrontendSessionBootstrapStatus = deriveFrontendSessionBootstrap(auth);
   const alerts = getAlertsRuntimeDiagnostics(config);
   const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
   const feed = getFeedRuntimeDiagnostics(config);
@@ -854,6 +857,7 @@ export function getFrontendRuntimeDiagnostics(
     service: "web",
     mode,
     auth,
+    session,
     alerts,
     alertsLiveUpdates,
     feed,

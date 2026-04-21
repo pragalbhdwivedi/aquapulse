@@ -59,11 +59,14 @@ x-aquapulse-dev-permissions
 
 - Open the runtime diagnostics page.
 - Check `Auth runtime` on the web diagnostics card.
+- Check `Session bootstrap` on the runtime diagnostics card or protected layout shell.
 - If backend probes are enabled, compare frontend auth mode with backend auth mode and validation strategy.
 - The protected layout sidebar also shows the current effective frontend auth label.
 - The first bounded protected slice is `GET /diagnostics/runtime`.
 - The first protected operator action slice is `alerts lifecycle actions`:
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
+- The alerts workbench now reflects bounded operator guarding in the UI:
+  lifecycle actions are disabled when Keycloak mode is active but no forwarded auth session is available, and adjacent triage controls follow the same bounded UI guard for clarity.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
 
 ## Web-to-API token forwarding
@@ -85,6 +88,7 @@ AQUAPULSE_WEB_AUTH_TOKEN_COOKIE_NAME=aquapulse_auth_token
 ```
 
 If Keycloak mode is active but no forwardable token is available, the runtime diagnostics surface will show auth forwarding as unavailable and the protected operator slice will reject backend requests in Keycloak mode.
+The frontend session/bootstrap seam will also report the session as `unavailable`, and guarded operator controls on the alerts page will stay disabled with a readable warning instead of failing silently.
 
 ## Intentionally deferred in this branch
 

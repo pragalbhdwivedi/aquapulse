@@ -15,6 +15,7 @@ export default async function AlertsPage() {
         initialAlerts={alertsPage.alerts.items}
         initialSummary={alertsPage.summary}
         authDiagnostics={diagnostics.auth}
+        session={diagnostics.session}
       />
     </PageShell>
   );

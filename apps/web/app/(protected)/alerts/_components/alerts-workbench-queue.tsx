@@ -3,6 +3,7 @@
 import type {
   AiAlertsExplainResponse,
   AlertExplanationFeedbackValue,
+  FrontendSessionBootstrapStatus,
   AlertReviewState,
   AlertSummary
 } from "@aquapulse/types";
@@ -24,6 +25,7 @@ interface AlertsWorkbenchQueueProps {
   readonly attachingExplanationAlertId: string | null;
   readonly feedbackNotes: Record<string, string>;
   readonly submittingFeedbackAlertId: string | null;
+  readonly session: FrontendSessionBootstrapStatus;
   readonly onToggleSelection: (alertId: string) => void;
   readonly onToggleDetail: (alertId: string) => void;
   readonly onNoteChange: (alertId: string, value: string) => void;
@@ -58,6 +60,7 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
     attachingExplanationAlertId,
     feedbackNotes,
     submittingFeedbackAlertId,
+    session,
     onToggleSelection,
     onToggleDetail,
     onNoteChange,
@@ -127,6 +130,7 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
                 isAttachingExplanation={attachingExplanationAlertId === alert.id}
                 feedbackNote={feedbackNotes[alert.id] ?? ""}
                 isSubmittingFeedback={submittingFeedbackAlertId === alert.id}
+                session={session}
                 onNoteChange={(value) => onNoteChange(alert.id, value)}
                 onOwnerChange={(value) => onOwnerChange(alert.id, value)}
                 onReviewLabelChange={(value) => onReviewLabelChange(alert.id, value)}

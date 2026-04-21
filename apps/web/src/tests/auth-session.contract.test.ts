@@ -1,0 +1,77 @@
+import { describe, expect, it } from "vitest";
+import { deriveFrontendSessionBootstrap, deriveProtectedOperatorUiGuard } from "../features/auth-session";
+import { getAuthRuntimeDiagnostics, parseClientRuntimeConfig } from "../clients/runtime-config";
+
+describe("Frontend auth session bootstrap", () => {
+  it("keeps session bootstrap on the safe bypass path when auth is disabled", () => {
+    const auth = getAuthRuntimeDiagnostics(parseClientRuntimeConfig({}));
+    const session = deriveFrontendSessionBootstrap(auth);
+    const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
+
+    expect(session.bootstrapEnabled).toBe(true);
+    expect(session.bootstrapState).toBe("bypassed");
+    expect(session.sessionPresent).toBe(true);
+    expect(session.protectedOperatorUiState).toBe("bypassed");
+    expect(lifecycleGuard.enabled).toBe(true);
+    expect(lifecycleGuard.enforcedByBackend).toBe(true);
+  });
+
+  it("surfaces an active session when keycloak mode has forwarded auth available", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+    });
+    const auth = getAuthRuntimeDiagnostics(config, {
+      forwardedAuthPresent: true,
+      forwardingSource: "env_token"
+    });
+    const session = deriveFrontendSessionBootstrap(auth);
+    const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
+    const triageGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.secondaryGuardedSliceLabel,
+      enforcedByBackend: false
+    });
+
+    expect(session.bootstrapState).toBe("active");
+    expect(session.forwardingActive).toBe(true);
+    expect(session.sessionPresent).toBe(true);
+    expect(lifecycleGuard.state).toBe("enabled");
+    expect(triageGuard.state).toBe("enabled");
+  });
+
+  it("degrades safely when keycloak mode is requested but config is incomplete", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse"
+      })
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+
+    expect(session.bootstrapState).toBe("degraded");
+    expect(session.protectedOperatorUiState).toBe("bypassed");
+    expect(session.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
+    );
+  });
+
+  it("disables protected operator UI when keycloak mode is active without forwarded auth", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      })
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+    const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
+
+    expect(session.bootstrapState).toBe("unavailable");
+    expect(session.sessionPresent).toBe(false);
+    expect(lifecycleGuard.enabled).toBe(false);
+    expect(lifecycleGuard.message).toContain("forwarded auth session");
+  });
+});

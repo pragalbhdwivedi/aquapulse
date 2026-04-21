@@ -1269,6 +1269,27 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface FrontendSessionBootstrapStatus {
+  readonly bootstrapEnabled: boolean;
+  readonly bootstrapState: "active" | "bypassed" | "degraded" | "unavailable";
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly sessionPresent: boolean;
+  readonly forwardedAuthPresent: boolean;
+  readonly forwardingActive: boolean;
+  readonly forwardingMode:
+    | "bypassed"
+    | "proxy_env_token"
+    | "proxy_cookie"
+    | "proxy_header_passthrough"
+    | "unavailable";
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
+  readonly secondaryGuardedSliceLabel?: string;
+  readonly secondaryGuardedSliceEnforced: boolean;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendAuthRuntimeDiagnostics {
   readonly requestedMode: AquaPulseAuthMode;
   readonly effectiveMode: AquaPulseAuthMode;
@@ -1385,6 +1406,7 @@ export interface FrontendRuntimeDiagnostics {
   readonly service: "web";
   readonly mode: RuntimeModeSummary;
   readonly auth: FrontendAuthRuntimeDiagnostics;
+  readonly session: FrontendSessionBootstrapStatus;
   readonly alerts: AlertsRuntimeDiagnostics;
   readonly alertsLiveUpdates: AlertsLiveUpdatesRuntimeDiagnostics;
   readonly feed: FeedRuntimeDiagnostics;
