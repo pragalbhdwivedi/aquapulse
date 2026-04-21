@@ -2,7 +2,10 @@ import type {
   BackendRuntimeProbeDiagnostics,
   FrontendRuntimeDiagnostics
 } from "@aquapulse/types";
-import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
+import {
+  deriveProtectedOperatorUiGuard,
+  describeAuthAlignedSurface
+} from "@web/features/auth-session";
 import {
   deriveAlertsEndToEndRuntimeStatus,
   deriveFeedEndToEndRuntimeStatus,
@@ -34,6 +37,34 @@ export function RuntimeDiagnosticsCard({
     enforcedByBackend:
       diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ||
       diagnostics.auth.secondaryProtectedReadSliceEnforced
+  });
+  const listReadSurface = describeAuthAlignedSurface({
+    surfaceLabel: "alerts_list_read",
+    exposure: "public_readable"
+  });
+  const detailReadSurface = describeAuthAlignedSurface({
+    surfaceLabel:
+      diagnostics.auth.protectedReadSliceLabel ??
+      diagnostics.session.protectedReadGuardedSliceLabel ??
+      "alerts_detail_read",
+    exposure: "backend_protected",
+    guard: detailReadGuard,
+    session: diagnostics.session
+  });
+  const summaryReadSurface = describeAuthAlignedSurface({
+    surfaceLabel:
+      diagnostics.auth.secondaryProtectedReadSliceLabel ??
+      diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
+      "alerts_summary_read",
+    exposure: "backend_protected",
+    guard: summaryReadGuard,
+    session: diagnostics.session
+  });
+  const lifecycleSurface = describeAuthAlignedSurface({
+    surfaceLabel: diagnostics.auth.protectedOperatorSliceLabel,
+    exposure: "ui_guarded",
+    guard: deriveProtectedOperatorUiGuard(diagnostics.session),
+    session: diagnostics.session
   });
 
   return (
@@ -133,6 +164,16 @@ export function RuntimeDiagnosticsCard({
         </span>
         <span>
           Alerts summary read access: {summaryReadGuard.state} / {summaryReadGuard.message}
+        </span>
+        <span>
+          Public/readable surfaces: {listReadSurface.surfaceLabel} ({listReadSurface.accessState})
+        </span>
+        <span>
+          Backend-protected reads: {detailReadSurface.surfaceLabel} ({detailReadSurface.accessState}),{" "}
+          {summaryReadSurface.surfaceLabel} ({summaryReadSurface.accessState})
+        </span>
+        <span>
+          UI-guarded operator surface: {lifecycleSurface.surfaceLabel} ({lifecycleSurface.accessState})
         </span>
         <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>

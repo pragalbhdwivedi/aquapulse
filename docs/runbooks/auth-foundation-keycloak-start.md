@@ -66,6 +66,9 @@ x-aquapulse-dev-permissions
 - The first bounded protected slice is `GET /diagnostics/runtime`.
 - The bounded protected read slice is `GET /alerts/:id` for alerts detail reads.
 - The second bounded protected read slice is `GET /alerts/summary` for alerts summary reads.
+- The alerts list surface remains intentionally readable in this bounded stage:
+  `GET /alerts` stays available so the workbench can keep a safe queue baseline while detail and
+  summary reads move behind the auth/session model.
 - The first protected operator action slice is `alerts lifecycle actions`:
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
 - The second protected operator slice is `alerts triage actions`:
@@ -134,6 +137,13 @@ What is intentionally not exposed:
 
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
 Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary and alerts access level when available. The alerts workbench also uses that current-session surface to explain whether summary/detail reads and saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
+The runtime page and alerts workbench now also distinguish surface exposure explicitly:
+
+- `alerts_list_read`: `public_readable`
+- `alerts_detail_read`: `backend_protected`
+- `alerts_summary_read`: `backend_protected`
+- alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
+  forwarding/session state is insufficient
 
 ## Intentionally deferred in this branch
 

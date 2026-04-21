@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { deriveFrontendSessionBootstrap, deriveProtectedOperatorUiGuard } from "../features/auth-session";
+import {
+  deriveFrontendSessionBootstrap,
+  deriveProtectedOperatorUiGuard,
+  describeAuthAlignedSurface
+} from "../features/auth-session";
 import { getAuthRuntimeDiagnostics, parseClientRuntimeConfig } from "../clients/runtime-config";
 
 describe("Frontend auth session bootstrap", () => {
@@ -110,5 +114,110 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sessionPresent).toBe(false);
     expect(lifecycleGuard.enabled).toBe(false);
     expect(lifecycleGuard.message).toContain("forwarded auth session");
+  });
+
+  it("classifies a public read surface as available without relying on session state", () => {
+    const surface = describeAuthAlignedSurface({
+      surfaceLabel: "alerts_list_read",
+      exposure: "public_readable"
+    });
+
+    expect(surface.exposure).toBe("public_readable");
+    expect(surface.accessState).toBe("available");
+  });
+
+  it("classifies a backend-protected read surface as available when forwarded auth is active", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      }),
+      {
+        forwardedAuthPresent: true,
+        forwardingSource: "env_token"
+      }
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+    const guard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.protectedReadGuardedSliceLabel,
+      enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
+    const surface = describeAuthAlignedSurface({
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      exposure: "backend_protected",
+      guard,
+      session
+    });
+
+    expect(surface.accessState).toBe("available");
+  });
+
+  it("classifies a backend-protected read surface as auth-required when auth forwarding is unavailable", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      })
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+    const guard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.protectedReadGuardedSliceLabel,
+      enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
+    const surface = describeAuthAlignedSurface({
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      exposure: "backend_protected",
+      guard,
+      session
+    });
+
+    expect(surface.accessState).toBe("auth_required");
+  });
+
+  it("classifies a backend-protected read surface as bypassed in local mode", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "local"
+      })
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+    const guard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.protectedReadGuardedSliceLabel,
+      enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
+    const surface = describeAuthAlignedSurface({
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      exposure: "backend_protected",
+      guard,
+      session
+    });
+
+    expect(surface.accessState).toBe("bypassed_local");
+  });
+
+  it("classifies a backend-protected read surface as degraded when auth config is malformed", () => {
+    const auth = getAuthRuntimeDiagnostics(
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+        NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse"
+      })
+    );
+    const session = deriveFrontendSessionBootstrap(auth);
+    const guard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.protectedReadGuardedSliceLabel,
+      enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
+    const surface = describeAuthAlignedSurface({
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      exposure: "backend_protected",
+      guard,
+      session
+    });
+
+    expect(surface.accessState).toBe("degraded");
   });
 });

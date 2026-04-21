@@ -38,7 +38,10 @@ import {
   deriveAlertsRuntimeIndicator,
   formatAlertsRuntimeError
 } from "@web/features/alerts-runtime";
-import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
+import {
+  deriveProtectedOperatorUiGuard,
+  describeAuthAlignedSurface
+} from "@web/features/auth-session";
 import {
   createAlertAssignSubmitter,
   createAlertReviewStateSubmitter,
@@ -170,6 +173,40 @@ export function AlertsActionList({
         ? createAlertSavedViewsRepositoryStore(repositories.alerts)
         : createAlertSavedViewsStore(typeof window === "undefined" ? undefined : window.localStorage),
     [repositories.alerts, runtimeDiagnostics.effectiveMode]
+  );
+  const listReadSurface = useMemo(
+    () =>
+      describeAuthAlignedSurface({
+        surfaceLabel: "alerts_list_read",
+        exposure: "public_readable"
+      }),
+    []
+  );
+  const detailReadSurface = useMemo(
+    () =>
+      describeAuthAlignedSurface({
+        surfaceLabel:
+          session.protectedReadGuardedSliceLabel ??
+          authDiagnostics.protectedReadSliceLabel ??
+          "alerts_detail_read",
+        exposure: "backend_protected",
+        guard: detailReadGuard,
+        session
+      }),
+    [authDiagnostics.protectedReadSliceLabel, detailReadGuard, session]
+  );
+  const summaryReadSurface = useMemo(
+    () =>
+      describeAuthAlignedSurface({
+        surfaceLabel:
+          session.secondaryProtectedReadGuardedSliceLabel ??
+          authDiagnostics.secondaryProtectedReadSliceLabel ??
+          "alerts_summary_read",
+        exposure: "backend_protected",
+        guard: summaryReadGuard,
+        session
+      }),
+    [authDiagnostics.secondaryProtectedReadSliceLabel, session, summaryReadGuard]
   );
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
@@ -634,7 +671,10 @@ export function AlertsActionList({
             {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
-            Detail read state: {detailReadGuard.state}. Summary read state: {summaryReadState}. Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
+            List surface: {listReadSurface.exposure} / {listReadSurface.accessState}. Detail read state: {detailReadGuard.state}. Summary read state: {summaryReadState}. Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Read surface map: {detailReadSurface.surfaceLabel} is {detailReadSurface.exposure} ({detailReadSurface.accessState}); {summaryReadSurface.surfaceLabel} is {summaryReadSurface.exposure} ({summaryReadSurface.accessState}); {listReadSurface.surfaceLabel} is {listReadSurface.exposure} ({listReadSurface.accessState}).
           </span>
           {session.currentUser ? (
             <span style={{ color: "#94a3b8" }}>

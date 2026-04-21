@@ -14,6 +14,13 @@ export interface ProtectedOperatorUiGuard {
   readonly warnings: readonly RuntimeWarning[];
 }
 
+export interface AuthAlignedSurfaceDescriptor {
+  readonly surfaceLabel: string;
+  readonly exposure: "public_readable" | "backend_protected" | "ui_guarded";
+  readonly accessState: "available" | "auth_required" | "bypassed_local" | "degraded";
+  readonly message: string;
+}
+
 export function deriveFrontendSessionBootstrap(
   auth: FrontendAuthRuntimeDiagnostics,
   options: {
@@ -182,6 +189,58 @@ export function deriveProtectedOperatorUiGuard(
     enabled: state !== "disabled",
     message,
     warnings: [...session.warnings]
+  };
+}
+
+export function describeAuthAlignedSurface(options: {
+  readonly surfaceLabel: string;
+  readonly exposure: AuthAlignedSurfaceDescriptor["exposure"];
+  readonly guard?: ProtectedOperatorUiGuard;
+  readonly session?: FrontendSessionBootstrapStatus;
+}): AuthAlignedSurfaceDescriptor {
+  const { exposure, guard, session, surfaceLabel } = options;
+
+  if (exposure === "public_readable") {
+    return {
+      surfaceLabel,
+      exposure,
+      accessState: "available",
+      message: "Surface remains readable in this bounded stage without backend auth enforcement."
+    };
+  }
+
+  if (!guard) {
+    return {
+      surfaceLabel,
+      exposure,
+      accessState: "auth_required",
+      message: "Surface classification is protected, but no UI guard state was available."
+    };
+  }
+
+  if (guard.state === "enabled") {
+    return {
+      surfaceLabel,
+      exposure,
+      accessState: "available",
+      message: guard.message
+    };
+  }
+
+  if (guard.state === "bypassed") {
+    return {
+      surfaceLabel,
+      exposure,
+      accessState: session?.bootstrapState === "degraded" ? "degraded" : "bypassed_local",
+      message: guard.message
+    };
+  }
+
+  return {
+    surfaceLabel,
+    exposure,
+    accessState: "auth_required",
+    message: guard.message
   };
 }
 
