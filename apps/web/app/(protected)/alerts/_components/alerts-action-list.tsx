@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   type AiAlertsExplainResponse,
   type AlertExplanationFeedbackValue,
+  type FrontendAuthRuntimeDiagnostics,
   alertQueuePresetDefinitions,
   type AlertQueuePresetId,
   type AlertQueueSummary,
@@ -50,6 +51,7 @@ import { AlertsWorkbenchQueue } from "./alerts-workbench-queue";
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
   readonly initialSummary: AlertQueueSummary;
+  readonly authDiagnostics: FrontendAuthRuntimeDiagnostics;
 }
 
 type AlertQueueSubmissionResult =
@@ -60,7 +62,11 @@ type AlertQueueSubmissionResult =
 
 const reviewStateOptions: AlertReviewState[] = ["unreviewed", "under_review", "reviewed", "deferred"];
 
-export function AlertsActionList({ initialAlerts, initialSummary }: AlertsActionListProps) {
+export function AlertsActionList({
+  initialAlerts,
+  initialSummary,
+  authDiagnostics
+}: AlertsActionListProps) {
   const runtimeConfig = useMemo(
     () =>
       parseClientRuntimeConfig({
@@ -464,10 +470,17 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
             <span>Target: {runtimeIndicator.targetLabel}</span>
             <span>Live updates: {liveUpdatesState}</span>
+            <span>Auth mode: {authDiagnostics.effectiveMode}</span>
+            <span>Auth forwarding: {authDiagnostics.forwardingMode}</span>
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
           <span style={{ color: "#94a3b8" }}>
             Live target: {liveUpdatesDiagnostics.targetLabel}. Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Protected operator slice: {authDiagnostics.protectedOperatorSliceLabel}. Enforced:{" "}
+            {authDiagnostics.protectedOperatorSliceEnforced ? "yes" : "no"}. Forwarded auth present:{" "}
+            {authDiagnostics.forwardedAuthPresent ? "yes" : "no"}.
           </span>
           {lastLiveEventAt ? (
             <span style={{ color: "#94a3b8" }}>Last live event: {lastLiveEventAt}</span>
@@ -489,6 +502,11 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
                 {warning.message}
               </span>
             ))}
+          {authDiagnostics.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
+              {warning.message}
+            </span>
+          ))}
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
           <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>

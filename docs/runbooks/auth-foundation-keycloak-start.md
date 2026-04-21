@@ -62,7 +62,29 @@ x-aquapulse-dev-permissions
 - If backend probes are enabled, compare frontend auth mode with backend auth mode and validation strategy.
 - The protected layout sidebar also shows the current effective frontend auth label.
 - The first bounded protected slice is `GET /diagnostics/runtime`.
+- The first protected operator action slice is `alerts lifecycle actions`:
+  `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
+
+## Web-to-API token forwarding
+
+The local web bridge can forward auth to the API in a bounded way for the protected slices above.
+
+Forwarding source order:
+
+1. Incoming `Authorization` header passthrough
+2. Cookie named by `AQUAPULSE_WEB_AUTH_TOKEN_COOKIE_NAME`
+3. Server-side fallback token from `AQUAPULSE_WEB_AUTH_BEARER_TOKEN`
+
+Useful local env:
+
+```bash
+AQUAPULSE_WEB_LOCAL_API_BACKEND_URL=http://localhost:4000
+AQUAPULSE_WEB_AUTH_BEARER_TOKEN=
+AQUAPULSE_WEB_AUTH_TOKEN_COOKIE_NAME=aquapulse_auth_token
+```
+
+If Keycloak mode is active but no forwardable token is available, the runtime diagnostics surface will show auth forwarding as unavailable and the protected operator slice will reject backend requests in Keycloak mode.
 
 ## Intentionally deferred in this branch
 

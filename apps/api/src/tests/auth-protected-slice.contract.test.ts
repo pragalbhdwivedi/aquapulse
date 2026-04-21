@@ -1,10 +1,13 @@
-import { UnauthorizedException, type ExecutionContext } from "@nestjs/common";
+import { generateKeyPairSync, type JsonWebKey } from "node:crypto";
+import { ForbiddenException, UnauthorizedException, type ExecutionContext } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { describe, expect, it } from "vitest";
-import { ApiAuthService } from "../common/auth/api-auth.service";
+import { ApiAuthService, createSignedJwtForTest } from "../common/auth/api-auth.service";
 import { RequireAuthentication } from "../common/auth/auth-slice.decorator";
 import { readApiAuthRuntimeConfig } from "../common/auth/auth-runtime.config";
 import { PlaceholderAuthGuard } from "../common/auth/placeholder-auth.guard";
+import { PlaceholderRoleGuard } from "../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../common/auth/require-roles.decorator";
 
 class ProtectedRuntimeDiagnosticsHandler {
   @RequireAuthentication()
@@ -13,11 +16,23 @@ class ProtectedRuntimeDiagnosticsHandler {
   }
 }
 
-function createExecutionContext(request: Record<string, unknown>): ExecutionContext {
-  const handlerClass = new ProtectedRuntimeDiagnosticsHandler();
+class ProtectedAlertLifecycleHandler {
+  @RequireAuthentication()
+  @RequireRoles("operator")
+  run() {
+    return true;
+  }
+}
+
+function createExecutionContext(
+  request: Record<string, unknown>,
+  HandlerClass: typeof ProtectedRuntimeDiagnosticsHandler | typeof ProtectedAlertLifecycleHandler =
+    ProtectedRuntimeDiagnosticsHandler
+): ExecutionContext {
+  const handlerClass = new HandlerClass();
 
   return {
-    getClass: () => ProtectedRuntimeDiagnosticsHandler,
+    getClass: () => HandlerClass,
     getHandler: () => handlerClass.run,
     switchToHttp: () => ({
       getRequest: () => request
@@ -74,5 +89,72 @@ describe("First protected auth slice", () => {
     await expect(guard.canActivate(createExecutionContext({ headers: {} }))).rejects.toBeInstanceOf(
       UnauthorizedException
     );
+  });
+
+  it("keeps the alerts lifecycle operator slice usable in local mode", async () => {
+    const request: Record<string, unknown> = {
+      headers: {}
+    };
+    const authService = new ApiAuthService({
+      runtime: readApiAuthRuntimeConfig({
+        AQUAPULSE_AUTH_MODE: "local"
+      })
+    });
+    const authGuard = new PlaceholderAuthGuard(new Reflector(), authService);
+    const roleGuard = new PlaceholderRoleGuard(new Reflector(), authService);
+    const context = createExecutionContext(request, ProtectedAlertLifecycleHandler);
+
+    await expect(authGuard.canActivate(context)).resolves.toBe(true);
+    expect(roleGuard.canActivate(context)).toBe(true);
+    expect((request as { user?: { roles?: string[] } }).user?.roles).toContain("operator");
+  });
+
+  it("requires an operator role on the alerts lifecycle slice when keycloak mode is active", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048
+    });
+    const publicJwk = publicKey.export({ format: "jwk" }) as JsonWebKey;
+    const token = createSignedJwtForTest(
+      {
+        sub: "viewer-user",
+        iss: "https://id.example.com/realms/aquapulse",
+        aud: ["aquapulse-web"],
+        exp: Math.floor(Date.now() / 1000) + 300,
+        preferred_username: "aquapulse.viewer",
+        realm_access: { roles: ["viewer"] }
+      },
+      {
+        kid: "test-kid",
+        privateKeyPem: privateKey.export({ format: "pem", type: "pkcs8" }).toString()
+      }
+    );
+    const request: Record<string, unknown> = {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    };
+    const authService = new ApiAuthService({
+      runtime: readApiAuthRuntimeConfig({
+        AQUAPULSE_AUTH_MODE: "keycloak",
+        AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+        AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+        AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      })
+      ,
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({
+            keys: [{ ...publicJwk, kid: "test-kid", use: "sig", alg: "RS256" }]
+          }),
+          { status: 200 }
+        )) as typeof fetch
+    });
+    const authGuard = new PlaceholderAuthGuard(new Reflector(), authService);
+    const roleGuard = new PlaceholderRoleGuard(new Reflector(), authService);
+    const context = createExecutionContext(request, ProtectedAlertLifecycleHandler);
+
+    await expect(authGuard.canActivate(context)).resolves.toBe(true);
+    expect(() => roleGuard.canActivate(context)).toThrow(ForbiddenException);
   });
 });

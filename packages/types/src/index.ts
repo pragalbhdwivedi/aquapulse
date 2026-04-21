@@ -1255,6 +1255,16 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly clientId?: string;
   readonly firstProtectedSliceLabel: string;
   readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
+  readonly forwardingMode:
+    | "bypassed"
+    | "proxy_env_token"
+    | "proxy_cookie"
+    | "proxy_header_passthrough"
+    | "unavailable";
+  readonly forwardingActive: boolean;
+  readonly forwardedAuthPresent: boolean;
   readonly localDevUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }
@@ -1290,6 +1300,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly lastVerificationMessage?: string;
   readonly firstProtectedSliceLabel: string;
   readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

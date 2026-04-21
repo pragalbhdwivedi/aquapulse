@@ -1,3 +1,11 @@
+import {
+  readLocalApiAuthForwardingConfig,
+  resolveForwardedAuthorizationHeader,
+  resolveLocalApiForwardingState,
+  type LocalApiAuthForwardingConfig,
+  type LocalApiAuthForwardingEnv
+} from "./auth-forwarding";
+
 const defaultLocalApiBackendUrl = "http://localhost:4000";
 
 export interface LocalApiProxyConfig {
@@ -61,19 +69,39 @@ function createForwardHeaders(request: Request): Headers {
   headers.delete("host");
   headers.delete("connection");
   headers.delete("content-length");
+  headers.delete("cookie");
   return headers;
 }
 
 export async function proxyLocalApiRequest(
   request: Request,
   config: LocalApiProxyConfig,
-  options: LocalApiProxyOptions
+  options: LocalApiProxyOptions,
+  authConfig: LocalApiAuthForwardingConfig = readLocalApiAuthForwardingConfig(
+    process.env as LocalApiAuthForwardingEnv
+  )
 ): Promise<Response> {
   const targetUrl = buildLocalApiProxyTargetUrl(request, config);
+  const headers = createForwardHeaders(request);
+  const forwardedAuthorization = resolveForwardedAuthorizationHeader(request, authConfig);
+  const authForwardingState = resolveLocalApiForwardingState(request, authConfig);
+
+  if (forwardedAuthorization) {
+    headers.set("authorization", forwardedAuthorization);
+  } else {
+    headers.delete("authorization");
+  }
+
+  headers.set(
+    "x-aquapulse-auth-forwarded",
+    authForwardingState.hasForwardableAuth ? "present" : "absent"
+  );
+  headers.set("x-aquapulse-auth-forwarding-source", authForwardingState.source);
+
   try {
     const response = await fetch(targetUrl, {
       method: request.method,
-      headers: createForwardHeaders(request),
+      headers,
       body: shouldForwardBody(request.method) ? await request.clone().arrayBuffer() : undefined,
       redirect: "manual"
     });

@@ -67,6 +67,14 @@ export function RuntimeDiagnosticsCard({
           First protected slice: {diagnostics.auth.firstProtectedSliceLabel} / Enforced:{" "}
           {diagnostics.auth.firstProtectedSliceEnforced ? "yes" : "no"}
         </span>
+        <span>
+          Protected operator slice: {diagnostics.auth.protectedOperatorSliceLabel} / Enforced:{" "}
+          {diagnostics.auth.protectedOperatorSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
+          Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}
+          {diagnostics.auth.forwardingMode}
+        </span>
         <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
@@ -127,6 +135,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend protected slice: {backendProbe.runtime.auth.firstProtectedSliceLabel} / Enforced:{" "}
             {backendProbe.runtime.auth.firstProtectedSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend operator slice: {backendProbe.runtime.auth.protectedOperatorSliceLabel} / Enforced:{" "}
+            {backendProbe.runtime.auth.protectedOperatorSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

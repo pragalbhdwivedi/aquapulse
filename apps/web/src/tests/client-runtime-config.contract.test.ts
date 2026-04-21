@@ -115,12 +115,34 @@ describe("Client runtime config and invocation registry", () => {
     expect(disabledConfig.authMode).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(disabledConfig).effectiveMode).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(disabledConfig).verificationState).toBe("disabled");
+    expect(getAuthRuntimeDiagnostics(disabledConfig).forwardingMode).toBe("bypassed");
     expect(getAuthRuntimeDiagnostics(keycloakConfig).effectiveMode).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(keycloakConfig).warnings).toContainEqual({
       code: "AUTH_KEYCLOAK_CONFIG_INCOMPLETE",
       message:
         "Keycloak auth mode was requested in web runtime config, but issuer URL, realm, or client ID is missing. The frontend remains on the safe auth-disabled posture."
     });
+  });
+
+  it("surfaces bounded auth-forwarding diagnostics when keycloak mode has a forwardable token", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+    });
+
+    const diagnostics = getAuthRuntimeDiagnostics(config, {
+      forwardedAuthPresent: true,
+      forwardingSource: "env_token"
+    });
+
+    expect(diagnostics.effectiveMode).toBe("keycloak");
+    expect(diagnostics.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
+    expect(diagnostics.protectedOperatorSliceEnforced).toBe(true);
+    expect(diagnostics.forwardingMode).toBe("proxy_env_token");
+    expect(diagnostics.forwardingActive).toBe(true);
+    expect(diagnostics.forwardedAuthPresent).toBe(true);
   });
 
   it("defaults alerts-only fetch HTTP mode to the local proxy path", () => {

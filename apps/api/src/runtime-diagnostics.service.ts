@@ -287,6 +287,8 @@ export class RuntimeDiagnosticsService {
       lastVerificationMessage: cachedKeycloakVerification?.message,
       firstProtectedSliceLabel: "runtime_diagnostics_api",
       firstProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+      protectedOperatorSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -304,6 +306,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_FIRST_PROTECTED_SLICE_ACTIVE",
         message:
           "The first protected auth slice is active on the runtime diagnostics API. Other API surfaces remain on incremental rollout for now."
+      });
+      authWarnings.push({
+        code: "AUTH_OPERATOR_SLICE_ACTIVE",
+        message:
+          "Alerts lifecycle actions now require verified auth in Keycloak mode. Local and disabled modes still keep the operator flow usable for bounded development."
       });
     }
 

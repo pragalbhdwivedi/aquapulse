@@ -19,6 +19,9 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.effectiveMode).toBe("disabled");
     expect(diagnostics.auth.bypassActive).toBe(true);
     expect(diagnostics.auth.firstProtectedSliceLabel).toBe("runtime_diagnostics_api");
+    expect(diagnostics.auth.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
+    expect(diagnostics.auth.forwardingMode).toBe("bypassed");
+    expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -38,9 +41,26 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.effectiveMode).toBe("disabled");
     expect(diagnostics.auth.keycloakConfigured).toBe(false);
     expect(diagnostics.auth.verificationState).toBe("disabled");
+    expect(diagnostics.auth.forwardingActive).toBe(false);
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
     );
+  });
+
+  it("surfaces bounded auth-forwarding diagnostics when a bridge token is configured", () => {
+    const diagnostics = readFrontendRuntimeDiagnostics({
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web",
+      AQUAPULSE_WEB_AUTH_BEARER_TOKEN: "local-forwarded-token"
+    });
+
+    expect(diagnostics.auth.effectiveMode).toBe("keycloak");
+    expect(diagnostics.auth.protectedOperatorSliceEnforced).toBe(true);
+    expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
+    expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
+    expect(diagnostics.auth.forwardingActive).toBe(true);
   });
 
   it("represents alerts-only HTTP proxy mode and bridge assumptions consistently", () => {
@@ -616,6 +636,11 @@ describe("Frontend runtime diagnostics", () => {
                   verificationStatus: "disabled",
                   firstProtectedSliceLabel: "runtime_diagnostics_api",
                   firstProtectedSliceEnforced: false,
+                  protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+                  protectedOperatorSliceEnforced: false,
+                  forwardingMode: "bypassed",
+                  forwardingActive: false,
+                  forwardedAuthPresent: false,
                   defaultLocalUserLabel: "Local Operator (local.operator)",
                   warnings: []
                 },
@@ -686,6 +711,11 @@ describe("Frontend runtime diagnostics", () => {
               verificationStatus: "disabled",
               firstProtectedSliceLabel: "runtime_diagnostics_api",
               firstProtectedSliceEnforced: false,
+              protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+              protectedOperatorSliceEnforced: false,
+              forwardingMode: "bypassed",
+              forwardingActive: false,
+              forwardedAuthPresent: false,
               defaultLocalUserLabel: "Local Operator (local.operator)",
               warnings: []
             },
@@ -800,6 +830,11 @@ describe("Frontend runtime diagnostics", () => {
                   verificationStatus: "ready",
                   firstProtectedSliceLabel: "runtime_diagnostics_api",
                   firstProtectedSliceEnforced: true,
+                  protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+                  protectedOperatorSliceEnforced: true,
+                  forwardingMode: "unavailable",
+                  forwardingActive: false,
+                  forwardedAuthPresent: false,
                   defaultLocalUserLabel: "Local Operator (local.operator)",
                   warnings: []
                 },

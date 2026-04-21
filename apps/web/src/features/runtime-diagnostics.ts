@@ -14,8 +14,15 @@ import {
   readAlertsLocalProxyConfig,
   type AlertsLocalProxyEnv
 } from "../server/alerts-local-proxy";
+import {
+  readLocalApiAuthForwardingConfig,
+  resolveForwardedAuthorizationHeader,
+  type LocalApiAuthForwardingEnv
+} from "../server/auth-forwarding";
 
-export type FrontendRuntimeEnvSource = AquaPulseClientRuntimeEnv & AlertsLocalProxyEnv;
+export type FrontendRuntimeEnvSource = AquaPulseClientRuntimeEnv &
+  AlertsLocalProxyEnv &
+  LocalApiAuthForwardingEnv;
 
 export interface RuntimeProbeEnvSource {
   readonly AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES?: string;
@@ -27,6 +34,7 @@ export interface RuntimeProbeConfig {
   readonly enabled: boolean;
   readonly timeoutMs: number;
   readonly targetBaseUrl: string;
+  readonly authorizationHeader?: string;
   readonly warnings: readonly RuntimeWarning[];
 }
 
@@ -93,14 +101,27 @@ export function readFrontendRuntimeDiagnostics(
 ): FrontendRuntimeDiagnostics {
   const runtimeConfig = parseClientRuntimeConfig(env);
   const localBridgeConfig = readAlertsLocalProxyConfig(env);
+  const authForwardingConfig = readLocalApiAuthForwardingConfig(env);
+  const authForwardingState = {
+    forwardedAuthPresent: Boolean(authForwardingConfig.bearerToken),
+    forwardingSource: authForwardingConfig.bearerToken ? "env_token" : "none"
+  } as const;
 
-  return getFrontendRuntimeDiagnostics(runtimeConfig, localBridgeConfig);
+  return getFrontendRuntimeDiagnostics(runtimeConfig, localBridgeConfig, authForwardingState);
 }
 
 export function readRuntimeProbeConfig(
   env: FrontendRuntimeEnvSource & RuntimeProbeEnvSource = process.env
 ): RuntimeProbeConfig {
   const localBridgeConfig = readAlertsLocalProxyConfig(env);
+  const authForwardingConfig = readLocalApiAuthForwardingConfig(env);
+  const syntheticRequest = new Request("http://localhost/internal-runtime-probe", {
+    headers: authForwardingConfig.bearerToken
+      ? {
+          authorization: `Bearer ${authForwardingConfig.bearerToken}`
+        }
+      : undefined
+  });
   const warnings: RuntimeWarning[] = [];
   const enabled = parseBooleanFlag(
     env.AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES ?? env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES
@@ -119,6 +140,7 @@ export function readRuntimeProbeConfig(
     enabled,
     timeoutMs,
     targetBaseUrl: localBridgeConfig.backendBaseUrl,
+    authorizationHeader: resolveForwardedAuthorizationHeader(syntheticRequest, authForwardingConfig),
     warnings
   };
 }
@@ -459,6 +481,9 @@ async function fetchWithTimeout(
   try {
     return await fetchImpl(input, {
       ...init,
+      headers: {
+        ...(init.headers ?? {}),
+      },
       signal: controller?.signal
     });
   } finally {
@@ -506,7 +531,20 @@ export async function probeBackendRuntimeDiagnostics(
   try {
     const [healthResponse, runtimeResponse] = await Promise.all([
       fetchWithTimeout(`${config.targetBaseUrl}/api/health`, { method: "GET", headers: jsonHeaders() }, config.timeoutMs, fetchImpl),
-      fetchWithTimeout(`${config.targetBaseUrl}/api/diagnostics/runtime`, { method: "GET", headers: jsonHeaders() }, config.timeoutMs, fetchImpl)
+      fetchWithTimeout(
+        `${config.targetBaseUrl}/api/diagnostics/runtime`,
+        {
+          method: "GET",
+          headers: config.authorizationHeader
+            ? {
+                ...jsonHeaders(),
+                authorization: config.authorizationHeader
+              }
+            : jsonHeaders()
+        },
+        config.timeoutMs,
+        fetchImpl
+      )
     ]);
 
     const healthPayload = (await healthResponse.json()) as unknown;

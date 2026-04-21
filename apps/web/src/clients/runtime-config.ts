@@ -711,7 +711,11 @@ export function getWaterQualityRuntimeDiagnostics(
 }
 
 export function getAuthRuntimeDiagnostics(
-  config: AquaPulseClientRuntimeConfig
+  config: AquaPulseClientRuntimeConfig,
+  options: {
+    readonly forwardedAuthPresent?: boolean;
+    readonly forwardingSource?: "env_token" | "cookie_token" | "authorization_header" | "none";
+  } = {}
 ): FrontendAuthRuntimeDiagnostics {
   const requestedMode = config.authMode ?? "disabled";
   const keycloakConfigured = Boolean(
@@ -719,6 +723,27 @@ export function getAuthRuntimeDiagnostics(
   );
   const effectiveMode =
     requestedMode === "keycloak" && !keycloakConfigured ? "disabled" : requestedMode;
+  const forwardingSource = options.forwardingSource ?? "none";
+  const forwardedAuthPresent = options.forwardedAuthPresent ?? false;
+  const forwardingMode =
+    effectiveMode !== "keycloak"
+      ? "bypassed"
+      : forwardingSource === "env_token"
+        ? "proxy_env_token"
+        : forwardingSource === "cookie_token"
+          ? "proxy_cookie"
+          : forwardingSource === "authorization_header"
+            ? "proxy_header_passthrough"
+            : "unavailable";
+  const warnings = [...(config.warnings ?? [])];
+
+  if (effectiveMode === "keycloak" && !forwardedAuthPresent) {
+    warnings.push({
+      code: "AUTH_FORWARDING_UNAVAILABLE",
+      message:
+        "Keycloak auth mode is active in the frontend runtime, but no forwardable bearer token is currently available for the local web-to-API bridge."
+    });
+  }
 
   return {
     requestedMode,
@@ -743,16 +768,25 @@ export function getAuthRuntimeDiagnostics(
     clientId: config.keycloakClientId,
     firstProtectedSliceLabel: "runtime_diagnostics_api",
     firstProtectedSliceEnforced: effectiveMode === "keycloak",
+    protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+    protectedOperatorSliceEnforced: effectiveMode === "keycloak",
+    forwardingMode,
+    forwardingActive: effectiveMode === "keycloak" && forwardedAuthPresent,
+    forwardedAuthPresent,
     localDevUserLabel: config.localAuthUserLabel ?? "Local Operator",
-    warnings: [...(config.warnings ?? [])]
+    warnings
   };
 }
 
 export function getFrontendRuntimeDiagnostics(
   config: AquaPulseClientRuntimeConfig,
-  localBridgeConfig?: { readonly backendBaseUrl?: string }
+  localBridgeConfig?: { readonly backendBaseUrl?: string },
+  authForwarding?: {
+    readonly forwardedAuthPresent?: boolean;
+    readonly forwardingSource?: "env_token" | "cookie_token" | "authorization_header" | "none";
+  }
 ): FrontendRuntimeDiagnostics {
-  const auth = getAuthRuntimeDiagnostics(config);
+  const auth = getAuthRuntimeDiagnostics(config, authForwarding);
   const alerts = getAlertsRuntimeDiagnostics(config);
   const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
   const feed = getFeedRuntimeDiagnostics(config);

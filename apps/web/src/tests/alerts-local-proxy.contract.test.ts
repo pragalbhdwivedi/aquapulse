@@ -9,6 +9,7 @@ import {
   proxyAlertsApiRequest,
   readAlertsLocalProxyConfig
 } from "../server/alerts-local-proxy";
+import { proxyLocalApiRequest } from "../server/local-api-proxy";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -234,6 +235,35 @@ describe("Alerts local API proxy", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, data: { totalAlerts: 1 } });
+  });
+
+  it("forwards a bounded bearer token through the shared local proxy helper", async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const headers = new Headers(init?.headers);
+
+      expect(headers.get("authorization")).toBe("Bearer local-forwarded-token");
+      expect(headers.get("x-aquapulse-auth-forwarded")).toBe("present");
+      expect(headers.get("x-aquapulse-auth-forwarding-source")).toBe("env_token");
+
+      return jsonResponse({ ok: true, data: { forwarded: true } });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await proxyLocalApiRequest(
+      new Request("http://localhost:3000/api/alerts/summary"),
+      { backendBaseUrl: "http://localhost:4000" },
+      {
+        unavailableCode: "TEST_PROXY_UNAVAILABLE",
+        unavailableMessage: () => "proxy unavailable"
+      },
+      {
+        bearerToken: "local-forwarded-token",
+        tokenCookieName: "aquapulse_auth_token"
+      }
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, data: { forwarded: true } });
   });
 
   it("returns a developer-friendly 502 response when the backend is unavailable", async () => {
