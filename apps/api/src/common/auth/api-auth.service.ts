@@ -157,7 +157,39 @@ export class ApiAuthService {
       return false;
     }
 
-    return requiredRoles.some((role) => user.roles.includes(role));
+    return requiredRoles.some((role) => this.hasNamedRole(user, role));
+  }
+
+  deriveAlertsAccessLevel(
+    user: AuthenticatedUserSession | null | undefined
+  ): "none" | "viewer" | "operator" {
+    if (!user) {
+      return "none";
+    }
+
+    if (this.hasOperatorAccess(user)) {
+      return "operator";
+    }
+
+    return "viewer";
+  }
+
+  hasOperatorAccess(
+    user: AuthenticatedUserSession | null | undefined
+  ): boolean {
+    if (!user) {
+      return false;
+    }
+
+    return user.roles.includes("operator") || user.permissions.includes("alerts:operate");
+  }
+
+  private hasNamedRole(user: AuthenticatedUserSession, role: string): boolean {
+    if (role === "operator") {
+      return this.hasOperatorAccess(user);
+    }
+
+    return user.roles.includes(role);
   }
 
   private resolveLocalUser(request: RequestLike): AuthenticatedUserSession {

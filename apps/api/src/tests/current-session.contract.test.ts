@@ -21,6 +21,8 @@ describe("Current session surface", () => {
     expect(session.sessionPresent).toBe(false);
     expect(session.protectedReadSliceLabel).toBe("alerts_detail_read");
     expect(session.protectedReadSliceEnforced).toBe(false);
+    expect(session.secondaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(session.secondaryProtectedReadSliceEnforced).toBe(false);
     expect(session.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
@@ -50,7 +52,10 @@ describe("Current session surface", () => {
     expect(session.authSource).toBe("local_dev_headers");
     expect(session.user?.displayName).toBe("Shift Operator");
     expect(session.user?.username).toBe("pond.supervisor");
+    expect(session.user?.alertsAccessLevel).toBe("operator");
+    expect(session.user?.operatorAccess).toBe(true);
     expect(session.protectedReadSliceEnforced).toBe(false);
+    expect(session.secondaryProtectedReadSliceEnforced).toBe(false);
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryProtectedSliceEnforced).toBe(false);
     expect(session.quaternaryProtectedSliceEnforced).toBe(false);
@@ -105,7 +110,10 @@ describe("Current session surface", () => {
     expect(session.authSource).toBe("keycloak_bearer");
     expect(session.user?.provider).toBe("keycloak");
     expect(session.user?.roles).toEqual(["operator"]);
+    expect(session.user?.alertsAccessLevel).toBe("operator");
+    expect(session.user?.operatorAccess).toBe(true);
     expect(session.protectedReadSliceEnforced).toBe(true);
+    expect(session.secondaryProtectedReadSliceEnforced).toBe(true);
     expect(session.secondaryProtectedSliceEnforced).toBe(true);
     expect(session.tertiaryProtectedSliceEnforced).toBe(true);
     expect(session.quaternaryProtectedSliceEnforced).toBe(true);

@@ -34,11 +34,15 @@ describe("Backend-backed frontend auth session resolution", () => {
                 provider: "keycloak",
                 roles: ["operator"],
                 permissions: [],
-                claimKeys: ["aud", "iss", "preferred_username"]
+                claimKeys: ["aud", "iss", "preferred_username"],
+                alertsAccessLevel: "operator",
+                operatorAccess: true
               },
               sessionPresent: true,
               protectedReadSliceLabel: "alerts_detail_read",
               protectedReadSliceEnforced: true,
+              secondaryProtectedReadSliceLabel: "alerts_summary_read",
+              secondaryProtectedReadSliceEnforced: true,
               protectedOperatorSliceLabel: "alerts_lifecycle_actions",
               protectedOperatorSliceEnforced: true,
               secondaryProtectedSliceLabel: "alerts_triage_actions",
@@ -59,6 +63,7 @@ describe("Backend-backed frontend auth session resolution", () => {
     expect(diagnostics.session.currentSessionEndpointStatus).toBe("available");
     expect(diagnostics.session.currentUser?.displayName).toBe("Verified Operator");
     expect(diagnostics.session.protectedReadGuardedSliceEnforced).toBe(true);
+    expect(diagnostics.session.secondaryProtectedReadGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.protectedOperatorUiState).toBe("enabled");
     expect(diagnostics.session.secondaryGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.tertiaryGuardedSliceEnforced).toBe(true);

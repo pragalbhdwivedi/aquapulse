@@ -1265,6 +1265,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly firstProtectedSliceEnforced: boolean;
   readonly protectedReadSliceLabel?: string;
   readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1294,6 +1296,8 @@ export interface CurrentSessionUserSummary {
   readonly roles: string[];
   readonly permissions: string[];
   readonly claimKeys: string[];
+  readonly alertsAccessLevel: "none" | "viewer" | "operator";
+  readonly operatorAccess: boolean;
 }
 
 export type CurrentSessionAvailabilityState =
@@ -1319,6 +1323,8 @@ export interface CurrentSessionPayload {
   readonly sessionPresent: boolean;
   readonly protectedReadSliceLabel?: string;
   readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1361,6 +1367,8 @@ export interface FrontendSessionBootstrapStatus {
     | "unavailable";
   readonly protectedReadGuardedSliceLabel?: string;
   readonly protectedReadGuardedSliceEnforced: boolean;
+  readonly secondaryProtectedReadGuardedSliceLabel?: string;
+  readonly secondaryProtectedReadGuardedSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
   readonly secondaryGuardedSliceLabel?: string;
@@ -1406,6 +1414,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly firstProtectedSliceEnforced: boolean;
   readonly protectedReadSliceLabel?: string;
   readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;

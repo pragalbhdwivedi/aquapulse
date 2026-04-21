@@ -1,4 +1,5 @@
 import type {
+  AlertsListQueryRequest,
   AlertQueueSummary,
   AiDashboardQueryResponse,
   AiPondsSummarizeResponse,
@@ -12,6 +13,7 @@ import type {
   TaskSummary,
   WaterQualityReading
 } from "@aquapulse/types";
+import { buildAlertQueueSummary } from "@aquapulse/types";
 import type { AlertsListQuery, AuditListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
 import { getAlertSummaryQuery } from "../features/alert-workbench";
 import {
@@ -33,6 +35,32 @@ const defaultAlertsQuery: AlertsListQuery = { page: 1, pageSize: 20, sortBy: "up
 const defaultTasksQuery: TasksListQuery = { page: 1, pageSize: 20 };
 const defaultAuditQuery: AuditListQuery = { page: 1, pageSize: 20 };
 
+function buildFallbackAlertsSummary(alerts: ListResponse<AlertSummary>): AlertQueueSummary {
+  return buildAlertQueueSummary(alerts.items);
+}
+
+async function loadAlertsSummaryWithFallback(
+  repositories: Pick<AquaPulseRepositories, "alerts">,
+  query: Partial<AlertsListQueryRequest>,
+  fallbackAlerts: ListResponse<AlertSummary>
+): Promise<{
+  summary: AlertQueueSummary;
+  source: "backend" | "fallback";
+}> {
+  try {
+    const summary = await repositories.alerts.summary(getAlertSummaryQuery(query));
+    return {
+      summary: summary.data,
+      source: "backend"
+    };
+  } catch {
+    return {
+      summary: buildFallbackAlertsSummary(fallbackAlerts),
+      source: "fallback"
+    };
+  }
+}
+
 export function createReadonlyQueries(repositories: Pick<
   AquaPulseRepositories,
   "ponds" | "alerts" | "tasks" | "ai" | "waterQuality"
@@ -45,18 +73,22 @@ export function createReadonlyQueries(repositories: Pick<
       tasks: ListResponse<TaskSummary>;
       answer: AiDashboardQueryResponse;
     }> {
-      const [ponds, alerts, alertSummary, tasks, answer] = await Promise.all([
+      const [ponds, alerts, tasks, answer] = await Promise.all([
         repositories.ponds.list(defaultPondsQuery),
         repositories.alerts.list(defaultAlertsQuery),
-        repositories.alerts.summary({ page: 1, pageSize: 20 }),
         repositories.tasks.list(defaultTasksQuery),
         repositories.ai.queryDashboard({ question: "What needs attention today?" })
       ]);
+      const alertSummary = await loadAlertsSummaryWithFallback(
+        repositories,
+        { page: 1, pageSize: 20 },
+        alerts.data
+      );
 
       return {
         ponds: ponds.data,
         alerts: alerts.data,
-        alertSummary: alertSummary.data,
+        alertSummary: alertSummary.summary,
         tasks: tasks.data,
         answer: answer.data
       };
@@ -85,24 +117,24 @@ export function createReadonlyQueries(repositories: Pick<
     async getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
       alerts: ListResponse<AlertSummary>;
       summary: AlertQueueSummary;
+      summarySource: "backend" | "fallback";
       explanation: string;
     }> {
+      const alerts = await repositories.alerts.list(query);
       const summaryQuery: AlertsListQuery = {
         ...query,
         status: undefined,
         reviewState: undefined
       };
-      const [alerts, summary] = await Promise.all([
-        repositories.alerts.list(query),
-        repositories.alerts.summary(getAlertSummaryQuery(summaryQuery))
-      ]);
+      const summary = await loadAlertsSummaryWithFallback(repositories, summaryQuery, alerts.data);
       const explanation = await repositories.alerts.explain({
         alertId: alerts.data.items[0]?.id ?? "alert-1"
       });
 
       return {
         alerts: alerts.data,
-        summary: summary.data,
+        summary: summary.summary,
+        summarySource: summary.source,
         explanation: explanation.data.explanation
       };
     },
@@ -151,6 +183,7 @@ export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
 export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
   alerts: ListResponse<AlertSummary>;
   summary: AlertQueueSummary;
+  summarySource: "backend" | "fallback";
   explanation: string;
 }> {
   return readonlyQueries.getAlertsPageData(query);

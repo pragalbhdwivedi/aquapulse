@@ -9,6 +9,14 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
     sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
     enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
   });
+  const summaryReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+    sliceLabel:
+      diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
+      diagnostics.auth.secondaryProtectedReadSliceLabel,
+    enforcedByBackend:
+      diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ||
+      diagnostics.auth.secondaryProtectedReadSliceEnforced
+  });
 
   return (
     <ProtectedLayoutShell
@@ -21,10 +29,10 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
       }
       currentUserDetail={
         diagnostics.session.currentUser
-          ? `${diagnostics.session.currentUser.provider} / roles: ${diagnostics.session.currentUser.roles.join(", ") || "none"}`
+          ? `${diagnostics.session.currentUser.provider} / roles: ${diagnostics.session.currentUser.roles.join(", ") || "none"} / alerts: ${diagnostics.session.currentUser.alertsAccessLevel}`
           : undefined
       }
-      readSurfaceLabel={`${diagnostics.session.protectedReadGuardedSliceLabel ?? diagnostics.auth.protectedReadSliceLabel ?? "alerts_detail_read"} / ${detailReadGuard.state}`}
+      readSurfaceLabel={`${diagnostics.session.protectedReadGuardedSliceLabel ?? diagnostics.auth.protectedReadSliceLabel ?? "alerts_detail_read"} / ${detailReadGuard.state} | ${diagnostics.session.secondaryProtectedReadGuardedSliceLabel ?? diagnostics.auth.secondaryProtectedReadSliceLabel ?? "alerts_summary_read"} / ${summaryReadGuard.state}`}
     >
       {children}
     </ProtectedLayoutShell>

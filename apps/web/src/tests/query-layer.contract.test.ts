@@ -3,8 +3,16 @@ import {
   filterAlertsByQuery,
   sortAlertsByQuery
 } from "@aquapulse/types";
-import { alertsRepository, auditRepository, pondsRepository, tasksRepository } from "../repositories";
 import {
+  aiRepository,
+  alertsRepository,
+  auditRepository,
+  pondsRepository,
+  tasksRepository,
+  waterQualityRepository
+} from "../repositories";
+import {
+  createReadonlyQueries,
   getAlertsPageData,
   getAuditPageData,
   getDashboardPageData,
@@ -106,6 +114,31 @@ describe("Frontend query layer", () => {
 
     expect(alerts.summary.assignmentCounts.assigned).toBeGreaterThanOrEqual(1);
     expect(alerts.summary.reviewStateCounts.underReview).toBeGreaterThanOrEqual(1);
+  });
+
+  it("falls back to a queue-derived alerts summary when the protected summary read is unavailable", async () => {
+    const queries = createReadonlyQueries({
+      ponds: pondsRepository,
+      alerts: {
+        ...alertsRepository,
+        async summary() {
+          throw new Error("HTTP_401");
+        }
+      },
+      tasks: tasksRepository,
+      ai: aiRepository,
+      waterQuality: waterQualityRepository
+    });
+
+    const alerts = await queries.getAlertsPageData({
+      page: 1,
+      pageSize: 20,
+      status: "open",
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(alerts.summarySource).toBe("fallback");
+    expect(alerts.summary.totalAlerts).toBe(alerts.alerts.items.length);
   });
 
   it("keeps owner workload counts and preset-style filters stable through the shared queue query path", async () => {

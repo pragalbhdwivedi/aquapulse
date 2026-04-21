@@ -143,6 +143,32 @@ async function verifyProtectedSlices(backendRuntime, currentSession) {
 
   const detailAlertId =
     expectedOutcome === "success" ? config.alertId : "alert-auth-verifier-missing";
+  const summaryRead = await readJsonResponse(
+    `${config.webBaseUrl}/api/alerts/summary?page=1&pageSize=20`,
+    {
+      method: "GET",
+      headers: createVerifierRequestHeaders(config)
+    }
+  );
+  ensureJsonEnvelope(summaryRead, "Alerts summary read slice");
+  if (expectedOutcome === "success") {
+    if (!summaryRead.ok) {
+      throw new Error(
+        `Alerts summary read slice expected success but received ${summaryRead.status}: ${JSON.stringify(summaryRead.body)}`
+      );
+    }
+
+    logStep("Alerts summary read slice: succeeded");
+  } else {
+    if (summaryRead.status !== 401 && summaryRead.status !== 403) {
+      throw new Error(
+        `Alerts summary read slice expected an auth failure but received ${summaryRead.status}: ${JSON.stringify(summaryRead.body)}`
+      );
+    }
+
+    logStep(`Alerts summary read slice: rejected as expected with ${summaryRead.status}`);
+  }
+
   const detailRead = await readJsonResponse(
     `${config.webBaseUrl}/api/alerts/${detailAlertId}`,
     {

@@ -6,6 +6,7 @@ import {
   type AlertExplanationFeedbackValue,
   type FrontendAuthRuntimeDiagnostics,
   type FrontendSessionBootstrapStatus,
+  buildAlertQueueSummary,
   alertQueuePresetDefinitions,
   type AlertQueuePresetId,
   type AlertQueueSummary,
@@ -53,6 +54,8 @@ import { AlertsWorkbenchQueue } from "./alerts-workbench-queue";
 interface AlertsActionListProps {
   readonly initialAlerts: AlertSummary[];
   readonly initialSummary: AlertQueueSummary;
+  readonly initialSummaryReadState?: "enabled" | "blocked" | "bypassed" | "error";
+  readonly initialSummaryReadMessage?: string;
   readonly authDiagnostics: FrontendAuthRuntimeDiagnostics;
   readonly session: FrontendSessionBootstrapStatus;
 }
@@ -68,6 +71,8 @@ const reviewStateOptions: AlertReviewState[] = ["unreviewed", "under_review", "r
 export function AlertsActionList({
   initialAlerts,
   initialSummary,
+  initialSummaryReadState,
+  initialSummaryReadMessage,
   authDiagnostics,
   session
 }: AlertsActionListProps) {
@@ -119,6 +124,22 @@ export function AlertsActionList({
       }),
     [session]
   );
+  const summaryReadGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel:
+          session.secondaryProtectedReadGuardedSliceLabel ??
+          authDiagnostics.secondaryProtectedReadSliceLabel,
+        enforcedByBackend:
+          session.secondaryProtectedReadGuardedSliceEnforced ||
+          authDiagnostics.secondaryProtectedReadSliceEnforced
+      }),
+    [
+      authDiagnostics.secondaryProtectedReadSliceEnforced,
+      authDiagnostics.secondaryProtectedReadSliceLabel,
+      session
+    ]
+  );
   const savedViewMutationGuard = useMemo(
     () =>
       deriveProtectedOperatorUiGuard(session, {
@@ -152,6 +173,18 @@ export function AlertsActionList({
   );
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
+  const [summaryReadState, setSummaryReadState] = useState<
+    "enabled" | "blocked" | "bypassed" | "error"
+  >(
+    initialSummaryReadState ??
+      (summaryReadGuard.state === "disabled" ? "blocked" : "enabled")
+  );
+  const [summaryReadMessage, setSummaryReadMessage] = useState<string>(
+    initialSummaryReadMessage ??
+      (summaryReadGuard.state === "disabled"
+        ? `${summaryReadGuard.message} Showing a queue-derived fallback summary.`
+        : "Protected alerts summary is available with the current session and forwarding state.")
+  );
   const [detailAlerts, setDetailAlerts] = useState<Record<string, AlertSummary | undefined>>({});
   const [detailReadStates, setDetailReadStates] = useState<
     Record<string, "enabled" | "loading" | "blocked" | "bypassed" | "error" | undefined>
@@ -239,15 +272,39 @@ export function AlertsActionList({
   const refreshQueue = useCallback(async () => {
     setIsRefreshingQueue(true);
     try {
-      const [response, summaryResponse] = await Promise.all([
-        repositories.alerts.list(reviewQueueQuery),
-        repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))
-      ]);
+      const response = await repositories.alerts.list(reviewQueueQuery);
       setAlerts(response.data.items);
-      setSummary(summaryResponse.data);
       setSelectedAlertIds((current) =>
         current.filter((id) => response.data.items.some((item) => item.id === id))
       );
+
+      if (!summaryReadGuard.enabled) {
+        setSummary(buildAlertQueueSummary(response.data.items));
+        setSummaryReadState(summaryReadGuard.state === "disabled" ? "blocked" : "bypassed");
+        setSummaryReadMessage(
+          summaryReadGuard.state === "disabled"
+            ? `${summaryReadGuard.message} Showing a queue-derived fallback summary.`
+            : "Summary reads are staying on the safe bypass path. Showing a queue-derived fallback summary."
+        );
+        return true;
+      }
+
+      try {
+        const summaryResponse = await repositories.alerts.summary(
+          getAlertSummaryQuery(reviewQueueQuery)
+        );
+        setSummary(summaryResponse.data);
+        setSummaryReadState("enabled");
+        setSummaryReadMessage(
+          "Protected alerts summary is available with the current session and forwarding state."
+        );
+      } catch (error) {
+        setSummary(buildAlertQueueSummary(response.data.items));
+        setSummaryReadState("error");
+        setSummaryReadMessage(
+          `${formatAlertsRuntimeError(error, runtimeConfig)} Showing a queue-derived fallback summary.`
+        );
+      }
       return true;
     } catch (error) {
       reportRuntimeError(error);
@@ -255,7 +312,7 @@ export function AlertsActionList({
     } finally {
       setIsRefreshingQueue(false);
     }
-  }, [repositories.alerts, reportRuntimeError, reviewQueueQuery]);
+  }, [repositories.alerts, reportRuntimeError, reviewQueueQuery, runtimeConfig, summaryReadGuard]);
 
   useEffect(() => {
     if (previousQueueResetKeyRef.current === queueResetKey) {
@@ -405,16 +462,44 @@ export function AlertsActionList({
     async function runRefresh() {
       setIsRefreshingQueue(true);
       try {
-        const [response, summaryResponse] = await Promise.all([
-          repositories.alerts.list(reviewQueueQuery),
-          repositories.alerts.summary(getAlertSummaryQuery(reviewQueueQuery))
-        ]);
+        const response = await repositories.alerts.list(reviewQueueQuery);
         if (!cancelled) {
           setAlerts(response.data.items);
-          setSummary(summaryResponse.data);
           setSelectedAlertIds((current) =>
             current.filter((id) => response.data.items.some((item) => item.id === id))
           );
+
+          if (!summaryReadGuard.enabled) {
+            setSummary(buildAlertQueueSummary(response.data.items));
+            setSummaryReadState(summaryReadGuard.state === "disabled" ? "blocked" : "bypassed");
+            setSummaryReadMessage(
+              summaryReadGuard.state === "disabled"
+                ? `${summaryReadGuard.message} Showing a queue-derived fallback summary.`
+                : "Summary reads are staying on the safe bypass path. Showing a queue-derived fallback summary."
+            );
+            return;
+          }
+
+          try {
+            const summaryResponse = await repositories.alerts.summary(
+              getAlertSummaryQuery(reviewQueueQuery)
+            );
+            if (!cancelled) {
+              setSummary(summaryResponse.data);
+              setSummaryReadState("enabled");
+              setSummaryReadMessage(
+                "Protected alerts summary is available with the current session and forwarding state."
+              );
+            }
+          } catch (error) {
+            if (!cancelled) {
+              setSummary(buildAlertQueueSummary(response.data.items));
+              setSummaryReadState("error");
+              setSummaryReadMessage(
+                `${formatAlertsRuntimeError(error, runtimeConfig)} Showing a queue-derived fallback summary.`
+              );
+            }
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -430,7 +515,7 @@ export function AlertsActionList({
     return () => {
       cancelled = true;
     };
-  }, [reportRuntimeError, repositories.alerts, reviewQueueQuery]);
+  }, [reportRuntimeError, repositories.alerts, reviewQueueQuery, runtimeConfig, summaryReadGuard]);
 
   useEffect(() => {
     const connection = connectAlertsLiveUpdates({
@@ -522,6 +607,10 @@ export function AlertsActionList({
             {session.protectedReadGuardedSliceEnforced || authDiagnostics.protectedReadSliceEnforced ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
+            Summary slice: {session.secondaryProtectedReadGuardedSliceLabel ?? authDiagnostics.secondaryProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {session.secondaryProtectedReadGuardedSliceEnforced || authDiagnostics.secondaryProtectedReadSliceEnforced ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
             Protected operator slice: {authDiagnostics.protectedOperatorSliceLabel}. Enforced:{" "}
             {authDiagnostics.protectedOperatorSliceEnforced ? "yes" : "no"}. Forwarded auth present:{" "}
             {authDiagnostics.forwardedAuthPresent ? "yes" : "no"}.
@@ -545,11 +634,11 @@ export function AlertsActionList({
             {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
-            Detail read state: {detailReadGuard.state}. Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
+            Detail read state: {detailReadGuard.state}. Summary read state: {summaryReadState}. Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
           </span>
           {session.currentUser ? (
             <span style={{ color: "#94a3b8" }}>
-              User provider: {session.currentUser.provider}. Roles: {session.currentUser.roles.join(", ") || "none"}.
+              User provider: {session.currentUser.provider}. Roles: {session.currentUser.roles.join(", ") || "none"}. Alerts access: {session.currentUser.alertsAccessLevel}.
             </span>
           ) : null}
           {lastLiveEventAt ? (
@@ -581,6 +670,9 @@ export function AlertsActionList({
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
           <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
         </div>
+        <p style={{ margin: 0, color: summaryReadState === "enabled" ? "#94a3b8" : "#fbbf24" }}>
+          Summary auth state: {summaryReadState}. {summaryReadMessage}
+        </p>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Preset view</span><select value={presetId} onChange={(event) => { const nextPresetId = event.target.value as AlertQueuePresetId | "custom"; setPresetId(nextPresetId); setActiveSavedViewId(""); applyQueryState(nextPresetId === "custom" ? {} : getAlertPresetQuery(nextPresetId, defaultAlertWorkbenchOwner)); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="custom">Custom</option>{alertQueuePresetDefinitions.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</select></label>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Status</span><select value={statusFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setStatusFilter(event.target.value as AlertsListQuery["status"] | "all"); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select></label>

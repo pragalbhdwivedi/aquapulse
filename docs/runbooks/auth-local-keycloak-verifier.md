@@ -15,6 +15,7 @@ Default behavior still stays safe:
 - backend auth mode via `/api/health`
 - web-to-API current-session resolution via `/api/auth/session`
 - local proxy forwarding headers
+- protected alerts summary read behavior
 - protected alerts detail read behavior
 - protected alerts lifecycle action behavior
 - protected alerts triage action behavior
@@ -77,6 +78,7 @@ Expected shape:
 - backend auth mode: `disabled`
 - current-session availability: `disabled`
 - protected alerts expectation: `success`
+- alerts summary read slice: `succeeded`
 - alerts detail read slice: `succeeded`
 - protected mutation checks: skipped unless you explicitly enable them
 
@@ -101,6 +103,7 @@ Expected shape:
 - backend auth mode: `local`
 - current-session availability: `local_user`
 - protected alerts expectation: `success`
+- alerts summary read slice: `succeeded`
 - alerts detail read slice: `succeeded`
 
 ### 3. Keycloak mode with no forwarded auth
@@ -124,6 +127,7 @@ Expected shape:
 - backend auth mode: `keycloak`
 - current-session availability: `unauthenticated`
 - protected alerts expectation: `unauthorized`
+- alerts summary read slice: rejected with `401` or `403`
 - alerts detail read slice: rejected with `401` or `403`
 
 This is a valid bounded failure path and confirms the protected alerts slices reject missing forwarded auth clearly.
@@ -150,6 +154,7 @@ Expected shape:
 - current-session availability: `authenticated_user`
 - proxy forwarding header: `present`
 - protected alerts expectation: `success`
+- alerts summary read slice: `succeeded`
 - alerts detail read slice: `succeeded`
 
 If you also want to exercise the mutation success path:
@@ -178,6 +183,8 @@ Key lines to watch:
 - `Web proxy forwarded auth`
 - `Protected alerts expectation`
 - `Alerts detail read slice`
+- `Alerts summary read slice`
+- `Alerts detail read slice`
 
 If `Protected alerts expectation` is:
 
@@ -191,7 +198,7 @@ Use `/runtime` to confirm:
 - requested vs effective auth mode
 - forwarding mode and whether forwarded auth is present
 - whether current-session is backend-derived
-- whether the alerts detail read slice is backend-enforced and currently available
+- whether the alerts summary/detail read slices are backend-enforced and currently available
 - which alerts slices are backend-enforced
 
 If the verifier says `unauthorized` and the runtime page shows Keycloak active with forwarding unavailable, that is the expected bounded local outcome.

@@ -773,6 +773,8 @@ export function getAuthRuntimeDiagnostics(
     firstProtectedSliceEnforced: effectiveMode === "keycloak",
     protectedReadSliceLabel: "alerts_detail_read",
     protectedReadSliceEnforced: effectiveMode === "keycloak",
+    secondaryProtectedReadSliceLabel: "alerts_summary_read",
+    secondaryProtectedReadSliceEnforced: effectiveMode === "keycloak",
     protectedOperatorSliceLabel: "alerts_lifecycle_actions",
     protectedOperatorSliceEnforced: effectiveMode === "keycloak",
     secondaryProtectedSliceLabel: "alerts_triage_actions",

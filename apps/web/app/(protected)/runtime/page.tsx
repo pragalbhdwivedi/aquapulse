@@ -28,7 +28,7 @@ export default async function RuntimePage() {
         Backend diagnostics are also available at <code>/api/health</code> and <code>/api/diagnostics/runtime</code>.
       </p>
       <p style={{ color: "#94a3b8", margin: 0 }}>
-        The bounded auth-aligned read surface in this stage is <code>GET /api/alerts/:id</code>, which the alerts detail panel uses when session and forwarding state allow it.
+        The bounded auth-aligned read surfaces in this stage are <code>GET /api/alerts/:id</code> for detail and <code>GET /api/alerts/summary</code> for queue summary reuse when session and forwarding state allow it.
       </p>
     </PageShell>
   );

@@ -27,6 +27,14 @@ export function RuntimeDiagnosticsCard({
     sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
     enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
   });
+  const summaryReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+    sliceLabel:
+      diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
+      diagnostics.auth.secondaryProtectedReadSliceLabel,
+    enforcedByBackend:
+      diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ||
+      diagnostics.auth.secondaryProtectedReadSliceEnforced
+  });
 
   return (
     <section
@@ -97,6 +105,10 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.protectedReadSliceEnforced || diagnostics.session.protectedReadGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
+          Secondary protected read slice: {diagnostics.auth.secondaryProtectedReadSliceLabel ?? diagnostics.session.secondaryProtectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.secondaryProtectedReadSliceEnforced || diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
           Protected operator slice: {diagnostics.auth.protectedOperatorSliceLabel} / Enforced:{" "}
           {diagnostics.auth.protectedOperatorSliceEnforced ? "yes" : "no"}
         </span>
@@ -118,6 +130,9 @@ export function RuntimeDiagnosticsCard({
         </span>
         <span>
           Alerts detail read access: {detailReadGuard.state} / {detailReadGuard.message}
+        </span>
+        <span>
+          Alerts summary read access: {summaryReadGuard.state} / {summaryReadGuard.message}
         </span>
         <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
@@ -185,6 +200,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend protected read slice: {backendProbe.runtime.auth.protectedReadSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.protectedReadSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend secondary protected read slice: {backendProbe.runtime.auth.secondaryProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.secondaryProtectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (

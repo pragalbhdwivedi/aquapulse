@@ -289,6 +289,8 @@ export class RuntimeDiagnosticsService {
       firstProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       protectedReadSliceLabel: "alerts_detail_read",
       protectedReadSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      secondaryProtectedReadSliceLabel: "alerts_summary_read",
+      secondaryProtectedReadSliceEnforced: authRuntime.effectiveMode === "keycloak",
       protectedOperatorSliceLabel: "alerts_lifecycle_actions",
       protectedOperatorSliceEnforced: authRuntime.effectiveMode === "keycloak",
       secondaryProtectedSliceLabel: "alerts_triage_actions",
@@ -319,6 +321,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_ALERT_DETAIL_READ_SLICE_ACTIVE",
         message:
           "Alerts detail reads now require verified auth in Keycloak mode. Disabled and local modes still keep the bounded detail surface usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_ALERT_SUMMARY_READ_SLICE_ACTIVE",
+        message:
+          "Alerts summary reads now require verified auth in Keycloak mode. Disabled and local modes still keep the bounded summary surface usable for development."
       });
       authWarnings.push({
         code: "AUTH_OPERATOR_SLICE_ACTIVE",

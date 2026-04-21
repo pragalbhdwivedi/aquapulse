@@ -85,6 +85,11 @@ export function deriveFrontendSessionBootstrap(
       currentSession?.protectedReadSliceLabel ?? auth.protectedReadSliceLabel,
     protectedReadGuardedSliceEnforced:
       currentSession?.protectedReadSliceEnforced ?? auth.protectedReadSliceEnforced,
+    secondaryProtectedReadGuardedSliceLabel:
+      currentSession?.secondaryProtectedReadSliceLabel ?? auth.secondaryProtectedReadSliceLabel,
+    secondaryProtectedReadGuardedSliceEnforced:
+      currentSession?.secondaryProtectedReadSliceEnforced ??
+      auth.secondaryProtectedReadSliceEnforced,
     protectedOperatorSliceLabel: auth.protectedOperatorSliceLabel,
     protectedOperatorUiState:
       bootstrapState === "active"

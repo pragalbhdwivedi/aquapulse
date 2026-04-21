@@ -140,6 +140,8 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.effectiveMode).toBe("keycloak");
     expect(diagnostics.protectedReadSliceLabel).toBe("alerts_detail_read");
     expect(diagnostics.protectedReadSliceEnforced).toBe(true);
+    expect(diagnostics.secondaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(diagnostics.secondaryProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");

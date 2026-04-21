@@ -34,7 +34,7 @@ export function ProtectedLayoutShell({
           Identity: {currentUserDetail ?? "not resolved from backend session"}
         </p>
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
-          Alerts detail: {readSurfaceLabel ?? "safe fallback"}
+          Alerts reads: {readSurfaceLabel ?? "safe fallback"}
         </p>
         <ul style={{ listStyle: "none", padding: 0 }}>
           {protectedNavigation.map((item) => (

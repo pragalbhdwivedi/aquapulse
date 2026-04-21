@@ -83,12 +83,16 @@ export class CurrentSessionService {
             provider: user.provider,
             roles: [...user.roles],
             permissions: [...user.permissions],
-            claimKeys: Object.keys(user.claims ?? {}).sort()
+            claimKeys: Object.keys(user.claims ?? {}).sort(),
+            alertsAccessLevel: this.authService.deriveAlertsAccessLevel(user),
+            operatorAccess: this.authService.hasOperatorAccess(user)
           }
         : undefined,
       sessionPresent: Boolean(user),
       protectedReadSliceLabel: "alerts_detail_read",
       protectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
+      secondaryProtectedReadSliceLabel: "alerts_summary_read",
+      secondaryProtectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
       protectedOperatorSliceLabel: "alerts_lifecycle_actions",
       protectedOperatorSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryProtectedSliceLabel: "alerts_triage_actions",

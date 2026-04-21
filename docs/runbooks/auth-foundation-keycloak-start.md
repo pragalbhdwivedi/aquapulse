@@ -65,6 +65,7 @@ x-aquapulse-dev-permissions
 - The protected layout sidebar also shows the current effective frontend auth label.
 - The first bounded protected slice is `GET /diagnostics/runtime`.
 - The bounded protected read slice is `GET /alerts/:id` for alerts detail reads.
+- The second bounded protected read slice is `GET /alerts/summary` for alerts summary reads.
 - The first protected operator action slice is `alerts lifecycle actions`:
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
 - The second protected operator slice is `alerts triage actions`:
@@ -118,6 +119,7 @@ Safe payload scope:
 - active roles and permissions
 - protected operator slice label/enforcement
 - protected read slice label/enforcement
+- secondary protected read slice label/enforcement
 - secondary protected operator slice label/enforcement
 - tertiary protected operator slice label/enforcement
 - quaternary protected operator slice label/enforcement
@@ -131,7 +133,7 @@ What is intentionally not exposed:
 - login/logout flows
 
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
-Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary when available. The alerts workbench also uses that current-session surface to explain whether saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
+Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary and alerts access level when available. The alerts workbench also uses that current-session surface to explain whether summary/detail reads and saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
 
 ## Intentionally deferred in this branch
 
