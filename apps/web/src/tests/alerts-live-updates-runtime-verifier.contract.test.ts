@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import {
-  deriveAlertsLiveUpdatesWebSocketUrl,
-  readAlertsLiveUpdatesVerificationConfig
-} from "../../../../scripts/lib/alerts-live-updates-runtime-verifier.mjs";
+// @ts-ignore Shared repo-level verifier helper is plain .mjs runtime code.
+import { deriveAlertsLiveUpdatesWebSocketUrl, readAlertsLiveUpdatesVerificationConfig } from "../../../../scripts/lib/alerts-live-updates-runtime-verifier.mjs";
 
 describe("Alerts live-updates runtime verifier", () => {
   it("keeps local verifier defaults bounded and local-development-safe", () => {
@@ -32,5 +30,15 @@ describe("Alerts live-updates runtime verifier", () => {
     });
 
     expect(url).toBe("wss://alerts.example.com/ws/alerts");
+  });
+
+  it("appends a bounded bearer token to the websocket verifier target when provided", () => {
+    const url = deriveAlertsLiveUpdatesWebSocketUrl({
+      backendBaseUrl: "http://localhost:4000",
+      gatewayPath: "/ws/alerts",
+      bearerToken: "verifier-token"
+    });
+
+    expect(url).toBe("ws://localhost:4000/ws/alerts?access_token=verifier-token");
   });
 });

@@ -59,6 +59,9 @@ function waitForLiveEvent(socket, timeoutMs) {
     socket.addEventListener("message", (event) => {
       try {
         const payload = JSON.parse(typeof event.data === "string" ? event.data : String(event.data));
+        if (payload?.source === "alerts_live_updates" && payload?.kind === "subscription_status") {
+          return;
+        }
         if (payload?.source !== "alerts" || typeof payload?.eventType !== "string") {
           clearTimeout(timeoutId);
           reject(new Error("Received a websocket message, but it was not a bounded alerts live-update payload."));
@@ -80,6 +83,35 @@ function waitForLiveEvent(socket, timeoutMs) {
     socket.addEventListener("error", () => {
       clearTimeout(timeoutId);
       reject(new Error("The alerts websocket errored while waiting for a live event."));
+    });
+  });
+}
+
+function waitForSubscriptionStatus(socket, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out waiting for an alerts websocket subscription status after ${timeoutMs}ms.`
+        )
+      );
+    }, timeoutMs);
+
+    socket.addEventListener("message", (event) => {
+      try {
+        const payload = JSON.parse(typeof event.data === "string" ? event.data : String(event.data));
+        if (payload?.source === "alerts_live_updates" && payload?.kind === "subscription_status") {
+          clearTimeout(timeoutId);
+          resolve(payload);
+        }
+      } catch {
+        // Ignore non-JSON messages here and let the live-event waiter report a clearer failure later.
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeoutId);
+      reject(new Error("The alerts websocket errored while waiting for a subscription status."));
     });
   });
 }
@@ -107,10 +139,20 @@ async function verifyBackendRuntime() {
   logStep(
     `Backend alerts live gateway: ${runtime.alertsLiveUpdates.enabled ? "enabled" : "disabled"} / attached=${runtime.alertsLiveUpdates.gatewayAttached ? "yes" : "no"} / connections=${runtime.alertsLiveUpdates.activeConnections}`
   );
+  logStep(`Backend alerts live subscription policy: ${runtime.alertsLiveUpdates.subscriptionPolicy}`);
 
   if (config.expectEnabled && runtime.alertsLiveUpdates.enabled !== true) {
     throw new Error(
       "Alerts live updates are disabled in the running backend. Enable AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES before running this verifier."
+    );
+  }
+
+  if (
+    runtime.alertsLiveUpdates.subscriptionPolicy === "authenticated_operator_required" &&
+    !config.bearerToken
+  ) {
+    throw new Error(
+      "Alerts live updates are auth-guarded in the running backend. Provide AQUAPULSE_ALERTS_LIVE_VERIFY_BEARER_TOKEN or AQUAPULSE_WEB_AUTH_BEARER_TOKEN for the bounded verifier."
     );
   }
 
@@ -146,7 +188,8 @@ async function main() {
   const webSocketUrl = deriveAlertsLiveUpdatesWebSocketUrl({
     backendBaseUrl: config.backendBaseUrl,
     gatewayPath: runtime.alertsLiveUpdates.gatewayPath,
-    explicitWebSocketUrl: config.webSocketUrl
+    explicitWebSocketUrl: config.webSocketUrl,
+    bearerToken: config.bearerToken
   });
 
   logStep(`Connecting to websocket target: ${webSocketUrl}`);
@@ -155,6 +198,8 @@ async function main() {
   try {
     await waitForWebSocketOpen(socket, config.timeoutMs);
     logStep("Alerts websocket connection: active");
+    const subscriptionStatus = await waitForSubscriptionStatus(socket, config.timeoutMs);
+    logStep(`Alerts websocket subscription auth state: ${subscriptionStatus.subscriptionAuthState}`);
 
     const eventPromise = waitForLiveEvent(socket, config.timeoutMs);
     await triggerRepresentativeMutation();

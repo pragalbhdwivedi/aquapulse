@@ -1215,6 +1215,22 @@ export type AlertsLiveUpdatesConnectionState =
   | "active"
   | "degraded"
   | "unavailable";
+export type AlertsLiveUpdatesSubscriptionAuthState =
+  | "disabled"
+  | "bypassed_local"
+  | "authenticated"
+  | "degraded"
+  | "unavailable";
+export type AlertsLiveUpdatesGatewayPolicy =
+  | "disabled"
+  | "bypassed_local"
+  | "authenticated_operator_required";
+export type AlertsLiveUpdatesLastSubscriptionState =
+  | "authenticated"
+  | "bypassed_local"
+  | "rejected_missing_auth"
+  | "rejected_invalid_auth"
+  | "rejected_insufficient_access";
 export type AlertLiveUpdateEventType =
   | "alert_created"
   | "alert_updated"
@@ -1505,6 +1521,10 @@ export interface AlertsLiveUpdatesRuntimeDiagnostics {
   readonly enabled: boolean;
   readonly targetLabel: string;
   readonly connectionState: AlertsLiveUpdatesConnectionState;
+  readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly authMode: AquaPulseAuthMode;
+  readonly websocketAuthConfigured: boolean;
+  readonly currentSessionSufficient: boolean;
   readonly fallbackMode: "manual_refresh";
   readonly warnings: RuntimeWarning[];
 }
@@ -1615,11 +1635,26 @@ export interface AlertLiveUpdateEvent {
   readonly summary?: AlertQueueSummary;
 }
 
+export interface AlertsLiveUpdatesSubscriptionStatus {
+  readonly source: "alerts_live_updates";
+  readonly kind: "subscription_status";
+  readonly timestamp: ISODateString;
+  readonly authMode: AquaPulseAuthMode;
+  readonly subscriptionAuthState: "authenticated" | "bypassed_local";
+  readonly message: string;
+}
+
 export interface BackendAlertsLiveUpdatesDiagnostics {
   readonly enabled: boolean;
   readonly gatewayPath: string;
   readonly gatewayAttached: boolean;
   readonly activeConnections: number;
+  readonly subscriptionPolicy: AlertsLiveUpdatesGatewayPolicy;
+  readonly authenticatedConnections: number;
+  readonly bypassedConnections: number;
+  readonly lastSubscriptionAt?: ISODateString;
+  readonly lastSubscriptionState?: AlertsLiveUpdatesLastSubscriptionState;
+  readonly lastSubscriptionReason?: string;
   readonly lastEventAt?: ISODateString;
   readonly warnings: RuntimeWarning[];
 }

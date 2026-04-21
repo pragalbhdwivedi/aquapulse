@@ -417,10 +417,35 @@ export class RuntimeDiagnosticsService {
         gatewayPath: alertsLiveUpdatesRuntime.path,
         gatewayAttached: cachedAlertsLiveUpdatesState?.gatewayAttached ?? false,
         activeConnections: cachedAlertsLiveUpdatesState?.activeConnections ?? 0,
+        subscriptionPolicy: !alertsLiveUpdatesRuntime.enabled
+          ? "disabled"
+          : authRuntime.effectiveMode === "keycloak"
+            ? "authenticated_operator_required"
+            : "bypassed_local",
+        authenticatedConnections: cachedAlertsLiveUpdatesState?.authenticatedConnections ?? 0,
+        bypassedConnections: cachedAlertsLiveUpdatesState?.bypassedConnections ?? 0,
+        lastSubscriptionAt: cachedAlertsLiveUpdatesState?.lastSubscriptionAt,
+        lastSubscriptionState: cachedAlertsLiveUpdatesState?.lastSubscriptionState,
+        lastSubscriptionReason: cachedAlertsLiveUpdatesState?.lastSubscriptionReason,
         lastEventAt: cachedAlertsLiveUpdatesState?.lastEventAt,
         warnings: alertsLiveUpdatesRuntime.enabled
           ? [
               ...alertsLiveUpdatesRuntime.warnings,
+              ...(authRuntime.effectiveMode === "keycloak"
+                ? [
+                    {
+                      code: "ALERTS_LIVE_UPDATES_AUTHENTICATED_SUBSCRIPTIONS_REQUIRED",
+                      message:
+                        "Alerts live updates require authenticated operator websocket subscriptions while Keycloak mode is active."
+                    }
+                  ]
+                : [
+                    {
+                      code: "ALERTS_LIVE_UPDATES_BYPASS_LOCAL",
+                      message:
+                        "Alerts live updates are running on the bounded local bypass path because API auth is disabled or local mode is active."
+                    }
+                  ]),
               ...(!(cachedAlertsLiveUpdatesState?.gatewayAttached ?? false)
                 ? [
                     {

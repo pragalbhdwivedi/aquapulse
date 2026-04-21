@@ -51,6 +51,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates?.gatewayPath).toBe("/ws/alerts");
     expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(false);
+    expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
+    expect(diagnostics.alertsLiveUpdates?.authenticatedConnections).toBe(0);
+    expect(diagnostics.alertsLiveUpdates?.bypassedConnections).toBe(0);
     expect(diagnostics.alertsLiveUpdates?.warnings.map((warning) => warning.code)).toContain(
       "ALERTS_LIVE_UPDATES_DISABLED"
     );
@@ -132,6 +135,7 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quaternaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
   });
 
   it("shows alerts cutover as active when Postgres adapters are enabled for the alerts module", () => {
@@ -163,6 +167,11 @@ describe("API runtime diagnostics", () => {
     setCachedAlertsLiveUpdatesGatewayState({
       gatewayAttached: true,
       activeConnections: 2,
+      authenticatedConnections: 1,
+      bypassedConnections: 1,
+      lastSubscriptionAt: "2026-04-22T09:10:00.000Z",
+      lastSubscriptionState: "authenticated",
+      lastSubscriptionReason: "Accepted an authenticated alerts websocket subscription.",
       lastEventAt: "2026-04-22T09:15:00.000Z"
     });
 
@@ -178,6 +187,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.activeConnections).toBe(2);
+    expect(diagnostics.alertsLiveUpdates?.authenticatedConnections).toBe(1);
+    expect(diagnostics.alertsLiveUpdates?.bypassedConnections).toBe(1);
+    expect(diagnostics.alertsLiveUpdates?.lastSubscriptionState).toBe("authenticated");
     expect(diagnostics.alertsLiveUpdates?.lastEventAt).toBe("2026-04-22T09:15:00.000Z");
     expect(diagnostics.alertsLiveUpdates?.warnings.map((warning) => warning.code)).not.toContain(
       "ALERTS_LIVE_UPDATES_IDLE"
@@ -189,7 +201,9 @@ describe("API runtime diagnostics", () => {
   it("shows pending or idle websocket diagnostics when the live gateway is enabled locally", () => {
     setCachedAlertsLiveUpdatesGatewayState({
       gatewayAttached: false,
-      activeConnections: 0
+      activeConnections: 0,
+      authenticatedConnections: 0,
+      bypassedConnections: 0
     });
 
     const pendingService = new RuntimeDiagnosticsService({
@@ -204,7 +218,9 @@ describe("API runtime diagnostics", () => {
 
     setCachedAlertsLiveUpdatesGatewayState({
       gatewayAttached: true,
-      activeConnections: 0
+      activeConnections: 0,
+      authenticatedConnections: 0,
+      bypassedConnections: 0
     });
 
     const idleService = new RuntimeDiagnosticsService({
@@ -218,6 +234,23 @@ describe("API runtime diagnostics", () => {
     ).toContain("ALERTS_LIVE_UPDATES_IDLE");
 
     setCachedAlertsLiveUpdatesGatewayState(undefined);
+  });
+
+  it("shows an authenticated subscription policy when live updates and keycloak mode are both active", () => {
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES: "true",
+        AQUAPULSE_AUTH_MODE: "keycloak",
+        AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+        AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+        AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      }
+    });
+
+    expect(service.getRuntimeDiagnostics().alertsLiveUpdates?.subscriptionPolicy).toBe(
+      "authenticated_operator_required"
+    );
   });
 
   it("keeps health and runtime endpoints aligned through the shared diagnostics service", () => {

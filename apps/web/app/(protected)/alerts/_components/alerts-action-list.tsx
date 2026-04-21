@@ -101,15 +101,17 @@ export function AlertsActionList({
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES:
           process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL:
-          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN
       }),
     []
   );
   const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
   const runtimeDiagnostics = useMemo(() => getAlertsRuntimeDiagnostics(runtimeConfig), [runtimeConfig]);
   const liveUpdatesDiagnostics = useMemo(
-    () => getAlertsLiveUpdatesRuntimeDiagnostics(runtimeConfig),
-    [runtimeConfig]
+    () => getAlertsLiveUpdatesRuntimeDiagnostics(runtimeConfig, { auth: authDiagnostics, session }),
+    [authDiagnostics, runtimeConfig, session]
   );
   const runtimeIndicator = useMemo(() => deriveAlertsRuntimeIndicator(runtimeConfig), [runtimeConfig]);
   const lifecycleGuard = useMemo(() => deriveProtectedOperatorUiGuard(session), [session]);
@@ -309,6 +311,9 @@ export function AlertsActionList({
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
   const [liveUpdatesState, setLiveUpdatesState] = useState(liveUpdatesDiagnostics.connectionState);
+  const [liveSubscriptionState, setLiveSubscriptionState] = useState(
+    liveUpdatesDiagnostics.subscriptionAuthState
+  );
   const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
   const liveUpdatesStatus = useMemo(
     () => describeAlertsLiveUpdatesState(liveUpdatesDiagnostics, liveUpdatesState),
@@ -449,6 +454,10 @@ export function AlertsActionList({
   useEffect(() => {
     setLiveUpdatesState(liveUpdatesDiagnostics.connectionState);
   }, [liveUpdatesDiagnostics.connectionState]);
+
+  useEffect(() => {
+    setLiveSubscriptionState(liveUpdatesDiagnostics.subscriptionAuthState);
+  }, [liveUpdatesDiagnostics.subscriptionAuthState]);
 
   const handleExplainAlertWithOptions = useCallback(
     async (alertId: string, options: { readonly reuseCached?: boolean } = {}) => {
@@ -680,6 +689,7 @@ export function AlertsActionList({
   useEffect(() => {
     const connection = connectAlertsLiveUpdates({
       config: runtimeConfig,
+      diagnostics: liveUpdatesDiagnostics,
       onEvent: (event) => {
         setLastLiveEventAt(event.timestamp);
         setFeedbackTone("success");
@@ -688,13 +698,16 @@ export function AlertsActionList({
       },
       onStateChange: (state) => {
         setLiveUpdatesState(state);
+      },
+      onSubscriptionStateChange: (state) => {
+        setLiveSubscriptionState(state);
       }
     });
 
     return () => {
       connection.disconnect();
     };
-  }, [refreshQueue, runtimeConfig]);
+  }, [liveUpdatesDiagnostics, refreshQueue, runtimeConfig]);
 
   async function handleSingleAction(alertId: string, run: () => Promise<AlertQueueSubmissionResult>, message: string) {
     setActiveAlertId(alertId);
@@ -754,6 +767,7 @@ export function AlertsActionList({
             <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
             <span>Target: {runtimeIndicator.targetLabel}</span>
             <span>Live updates: {liveUpdatesStatus.label}</span>
+            <span>Live auth: {liveSubscriptionState}</span>
             <span>Auth mode: {authDiagnostics.effectiveMode}</span>
             <span>Session: {session.bootstrapState}</span>
             <span>Auth forwarding: {authDiagnostics.forwardingMode}</span>
@@ -766,6 +780,11 @@ export function AlertsActionList({
             Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}
             {lastLiveEventAt ? ` / Last live event: ${lastLiveEventAt}` : ""}
             .
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Live subscription auth: {liveSubscriptionState}. Websocket auth configured:{" "}
+            {liveUpdatesDiagnostics.websocketAuthConfigured ? "yes" : "no"} / Current session sufficient:{" "}
+            {liveUpdatesDiagnostics.currentSessionSufficient ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
             List read slice: {session.protectedReadGuardedSliceLabel ?? authDiagnostics.protectedReadSliceLabel ?? "none"} / Enforced:{" "}

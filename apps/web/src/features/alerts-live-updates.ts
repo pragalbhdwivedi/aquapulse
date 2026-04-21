@@ -1,5 +1,7 @@
 import type {
   AlertLiveUpdateEvent,
+  AlertsLiveUpdatesSubscriptionAuthState,
+  AlertsLiveUpdatesSubscriptionStatus,
   AlertsLiveUpdatesConnectionState,
   AlertsLiveUpdatesRuntimeDiagnostics
 } from "@aquapulse/types";
@@ -17,8 +19,10 @@ export interface AlertsLiveUpdatesStateDescription {
 
 export interface AlertsLiveUpdatesConnectorOptions {
   readonly config: AquaPulseClientRuntimeConfig;
+  readonly diagnostics?: AlertsLiveUpdatesRuntimeDiagnostics;
   readonly onEvent: (event: AlertLiveUpdateEvent) => void;
   readonly onStateChange?: (state: AlertsLiveUpdatesConnectionState) => void;
+  readonly onSubscriptionStateChange?: (state: AlertsLiveUpdatesSubscriptionAuthState) => void;
   readonly webSocketFactory?: (url: string) => WebSocketLike;
 }
 
@@ -41,6 +45,32 @@ function isAlertLiveUpdateEvent(value: unknown): value is AlertLiveUpdateEvent {
 
   const candidate = value as Partial<AlertLiveUpdateEvent>;
   return candidate.source === "alerts" && typeof candidate.eventType === "string";
+}
+
+function isAlertsLiveUpdatesSubscriptionStatus(
+  value: unknown
+): value is AlertsLiveUpdatesSubscriptionStatus {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const candidate = value as Partial<AlertsLiveUpdatesSubscriptionStatus>;
+  return (
+    candidate.source === "alerts_live_updates" &&
+    candidate.kind === "subscription_status" &&
+    (candidate.subscriptionAuthState === "authenticated" ||
+      candidate.subscriptionAuthState === "bypassed_local")
+  );
+}
+
+function buildAlertsLiveUpdatesTargetUrl(config: AquaPulseClientRuntimeConfig, targetLabel: string): string {
+  if (config.alertsLiveUpdatesAuthToken) {
+    const url = new URL(targetLabel);
+    url.searchParams.set("access_token", config.alertsLiveUpdatesAuthToken);
+    return url.toString();
+  }
+
+  return targetLabel;
 }
 
 export function deriveAlertsLiveUpdatesIndicator(
@@ -96,8 +126,9 @@ export function describeAlertsLiveUpdatesState(
 export function connectAlertsLiveUpdates(
   options: AlertsLiveUpdatesConnectorOptions
 ): AlertsLiveUpdatesConnection {
-  const diagnostics = deriveAlertsLiveUpdatesIndicator(options.config);
+  const diagnostics = options.diagnostics ?? deriveAlertsLiveUpdatesIndicator(options.config);
   const onStateChange = options.onStateChange ?? (() => undefined);
+  const onSubscriptionStateChange = options.onSubscriptionStateChange ?? (() => undefined);
   let currentState: AlertsLiveUpdatesConnectionState = diagnostics.connectionState;
   const setState = (state: AlertsLiveUpdatesConnectionState) => {
     currentState = state;
@@ -106,28 +137,50 @@ export function connectAlertsLiveUpdates(
 
   if (!diagnostics.requested) {
     setState("disabled");
+    onSubscriptionStateChange("disabled");
     return {
       disconnect() {
         setState("disabled");
+        onSubscriptionStateChange("disabled");
       }
     };
   }
 
   if (!diagnostics.enabled || diagnostics.targetLabel === "target not configured") {
     setState("unavailable");
+    onSubscriptionStateChange("unavailable");
     return {
       disconnect() {
         setState("unavailable");
+        onSubscriptionStateChange("unavailable");
+      }
+    };
+  }
+
+  if (diagnostics.subscriptionAuthState === "degraded") {
+    setState("degraded");
+    onSubscriptionStateChange("degraded");
+    return {
+      disconnect() {
+        setState("degraded");
+        onSubscriptionStateChange("degraded");
       }
     };
   }
 
   const createSocket = options.webSocketFactory ?? createBrowserWebSocket;
   setState("connecting");
-  const socket = createSocket(diagnostics.targetLabel);
+  onSubscriptionStateChange(diagnostics.subscriptionAuthState);
+  const socket = createSocket(buildAlertsLiveUpdatesTargetUrl(options.config, diagnostics.targetLabel));
 
-  socket.addEventListener("open", () => setState("active"));
-  socket.addEventListener("error", () => setState("unavailable"));
+  socket.addEventListener("open", () => {
+    setState("active");
+    onSubscriptionStateChange(diagnostics.subscriptionAuthState);
+  });
+  socket.addEventListener("error", () => {
+    setState("unavailable");
+    onSubscriptionStateChange("unavailable");
+  });
   socket.addEventListener("close", () => {
     if (currentState === "unavailable" || currentState === "degraded") {
       setState(currentState);
@@ -145,9 +198,16 @@ export function connectAlertsLiveUpdates(
         return;
       }
 
+      if (isAlertsLiveUpdatesSubscriptionStatus(payload)) {
+        onSubscriptionStateChange(payload.subscriptionAuthState);
+        return;
+      }
+
       setState("degraded");
+      onSubscriptionStateChange("degraded");
     } catch {
       setState("degraded");
+      onSubscriptionStateChange("degraded");
     }
   });
 
@@ -155,6 +215,7 @@ export function connectAlertsLiveUpdates(
     disconnect() {
       socket.close();
       setState("inactive");
+      onSubscriptionStateChange(diagnostics.subscriptionAuthState);
     }
   };
 }

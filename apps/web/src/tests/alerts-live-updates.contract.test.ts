@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseClientRuntimeConfig } from "../clients/runtime-config";
+import {
+  getAlertsLiveUpdatesRuntimeDiagnostics,
+  getAuthRuntimeDiagnostics,
+  parseClientRuntimeConfig
+} from "../clients/runtime-config";
+import { deriveFrontendSessionBootstrap } from "../features/auth-session";
 import { connectAlertsLiveUpdates } from "../features/alerts-live-updates";
 
 class FakeWebSocket {
@@ -53,22 +58,28 @@ describe("Alerts live updates connector", () => {
 
   it("connects on the opt-in HTTP path and forwards stable alert events", () => {
     const states: string[] = [];
+    const subscriptionStates: string[] = [];
     const events: unknown[] = [];
     let socket: FakeWebSocket | undefined;
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true"
+    });
 
     const connection = connectAlertsLiveUpdates({
-      config: parseClientRuntimeConfig({
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
-        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true"
-      }),
+      config,
+      diagnostics: getAlertsLiveUpdatesRuntimeDiagnostics(config),
       onEvent: (event) => {
         events.push(event);
       },
       onStateChange: (state) => {
         states.push(state);
+      },
+      onSubscriptionStateChange: (state) => {
+        subscriptionStates.push(state);
       },
       webSocketFactory: (url) => {
         socket = new FakeWebSocket(url);
@@ -81,6 +92,16 @@ describe("Alerts live updates connector", () => {
     socket?.emit("open");
     socket?.emit("message", {
       data: JSON.stringify({
+        source: "alerts_live_updates",
+        kind: "subscription_status",
+        timestamp: "2026-04-22T09:14:00.000Z",
+        authMode: "disabled",
+        subscriptionAuthState: "bypassed_local",
+        message: "bypassed"
+      })
+    });
+    socket?.emit("message", {
+      data: JSON.stringify({
         source: "alerts",
         eventType: "alert_lifecycle_changed",
         timestamp: "2026-04-22T09:15:00.000Z",
@@ -90,6 +111,7 @@ describe("Alerts live updates connector", () => {
 
     expect(states).toContain("connecting");
     expect(states).toContain("active");
+    expect(subscriptionStates).toContain("bypassed_local");
     expect(events).toHaveLength(1);
 
     connection.disconnect();
@@ -151,6 +173,48 @@ describe("Alerts live updates connector", () => {
 
     expect(states).toContain("unavailable");
     expect(states.at(-1)).toBe("unavailable");
+
+    connection.disconnect();
+  });
+
+  it("stays degraded instead of opening a websocket when keycloak auth is active without websocket auth config", () => {
+    const states: string[] = [];
+    const subscriptionStates: string[] = [];
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+    });
+    const auth = getAuthRuntimeDiagnostics(config, {
+      forwardedAuthPresent: true,
+      forwardingSource: "env_token"
+    });
+    const session = deriveFrontendSessionBootstrap(auth);
+    const diagnostics = getAlertsLiveUpdatesRuntimeDiagnostics(config, { auth, session });
+    const webSocketFactory = vi.fn();
+
+    const connection = connectAlertsLiveUpdates({
+      config,
+      diagnostics,
+      onEvent: vi.fn(),
+      onStateChange: (state) => {
+        states.push(state);
+      },
+      onSubscriptionStateChange: (state) => {
+        subscriptionStates.push(state);
+      },
+      webSocketFactory
+    });
+
+    expect(states).toContain("degraded");
+    expect(subscriptionStates).toContain("degraded");
+    expect(webSocketFactory).not.toHaveBeenCalled();
 
     connection.disconnect();
   });

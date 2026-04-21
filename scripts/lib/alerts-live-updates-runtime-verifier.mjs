@@ -21,16 +21,24 @@ function normalizeWebSocketUrl(value) {
 export function deriveAlertsLiveUpdatesWebSocketUrl({
   backendBaseUrl,
   gatewayPath,
-  explicitWebSocketUrl
+  explicitWebSocketUrl,
+  bearerToken
 }) {
-  if (explicitWebSocketUrl) {
-    return normalizeWebSocketUrl(explicitWebSocketUrl);
+  const baseUrl = explicitWebSocketUrl
+    ? normalizeWebSocketUrl(explicitWebSocketUrl)
+    : (() => {
+        const backendUrl = new URL(backendBaseUrl);
+        const protocol = backendUrl.protocol === "https:" ? "wss:" : "ws:";
+        const normalizedPath = gatewayPath.startsWith("/") ? gatewayPath : `/${gatewayPath}`;
+        return `${protocol}//${backendUrl.host}${normalizedPath}`;
+      })();
+
+  const url = new URL(baseUrl);
+  if (bearerToken) {
+    url.searchParams.set("access_token", bearerToken);
   }
 
-  const backendUrl = new URL(backendBaseUrl);
-  const protocol = backendUrl.protocol === "https:" ? "wss:" : "ws:";
-  const normalizedPath = gatewayPath.startsWith("/") ? gatewayPath : `/${gatewayPath}`;
-  return `${protocol}//${backendUrl.host}${normalizedPath}`;
+  return url.toString();
 }
 
 export function readAlertsLiveUpdatesVerificationConfig(env = process.env) {

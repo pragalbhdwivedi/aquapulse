@@ -203,6 +203,10 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
+        <span>Alerts live auth mode: {diagnostics.alertsLiveUpdates.authMode}</span>
+        <span>Alerts live subscription: {diagnostics.alertsLiveUpdates.subscriptionAuthState}</span>
+        <span>Alerts live websocket auth configured: {diagnostics.alertsLiveUpdates.websocketAuthConfigured ? "yes" : "no"}</span>
+        <span>Alerts live current-session sufficient: {diagnostics.alertsLiveUpdates.currentSessionSufficient ? "yes" : "no"}</span>
         <span>Alerts live fallback: {diagnostics.alertsLiveUpdates.fallbackMode.replace("_", " ")}</span>
         <span>Alerts live status: {alertsLiveUpdatesStatus.helperText}</span>
         <span>Feed scope: {diagnostics.feed.scopeLabel}</span>
@@ -322,6 +326,11 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime?.alertsLiveUpdates ? (
           <span>
+            Backend alerts live subscription policy: {backendProbe.runtime.alertsLiveUpdates.subscriptionPolicy} / Authenticated connections: {backendProbe.runtime.alertsLiveUpdates.authenticatedConnections} / Bypassed connections: {backendProbe.runtime.alertsLiveUpdates.bypassedConnections}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates ? (
+          <span>
             Backend alerts live state: {!backendProbe.runtime.alertsLiveUpdates.enabled
               ? "disabled"
               : !backendProbe.runtime.alertsLiveUpdates.gatewayAttached
@@ -336,6 +345,17 @@ export function RuntimeDiagnosticsCard({
             Backend alerts live path: {backendProbe.runtime.alertsLiveUpdates.gatewayPath}
             {backendProbe.runtime.alertsLiveUpdates.lastEventAt
               ? ` / Last event: ${backendProbe.runtime.alertsLiveUpdates.lastEventAt}`
+              : ""}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates?.lastSubscriptionState ? (
+          <span>
+            Backend last live subscription: {backendProbe.runtime.alertsLiveUpdates.lastSubscriptionState}
+            {backendProbe.runtime.alertsLiveUpdates.lastSubscriptionAt
+              ? ` / ${backendProbe.runtime.alertsLiveUpdates.lastSubscriptionAt}`
+              : ""}
+            {backendProbe.runtime.alertsLiveUpdates.lastSubscriptionReason
+              ? ` / ${backendProbe.runtime.alertsLiveUpdates.lastSubscriptionReason}`
               : ""}
           </span>
         ) : null}

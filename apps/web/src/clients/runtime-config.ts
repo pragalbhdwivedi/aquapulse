@@ -29,6 +29,7 @@ export interface AquaPulseClientRuntimeConfig {
   readonly alertsHttpTransport?: AquaPulseHttpTransportMode;
   readonly alertsLiveUpdatesEnabled?: boolean;
   readonly alertsLiveUpdatesBaseUrl?: string;
+  readonly alertsLiveUpdatesAuthToken?: string;
   readonly feedMode?: AquaPulseScopedRuntimeMode;
   readonly feedHttpBaseUrl?: string;
   readonly feedHttpTransport?: AquaPulseHttpTransportMode;
@@ -57,6 +58,7 @@ export interface AquaPulseClientRuntimeEnv {
   readonly AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT?: string;
   readonly AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
   readonly AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
+  readonly AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
   readonly AQUAPULSE_WEB_FEED_MODE?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -78,6 +80,7 @@ export interface AquaPulseClientRuntimeEnv {
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -272,6 +275,12 @@ export function parseClientRuntimeConfig(
     warnings,
     "NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL"
   );
+  const alertsLiveUpdatesAuthToken = normalizeEnvValue(
+    coalesceEnvValue(
+      env.AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN,
+      env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN
+    )
+  );
   const feedMode = parseScopedClientRuntimeMode(
     coalesceEnvValue(env.AQUAPULSE_WEB_FEED_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE)
   );
@@ -408,6 +417,7 @@ export function parseClientRuntimeConfig(
     alertsHttpTransport,
     alertsLiveUpdatesEnabled,
     alertsLiveUpdatesBaseUrl,
+    alertsLiveUpdatesAuthToken,
     feedMode,
     feedHttpBaseUrl: feedHttpBaseUrl ?? httpBaseUrl,
     feedHttpTransport,
@@ -571,11 +581,22 @@ export function getAlertsRuntimeDiagnostics(
 }
 
 export function getAlertsLiveUpdatesRuntimeDiagnostics(
-  config: AquaPulseClientRuntimeConfig
+  config: AquaPulseClientRuntimeConfig,
+  options: {
+    readonly auth?: FrontendAuthRuntimeDiagnostics;
+    readonly session?: FrontendSessionBootstrapStatus;
+  } = {}
 ): AlertsLiveUpdatesRuntimeDiagnostics {
   const requested = Boolean(config.alertsLiveUpdatesEnabled);
   const alertsRuntime = getAlertsRuntimeDiagnostics(config);
   const resolvedBaseUrl = resolveAlertsLiveUpdatesBaseUrl(config);
+  const auth =
+    options.auth ??
+    getAuthRuntimeDiagnostics(config, {
+      forwardedAuthPresent: false,
+      forwardingSource: "none"
+    });
+  const session = options.session ?? deriveFrontendSessionBootstrap(auth);
   const warnings: RuntimeWarning[] = [...(config.warnings ?? [])];
 
   if (requested && alertsRuntime.effectiveMode !== "http") {
@@ -598,6 +619,36 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
     requested &&
     alertsRuntime.effectiveMode === "http" &&
     Boolean(resolvedBaseUrl);
+  const websocketAuthConfigured = Boolean(config.alertsLiveUpdatesAuthToken);
+  const currentSessionSufficient =
+    auth.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
+
+  let subscriptionAuthState: AlertsLiveUpdatesRuntimeDiagnostics["subscriptionAuthState"];
+  if (!requested) {
+    subscriptionAuthState = "disabled";
+  } else if (!enabled) {
+    subscriptionAuthState = "unavailable";
+  } else if (auth.requestedMode === "keycloak" && auth.effectiveMode === "disabled") {
+    subscriptionAuthState = "degraded";
+  } else if (auth.effectiveMode === "keycloak" && !websocketAuthConfigured) {
+    subscriptionAuthState = "degraded";
+    warnings.push({
+      code: "ALERTS_LIVE_UPDATES_WS_AUTH_TOKEN_MISSING",
+      message:
+        "Alerts live updates are protected in Keycloak mode, but no local websocket auth token is configured. Set NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN only for bounded local verification."
+    });
+  } else if (auth.effectiveMode === "keycloak" && !currentSessionSufficient) {
+    subscriptionAuthState = "degraded";
+    warnings.push({
+      code: "ALERTS_LIVE_UPDATES_SESSION_MISMATCH",
+      message:
+        "Alerts live updates have websocket auth configured, but the current frontend session is not authenticated yet. HTTP auth/session and websocket auth are mismatched."
+    });
+  } else if (auth.effectiveMode === "keycloak") {
+    subscriptionAuthState = "authenticated";
+  } else {
+    subscriptionAuthState = "bypassed_local";
+  }
 
   return {
     requested,
@@ -607,7 +658,18 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
         ? resolvedBaseUrl
         : "target not configured"
       : "disabled",
-    connectionState: requested ? (enabled ? "inactive" : "unavailable") : "disabled",
+    connectionState:
+      !requested
+        ? "disabled"
+        : subscriptionAuthState === "degraded"
+          ? "degraded"
+          : enabled
+            ? "inactive"
+            : "unavailable",
+    subscriptionAuthState,
+    authMode: auth.effectiveMode,
+    websocketAuthConfigured,
+    currentSessionSufficient,
     fallbackMode: "manual_refresh",
     warnings
   };
@@ -811,7 +873,10 @@ export function getFrontendRuntimeDiagnostics(
     currentSessionEndpointStatus: currentSession?.endpointStatus
   });
   const alerts = getAlertsRuntimeDiagnostics(config);
-  const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
+  const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config, {
+    auth,
+    session
+  });
   const feed = getFeedRuntimeDiagnostics(config);
   const tasks = getTasksRuntimeDiagnostics(config);
   const waterQuality = getWaterQualityRuntimeDiagnostics(config);

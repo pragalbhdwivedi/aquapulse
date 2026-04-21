@@ -314,6 +314,10 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.enabled).toBe(true);
     expect(diagnostics.targetLabel).toBe("ws://localhost:4000/ws/alerts");
     expect(diagnostics.connectionState).toBe("inactive");
+    expect(diagnostics.subscriptionAuthState).toBe("bypassed_local");
+    expect(diagnostics.authMode).toBe("disabled");
+    expect(diagnostics.websocketAuthConfigured).toBe(false);
+    expect(diagnostics.currentSessionSufficient).toBe(true);
   });
 
   it("keeps alerts live updates failure-safe when websocket config is requested without a usable HTTP path", () => {
@@ -327,6 +331,30 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.connectionState).toBe("unavailable");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "ALERTS_LIVE_UPDATES_HTTP_REQUIRED"
+    );
+  });
+
+  it("keeps alerts live updates auth-aware and degraded in keycloak mode without websocket auth config", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+    });
+    const diagnostics = getAlertsLiveUpdatesRuntimeDiagnostics(config);
+
+    expect(diagnostics.enabled).toBe(true);
+    expect(diagnostics.connectionState).toBe("degraded");
+    expect(diagnostics.subscriptionAuthState).toBe("degraded");
+    expect(diagnostics.authMode).toBe("keycloak");
+    expect(diagnostics.websocketAuthConfigured).toBe(false);
+    expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
+      "ALERTS_LIVE_UPDATES_WS_AUTH_TOKEN_MISSING"
     );
   });
 
