@@ -5,7 +5,7 @@ import type {
   RuntimeWarning
 } from "@aquapulse/types";
 
-export interface ProtectedOperatorUiGuard {
+export interface ProtectedSurfaceUiGuard {
   readonly sliceLabel: string;
   readonly enforcedByBackend: boolean;
   readonly state: FrontendSessionBootstrapStatus["protectedOperatorUiState"];
@@ -13,6 +13,9 @@ export interface ProtectedOperatorUiGuard {
   readonly message: string;
   readonly warnings: readonly RuntimeWarning[];
 }
+
+export type ProtectedOperatorUiGuard = ProtectedSurfaceUiGuard;
+export type ProtectedReadUiGuard = ProtectedSurfaceUiGuard;
 
 export interface AuthAlignedSurfaceDescriptor {
   readonly surfaceLabel: string;
@@ -97,6 +100,11 @@ export function deriveFrontendSessionBootstrap(
     secondaryProtectedReadGuardedSliceEnforced:
       currentSession?.secondaryProtectedReadSliceEnforced ??
       auth.secondaryProtectedReadSliceEnforced,
+    tertiaryProtectedReadGuardedSliceLabel:
+      currentSession?.tertiaryProtectedReadSliceLabel ?? auth.tertiaryProtectedReadSliceLabel,
+    tertiaryProtectedReadGuardedSliceEnforced:
+      currentSession?.tertiaryProtectedReadSliceEnforced ??
+      auth.tertiaryProtectedReadSliceEnforced,
     protectedOperatorSliceLabel: auth.protectedOperatorSliceLabel,
     protectedOperatorUiState:
       bootstrapState === "active"
@@ -192,10 +200,62 @@ export function deriveProtectedOperatorUiGuard(
   };
 }
 
+export function deriveProtectedReadUiGuard(
+  session: FrontendSessionBootstrapStatus,
+  options: {
+    readonly sliceLabel?: string;
+    readonly enforcedByBackend?: boolean;
+  } = {}
+): ProtectedReadUiGuard {
+  const sliceLabel = options.sliceLabel ?? session.protectedReadGuardedSliceLabel;
+  const isPrimarySlice = sliceLabel === session.protectedReadGuardedSliceLabel;
+  const isSecondarySlice = sliceLabel === session.secondaryProtectedReadGuardedSliceLabel;
+  const isTertiarySlice = sliceLabel === session.tertiaryProtectedReadGuardedSliceLabel;
+  const enforcedByBackend =
+    options.enforcedByBackend ??
+    (isPrimarySlice
+      ? session.protectedReadGuardedSliceEnforced
+      : isSecondarySlice
+        ? session.secondaryProtectedReadGuardedSliceEnforced
+        : isTertiarySlice
+          ? session.tertiaryProtectedReadGuardedSliceEnforced
+          : false);
+  const state =
+    enforcedByBackend && session.bootstrapState === "unavailable"
+      ? "disabled"
+      : session.bootstrapState === "active"
+        ? "enabled"
+        : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+          ? "bypassed"
+          : enforcedByBackend
+            ? "disabled"
+            : "bypassed";
+
+  const message =
+    state === "enabled"
+      ? enforcedByBackend
+        ? "Protected alert read is enabled with forwarded auth available."
+        : "Alert read is available because backend auth enforcement is bypassed in this bounded stage."
+      : state === "bypassed"
+        ? session.bootstrapState === "degraded"
+          ? "Frontend auth config is degraded, so the bounded alert read surface is staying on the safe local bypass path."
+          : "Alert read remains available because auth is disabled or local mode is active."
+        : "Protected alert read is unavailable until a forwarded auth session is present.";
+
+  return {
+    sliceLabel: sliceLabel ?? "alerts_read_surface",
+    enforcedByBackend,
+    state,
+    enabled: state !== "disabled",
+    message,
+    warnings: [...session.warnings]
+  };
+}
+
 export function describeAuthAlignedSurface(options: {
   readonly surfaceLabel: string;
   readonly exposure: AuthAlignedSurfaceDescriptor["exposure"];
-  readonly guard?: ProtectedOperatorUiGuard;
+  readonly guard?: ProtectedSurfaceUiGuard;
   readonly session?: FrontendSessionBootstrapStatus;
 }): AuthAlignedSurfaceDescriptor {
   const { exposure, guard, session, surfaceLabel } = options;

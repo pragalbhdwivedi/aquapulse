@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deriveFrontendSessionBootstrap,
   deriveProtectedOperatorUiGuard,
+  deriveProtectedReadUiGuard,
   describeAuthAlignedSurface
 } from "../features/auth-session";
 import { getAuthRuntimeDiagnostics, parseClientRuntimeConfig } from "../clients/runtime-config";
@@ -17,10 +18,12 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sourceOfTruth).toBe("runtime_derived");
     expect(session.currentSessionEndpointStatus).toBe("not_requested");
     expect(session.sessionPresent).toBe(true);
-    expect(session.protectedReadGuardedSliceLabel).toBe("alerts_detail_read");
+    expect(session.protectedReadGuardedSliceLabel).toBe("alerts_list_read");
     expect(session.protectedReadGuardedSliceEnforced).toBe(false);
-    expect(session.secondaryProtectedReadGuardedSliceLabel).toBe("alerts_summary_read");
+    expect(session.secondaryProtectedReadGuardedSliceLabel).toBe("alerts_detail_read");
     expect(session.secondaryProtectedReadGuardedSliceEnforced).toBe(false);
+    expect(session.tertiaryProtectedReadGuardedSliceLabel).toBe("alerts_summary_read");
+    expect(session.tertiaryProtectedReadGuardedSliceEnforced).toBe(false);
     expect(session.protectedOperatorUiState).toBe("bypassed");
     expect(session.secondaryGuardedSliceLabel).toBe("alerts_triage_actions");
     expect(session.secondaryGuardedSliceEnforced).toBe(false);
@@ -45,13 +48,17 @@ describe("Frontend auth session bootstrap", () => {
     });
     const session = deriveFrontendSessionBootstrap(auth);
     const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
-    const detailReadGuard = deriveProtectedOperatorUiGuard(session, {
+    const listReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
     });
-    const summaryReadGuard = deriveProtectedOperatorUiGuard(session, {
+    const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
       enforcedByBackend: session.secondaryProtectedReadGuardedSliceEnforced
+    });
+    const summaryReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.tertiaryProtectedReadGuardedSliceLabel,
+      enforcedByBackend: session.tertiaryProtectedReadGuardedSliceEnforced
     });
     const triageGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.secondaryGuardedSliceLabel
@@ -67,6 +74,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sourceOfTruth).toBe("runtime_derived");
     expect(session.forwardingActive).toBe(true);
     expect(session.sessionPresent).toBe(true);
+    expect(listReadGuard.enforcedByBackend).toBe(true);
+    expect(listReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -116,16 +125,6 @@ describe("Frontend auth session bootstrap", () => {
     expect(lifecycleGuard.message).toContain("forwarded auth session");
   });
 
-  it("classifies a public read surface as available without relying on session state", () => {
-    const surface = describeAuthAlignedSurface({
-      surfaceLabel: "alerts_list_read",
-      exposure: "public_readable"
-    });
-
-    expect(surface.exposure).toBe("public_readable");
-    expect(surface.accessState).toBe("available");
-  });
-
   it("classifies a backend-protected read surface as available when forwarded auth is active", () => {
     const auth = getAuthRuntimeDiagnostics(
       parseClientRuntimeConfig({
@@ -140,12 +139,12 @@ describe("Frontend auth session bootstrap", () => {
       }
     );
     const session = deriveFrontendSessionBootstrap(auth);
-    const guard = deriveProtectedOperatorUiGuard(session, {
+    const guard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
     });
     const surface = describeAuthAlignedSurface({
-      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_list_read",
       exposure: "backend_protected",
       guard,
       session
@@ -164,12 +163,12 @@ describe("Frontend auth session bootstrap", () => {
       })
     );
     const session = deriveFrontendSessionBootstrap(auth);
-    const guard = deriveProtectedOperatorUiGuard(session, {
+    const guard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
     });
     const surface = describeAuthAlignedSurface({
-      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_list_read",
       exposure: "backend_protected",
       guard,
       session
@@ -185,12 +184,12 @@ describe("Frontend auth session bootstrap", () => {
       })
     );
     const session = deriveFrontendSessionBootstrap(auth);
-    const guard = deriveProtectedOperatorUiGuard(session, {
+    const guard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
     });
     const surface = describeAuthAlignedSurface({
-      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_list_read",
       exposure: "backend_protected",
       guard,
       session
@@ -207,12 +206,12 @@ describe("Frontend auth session bootstrap", () => {
       })
     );
     const session = deriveFrontendSessionBootstrap(auth);
-    const guard = deriveProtectedOperatorUiGuard(session, {
+    const guard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
     });
     const surface = describeAuthAlignedSurface({
-      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_detail_read",
+      surfaceLabel: session.protectedReadGuardedSliceLabel ?? "alerts_list_read",
       exposure: "backend_protected",
       guard,
       session

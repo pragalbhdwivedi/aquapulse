@@ -71,6 +71,8 @@ export class AlertsController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.list>> {

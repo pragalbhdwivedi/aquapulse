@@ -19,10 +19,12 @@ describe("Current session surface", () => {
     expect(session.effectiveMode).toBe("disabled");
     expect(session.availabilityState).toBe("disabled");
     expect(session.sessionPresent).toBe(false);
-    expect(session.protectedReadSliceLabel).toBe("alerts_detail_read");
+    expect(session.protectedReadSliceLabel).toBe("alerts_list_read");
     expect(session.protectedReadSliceEnforced).toBe(false);
-    expect(session.secondaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(session.secondaryProtectedReadSliceLabel).toBe("alerts_detail_read");
     expect(session.secondaryProtectedReadSliceEnforced).toBe(false);
+    expect(session.tertiaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(session.tertiaryProtectedReadSliceEnforced).toBe(false);
     expect(session.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
@@ -54,8 +56,10 @@ describe("Current session surface", () => {
     expect(session.user?.username).toBe("pond.supervisor");
     expect(session.user?.alertsAccessLevel).toBe("operator");
     expect(session.user?.operatorAccess).toBe(true);
+    expect(session.user?.alertsAccessSource).toBe("operator_role");
     expect(session.protectedReadSliceEnforced).toBe(false);
     expect(session.secondaryProtectedReadSliceEnforced).toBe(false);
+    expect(session.tertiaryProtectedReadSliceEnforced).toBe(false);
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryProtectedSliceEnforced).toBe(false);
     expect(session.quaternaryProtectedSliceEnforced).toBe(false);
@@ -112,10 +116,62 @@ describe("Current session surface", () => {
     expect(session.user?.roles).toEqual(["operator"]);
     expect(session.user?.alertsAccessLevel).toBe("operator");
     expect(session.user?.operatorAccess).toBe(true);
+    expect(session.user?.alertsAccessSource).toBe("operator_role");
     expect(session.protectedReadSliceEnforced).toBe(true);
     expect(session.secondaryProtectedReadSliceEnforced).toBe(true);
+    expect(session.tertiaryProtectedReadSliceEnforced).toBe(true);
     expect(session.secondaryProtectedSliceEnforced).toBe(true);
     expect(session.tertiaryProtectedSliceEnforced).toBe(true);
     expect(session.quaternaryProtectedSliceEnforced).toBe(true);
+  });
+
+  it("derives operator access from alerts:operate permission when the role is not present", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048
+    });
+    const publicJwk = publicKey.export({ format: "jwk" }) as JsonWebKey;
+    const token = createSignedJwtForTest(
+      {
+        sub: "permission-user",
+        iss: "https://id.example.com/realms/aquapulse",
+        aud: ["aquapulse-web"],
+        exp: Math.floor(Date.now() / 1000) + 300,
+        preferred_username: "permission.operator",
+        realm_access: { roles: ["viewer"] },
+        permissions: ["alerts:operate"]
+      },
+      {
+        kid: "test-kid",
+        privateKeyPem: privateKey.export({ format: "pem", type: "pkcs8" }).toString()
+      }
+    );
+    const service = new CurrentSessionService(
+      new ApiAuthService({
+        runtime: readApiAuthRuntimeConfig({
+          AQUAPULSE_AUTH_MODE: "keycloak",
+          AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+          AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+          AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+          AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+        }),
+        fetchImpl: (async () =>
+          new Response(
+            JSON.stringify({
+              keys: [{ ...publicJwk, kid: "test-kid", use: "sig", alg: "RS256" }]
+            }),
+            { status: 200 }
+          )) as typeof fetch
+      })
+    );
+
+    const session = await service.getCurrentSession({
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
+
+    expect(session.user?.alertsAccessLevel).toBe("operator");
+    expect(session.user?.operatorAccess).toBe(true);
+    expect(session.user?.alertsAccessSource).toBe("alerts_operate_permission");
   });
 });

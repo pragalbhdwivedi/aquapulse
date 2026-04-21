@@ -27,10 +27,12 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.effectiveMode).toBe("disabled");
     expect(diagnostics.auth?.bypassActive).toBe(true);
     expect(diagnostics.auth?.verificationStatus).toBe("disabled");
-    expect(diagnostics.auth?.protectedReadSliceLabel).toBe("alerts_detail_read");
+    expect(diagnostics.auth?.protectedReadSliceLabel).toBe("alerts_list_read");
     expect(diagnostics.auth?.protectedReadSliceEnforced).toBe(false);
-    expect(diagnostics.auth?.secondaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(diagnostics.auth?.secondaryProtectedReadSliceLabel).toBe("alerts_detail_read");
     expect(diagnostics.auth?.secondaryProtectedReadSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.tertiaryProtectedReadSliceLabel).toBe("alerts_summary_read");
+    expect(diagnostics.auth?.tertiaryProtectedReadSliceEnforced).toBe(false);
     expect(diagnostics.auth?.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(false);
     expect(diagnostics.auth?.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
@@ -102,6 +104,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.tokenValidation).toBe("jwks_ready");
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_FIRST_PROTECTED_SLICE_ACTIVE"
+    );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_ALERT_LIST_READ_SLICE_ACTIVE"
     );
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_ALERT_DETAIL_READ_SLICE_ACTIVE"

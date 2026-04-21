@@ -43,6 +43,7 @@ export class CurrentSessionService {
   async getCurrentSession(request: RequestLike): Promise<CurrentSessionPayload> {
     const runtime = this.authService.getRuntimeConfig();
     const user = await this.authService.hydrateRequestUser(request);
+    const alertsAccess = this.authService.summarizeAlertsAccess(user);
     const warnings: RuntimeWarning[] = [...runtime.warnings];
     let availabilityState: CurrentSessionAvailabilityState;
     let authSource: CurrentSessionAuthSource;
@@ -84,15 +85,18 @@ export class CurrentSessionService {
             roles: [...user.roles],
             permissions: [...user.permissions],
             claimKeys: Object.keys(user.claims ?? {}).sort(),
-            alertsAccessLevel: this.authService.deriveAlertsAccessLevel(user),
-            operatorAccess: this.authService.hasOperatorAccess(user)
+            alertsAccessLevel: alertsAccess.level,
+            operatorAccess: alertsAccess.operatorAccess,
+            alertsAccessSource: alertsAccess.source
           }
         : undefined,
       sessionPresent: Boolean(user),
-      protectedReadSliceLabel: "alerts_detail_read",
+      protectedReadSliceLabel: "alerts_list_read",
       protectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
-      secondaryProtectedReadSliceLabel: "alerts_summary_read",
+      secondaryProtectedReadSliceLabel: "alerts_detail_read",
       secondaryProtectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
+      tertiaryProtectedReadSliceLabel: "alerts_summary_read",
+      tertiaryProtectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
       protectedOperatorSliceLabel: "alerts_lifecycle_actions",
       protectedOperatorSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryProtectedSliceLabel: "alerts_triage_actions",

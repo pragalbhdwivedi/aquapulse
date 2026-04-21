@@ -4,6 +4,7 @@ import type {
 } from "@aquapulse/types";
 import {
   deriveProtectedOperatorUiGuard,
+  deriveProtectedReadUiGuard,
   describeAuthAlignedSurface
 } from "@web/features/auth-session";
 import {
@@ -26,11 +27,11 @@ export function RuntimeDiagnosticsCard({
   const feedEndToEnd = deriveFeedEndToEndRuntimeStatus(diagnostics, backendProbe);
   const tasksEndToEnd = deriveTasksEndToEndRuntimeStatus(diagnostics, backendProbe);
   const waterQualityEndToEnd = deriveWaterQualityEndToEndRuntimeStatus(diagnostics, backendProbe);
-  const detailReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+  const listReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
     sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
     enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
   });
-  const summaryReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+  const detailReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
     sliceLabel:
       diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
       diagnostics.auth.secondaryProtectedReadSliceLabel,
@@ -38,14 +39,27 @@ export function RuntimeDiagnosticsCard({
       diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ||
       diagnostics.auth.secondaryProtectedReadSliceEnforced
   });
-  const listReadSurface = describeAuthAlignedSurface({
-    surfaceLabel: "alerts_list_read",
-    exposure: "public_readable"
+  const summaryReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
+    sliceLabel:
+      diagnostics.session.tertiaryProtectedReadGuardedSliceLabel ??
+      diagnostics.auth.tertiaryProtectedReadSliceLabel,
+    enforcedByBackend:
+      diagnostics.session.tertiaryProtectedReadGuardedSliceEnforced ||
+      diagnostics.auth.tertiaryProtectedReadSliceEnforced
   });
-  const detailReadSurface = describeAuthAlignedSurface({
+  const listReadSurface = describeAuthAlignedSurface({
     surfaceLabel:
       diagnostics.auth.protectedReadSliceLabel ??
       diagnostics.session.protectedReadGuardedSliceLabel ??
+      "alerts_list_read",
+    exposure: "backend_protected",
+    guard: listReadGuard,
+    session: diagnostics.session
+  });
+  const detailReadSurface = describeAuthAlignedSurface({
+    surfaceLabel:
+      diagnostics.auth.secondaryProtectedReadSliceLabel ??
+      diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
       "alerts_detail_read",
     exposure: "backend_protected",
     guard: detailReadGuard,
@@ -53,8 +67,8 @@ export function RuntimeDiagnosticsCard({
   });
   const summaryReadSurface = describeAuthAlignedSurface({
     surfaceLabel:
-      diagnostics.auth.secondaryProtectedReadSliceLabel ??
-      diagnostics.session.secondaryProtectedReadGuardedSliceLabel ??
+      diagnostics.auth.tertiaryProtectedReadSliceLabel ??
+      diagnostics.session.tertiaryProtectedReadGuardedSliceLabel ??
       "alerts_summary_read",
     exposure: "backend_protected",
     guard: summaryReadGuard,
@@ -114,7 +128,7 @@ export function RuntimeDiagnosticsCard({
         <span>
           Session availability: {diagnostics.session.availabilityState}
           {diagnostics.session.currentUser
-            ? ` / User: ${diagnostics.session.currentUser.displayName ?? diagnostics.session.currentUser.username ?? diagnostics.session.currentUser.id}`
+            ? ` / User: ${diagnostics.session.currentUser.displayName ?? diagnostics.session.currentUser.username ?? diagnostics.session.currentUser.id} / Alerts access: ${diagnostics.session.currentUser.alertsAccessLevel} (${diagnostics.session.currentUser.alertsAccessSource})`
             : ""}
         </span>
         <span>
@@ -132,12 +146,16 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.firstProtectedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
-          Protected read slice: {diagnostics.auth.protectedReadSliceLabel ?? diagnostics.session.protectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          Protected list read slice: {diagnostics.auth.protectedReadSliceLabel ?? diagnostics.session.protectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
           {diagnostics.auth.protectedReadSliceEnforced || diagnostics.session.protectedReadGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
-          Secondary protected read slice: {diagnostics.auth.secondaryProtectedReadSliceLabel ?? diagnostics.session.secondaryProtectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          Protected detail read slice: {diagnostics.auth.secondaryProtectedReadSliceLabel ?? diagnostics.session.secondaryProtectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
           {diagnostics.auth.secondaryProtectedReadSliceEnforced || diagnostics.session.secondaryProtectedReadGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
+          Protected summary read slice: {diagnostics.auth.tertiaryProtectedReadSliceLabel ?? diagnostics.session.tertiaryProtectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.tertiaryProtectedReadSliceEnforced || diagnostics.session.tertiaryProtectedReadGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
           Protected operator slice: {diagnostics.auth.protectedOperatorSliceLabel} / Enforced:{" "}
@@ -160,16 +178,17 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.forwardingMode}
         </span>
         <span>
+          Alerts list read access: {listReadGuard.state} / {listReadGuard.message}
+        </span>
+        <span>
           Alerts detail read access: {detailReadGuard.state} / {detailReadGuard.message}
         </span>
         <span>
           Alerts summary read access: {summaryReadGuard.state} / {summaryReadGuard.message}
         </span>
         <span>
-          Public/readable surfaces: {listReadSurface.surfaceLabel} ({listReadSurface.accessState})
-        </span>
-        <span>
-          Backend-protected reads: {detailReadSurface.surfaceLabel} ({detailReadSurface.accessState}),{" "}
+          Backend-protected reads: {listReadSurface.surfaceLabel} ({listReadSurface.accessState}),{" "}
+          {detailReadSurface.surfaceLabel} ({detailReadSurface.accessState}),{" "}
           {summaryReadSurface.surfaceLabel} ({summaryReadSurface.accessState})
         </span>
         <span>
@@ -239,14 +258,20 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime?.auth ? (
           <span>
-            Backend protected read slice: {backendProbe.runtime.auth.protectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            Backend protected list read slice: {backendProbe.runtime.auth.protectedReadSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.protectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (
           <span>
-            Backend secondary protected read slice: {backendProbe.runtime.auth.secondaryProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            Backend protected detail read slice: {backendProbe.runtime.auth.secondaryProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.secondaryProtectedReadSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend protected summary read slice: {backendProbe.runtime.auth.tertiaryProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.tertiaryProtectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (

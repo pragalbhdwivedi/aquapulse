@@ -40,8 +40,8 @@ For alerts diagnostics:
 - `transport = direct` means alerts point at a backend URL directly
 - `requestedMode` shows what the web config asked alerts to do
 - the runtime page now distinguishes alerts surfaces by exposure:
-  `public_readable` for the list baseline, `backend_protected` for auth-enforced reads such as
-  detail/summary, and `ui_guarded` for operator controls that remain visible but auth-aware
+  `backend_protected` for auth-enforced list/detail/summary reads, and `ui_guarded` for operator
+  controls that remain visible but auth-aware
 
 For backend alerts adapter diagnostics:
 

@@ -163,25 +163,55 @@ export class ApiAuthService {
   deriveAlertsAccessLevel(
     user: AuthenticatedUserSession | null | undefined
   ): "none" | "viewer" | "operator" {
-    if (!user) {
-      return "none";
-    }
-
-    if (this.hasOperatorAccess(user)) {
-      return "operator";
-    }
-
-    return "viewer";
+    return this.summarizeAlertsAccess(user).level;
   }
 
   hasOperatorAccess(
     user: AuthenticatedUserSession | null | undefined
   ): boolean {
+    return this.summarizeAlertsAccess(user).operatorAccess;
+  }
+
+  summarizeAlertsAccess(
+    user: AuthenticatedUserSession | null | undefined
+  ): {
+    readonly level: "none" | "viewer" | "operator";
+    readonly operatorAccess: boolean;
+    readonly source:
+      | "none"
+      | "viewer_only"
+      | "operator_role"
+      | "alerts_operate_permission";
+  } {
     if (!user) {
-      return false;
+      return {
+        level: "none",
+        operatorAccess: false,
+        source: "none"
+      };
     }
 
-    return user.roles.includes("operator") || user.permissions.includes("alerts:operate");
+    if (user.roles.includes("operator")) {
+      return {
+        level: "operator",
+        operatorAccess: true,
+        source: "operator_role"
+      };
+    }
+
+    if (user.permissions.includes("alerts:operate")) {
+      return {
+        level: "operator",
+        operatorAccess: true,
+        source: "alerts_operate_permission"
+      };
+    }
+
+    return {
+      level: "viewer",
+      operatorAccess: false,
+      source: "viewer_only"
+    };
   }
 
   private hasNamedRole(user: AuthenticatedUserSession, role: string): boolean {

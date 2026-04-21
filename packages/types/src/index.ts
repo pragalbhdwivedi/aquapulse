@@ -1267,6 +1267,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly protectedReadSliceEnforced: boolean;
   readonly secondaryProtectedReadSliceLabel?: string;
   readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1298,6 +1300,11 @@ export interface CurrentSessionUserSummary {
   readonly claimKeys: string[];
   readonly alertsAccessLevel: "none" | "viewer" | "operator";
   readonly operatorAccess: boolean;
+  readonly alertsAccessSource:
+    | "none"
+    | "viewer_only"
+    | "operator_role"
+    | "alerts_operate_permission";
 }
 
 export type CurrentSessionAvailabilityState =
@@ -1325,6 +1332,8 @@ export interface CurrentSessionPayload {
   readonly protectedReadSliceEnforced: boolean;
   readonly secondaryProtectedReadSliceLabel?: string;
   readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1369,6 +1378,8 @@ export interface FrontendSessionBootstrapStatus {
   readonly protectedReadGuardedSliceEnforced: boolean;
   readonly secondaryProtectedReadGuardedSliceLabel?: string;
   readonly secondaryProtectedReadGuardedSliceEnforced: boolean;
+  readonly tertiaryProtectedReadGuardedSliceLabel?: string;
+  readonly tertiaryProtectedReadGuardedSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
   readonly secondaryGuardedSliceLabel?: string;
@@ -1416,6 +1427,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly protectedReadSliceEnforced: boolean;
   readonly secondaryProtectedReadSliceLabel?: string;
   readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;

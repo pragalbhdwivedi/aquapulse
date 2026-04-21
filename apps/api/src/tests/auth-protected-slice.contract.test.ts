@@ -56,7 +56,9 @@ class ProtectedAlertSummaryReadHandler {
   }
 }
 
-class PublicAlertsListReadHandler {
+class ProtectedAlertListReadHandler {
+  @RequireAuthentication()
+  @RequireRoles("operator")
   run() {
     return true;
   }
@@ -79,7 +81,7 @@ function createExecutionContext(
     | typeof ProtectedAlertBulkHandler
     | typeof ProtectedAlertDetailReadHandler
     | typeof ProtectedAlertSummaryReadHandler
-    | typeof PublicAlertsListReadHandler
+    | typeof ProtectedAlertListReadHandler
     | typeof ProtectedAlertSavedViewMutationHandler =
     ProtectedRuntimeDiagnosticsHandler
 ): ExecutionContext {
@@ -341,23 +343,24 @@ describe("First protected auth slice", () => {
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("keeps the alerts list read surface readable when keycloak mode is active but auth is missing", async () => {
-    const authService = new ApiAuthService({
-      runtime: readApiAuthRuntimeConfig({
-        AQUAPULSE_AUTH_MODE: "keycloak",
-        AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
-        AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
-        AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
-        AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
-      }),
-      fetchImpl: (async () => new Response(JSON.stringify({ keys: [] }), { status: 200 })) as typeof fetch
-    });
-    const authGuard = new PlaceholderAuthGuard(new Reflector(), authService);
-    const roleGuard = new PlaceholderRoleGuard(new Reflector(), authService);
-    const context = createExecutionContext({ headers: {} }, PublicAlertsListReadHandler);
+  it("requires an authenticated operator on the alerts list read slice when keycloak mode is active", async () => {
+    const guard = new PlaceholderAuthGuard(
+      new Reflector(),
+      new ApiAuthService({
+        runtime: readApiAuthRuntimeConfig({
+          AQUAPULSE_AUTH_MODE: "keycloak",
+          AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+          AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+          AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+          AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+        }),
+        fetchImpl: (async () => new Response(JSON.stringify({ keys: [] }), { status: 200 })) as typeof fetch
+      })
+    );
 
-    await expect(authGuard.canActivate(context)).resolves.toBe(true);
-    expect(roleGuard.canActivate(context)).toBe(true);
+    await expect(
+      guard.canActivate(createExecutionContext({ headers: {} }, ProtectedAlertListReadHandler))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it("requires an authenticated operator on the alerts saved-view mutation slice when keycloak mode is active", async () => {
