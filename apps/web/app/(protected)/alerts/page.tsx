@@ -1,11 +1,11 @@
 import { getAlertsPageData } from "@web/queries";
-import { readFrontendRuntimeDiagnostics } from "@web/features/runtime-diagnostics";
+import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { PageShell } from "../_components/page-shell";
 import { AlertsActionList } from "./_components/alerts-action-list";
 
 export default async function AlertsPage() {
   const alertsPage = await getAlertsPageData();
-  const diagnostics = readFrontendRuntimeDiagnostics();
+  const diagnostics = await readResolvedFrontendRuntimeDiagnostics();
 
   return (
     <PageShell title="Alerts" description="Placeholder alerts route using the repository and query layer.">

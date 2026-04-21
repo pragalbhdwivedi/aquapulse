@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { AuthFoundationModule } from "./common/auth/auth-foundation.module";
+import { AuthController } from "./auth.controller";
 import { DiagnosticsController } from "./diagnostics.controller";
 import { HealthController } from "./health.controller";
 import { RuntimeDiagnosticsService } from "./runtime-diagnostics.service";
@@ -28,7 +29,7 @@ const CORE_MODULES = [
 
 @Module({
   imports: CORE_MODULES,
-  controllers: [HealthController, DiagnosticsController],
+  controllers: [AuthController, HealthController, DiagnosticsController],
   providers: [RuntimeDiagnosticsService]
 })
 export class AppModule {}

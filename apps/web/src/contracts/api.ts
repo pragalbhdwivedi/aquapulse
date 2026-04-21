@@ -16,6 +16,7 @@ import type {
   AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  CurrentSessionPayload,
   AiResponseLogListQueryRequest,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
@@ -84,6 +85,10 @@ export interface PondsApiClient {
   list(query?: PondsListQuery): ApiListContract<PondSummary>;
   getById(id: string): ApiItemContract<PondSummary>;
   summarize(input: AiPondsSummarizeRequest): ApiItemContract<AiPondsSummarizeResponse>;
+}
+
+export interface AuthApiClient {
+  getSession(): ApiItemContract<CurrentSessionPayload>;
 }
 
 export interface BatchesApiClient {

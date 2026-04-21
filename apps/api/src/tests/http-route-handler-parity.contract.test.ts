@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AuthController } from "../auth.controller";
 import { AiController } from "../modules/ai/ai.controller";
 import { AlertsController } from "../modules/alerts/alerts.controller";
 import { AttachmentsController } from "../modules/attachments/attachments.controller";
@@ -159,5 +160,26 @@ describe("HTTP route-handler parity", () => {
     expect(detail.data.id).toBe("ai-response-1");
     expect(explain.data.explanation).toContain("Placeholder");
     expect(dashboard.data.answer).toContain("Placeholder");
+  });
+
+  it("keeps the current-session endpoint on an item-style success envelope", async () => {
+    const controller = new AuthController({
+      getCurrentSession: vi.fn().mockResolvedValue({
+        requestedMode: "disabled",
+        effectiveMode: "disabled",
+        availabilityState: "disabled",
+        authSource: "none",
+        sessionPresent: false,
+        protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+        protectedOperatorSliceEnforced: false,
+        verificationState: "disabled",
+        warnings: []
+      })
+    } as never);
+
+    const response = await controller.getCurrentSession({ headers: {} });
+
+    expect(response.ok).toBe(true);
+    expect(response.data.availabilityState).toBe("disabled");
   });
 });

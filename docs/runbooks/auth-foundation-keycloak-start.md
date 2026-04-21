@@ -60,6 +60,7 @@ x-aquapulse-dev-permissions
 - Open the runtime diagnostics page.
 - Check `Auth runtime` on the web diagnostics card.
 - Check `Session bootstrap` on the runtime diagnostics card or protected layout shell.
+- If backend current-session resolution is enabled, also check `Session source` and `Current-session endpoint`.
 - If backend probes are enabled, compare frontend auth mode with backend auth mode and validation strategy.
 - The protected layout sidebar also shows the current effective frontend auth label.
 - The first bounded protected slice is `GET /diagnostics/runtime`.
@@ -85,10 +86,39 @@ Useful local env:
 AQUAPULSE_WEB_LOCAL_API_BACKEND_URL=http://localhost:4000
 AQUAPULSE_WEB_AUTH_BEARER_TOKEN=
 AQUAPULSE_WEB_AUTH_TOKEN_COOKIE_NAME=aquapulse_auth_token
+AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=false
+AQUAPULSE_WEB_CURRENT_SESSION_TIMEOUT_MS=1200
 ```
 
 If Keycloak mode is active but no forwardable token is available, the runtime diagnostics surface will show auth forwarding as unavailable and the protected operator slice will reject backend requests in Keycloak mode.
 The frontend session/bootstrap seam will also report the session as `unavailable`, and guarded operator controls on the alerts page will stay disabled with a readable warning instead of failing silently.
+
+## Current-session surface
+
+The backend now exposes a bounded current-session endpoint at:
+
+```text
+/api/auth/session
+```
+
+Safe payload scope:
+
+- requested/effective auth mode
+- session availability state
+- auth source summary
+- current user id/display name/username/email when available
+- active roles and permissions
+- protected operator slice label/enforcement
+- safe warnings
+
+What is intentionally not exposed:
+
+- raw bearer tokens
+- cookies
+- full profile management
+- login/logout flows
+
+When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
 
 ## Intentionally deferred in this branch
 

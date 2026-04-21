@@ -17,6 +17,7 @@ import type {
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
+  CurrentSessionPayload,
   EndpointContract,
   FeedCreateRequest,
   FeedEntry,
@@ -101,6 +102,16 @@ export function createHttpClientFactory({
 
   return {
     ...baseClients,
+    auth: {
+      ...baseClients.auth,
+      getSession() {
+        return invokeCreateEndpoint<CurrentSessionPayload, Record<string, never>>(
+          executor,
+          registry.auth.session,
+          {}
+        );
+      }
+    },
     ponds: {
       ...baseClients.ponds,
       list(query) {

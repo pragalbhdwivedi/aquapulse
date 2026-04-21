@@ -38,6 +38,7 @@ export function RuntimeDiagnosticsCard({
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Auth runtime: {diagnostics.auth.effectiveMode}</span>
         <span>Session bootstrap: {diagnostics.session.bootstrapState}</span>
+        <span>Session source: {diagnostics.session.sourceOfTruth}</span>
         <span>Auth verification: {diagnostics.auth.verificationState}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
         <span>Feed runtime: {diagnostics.feed.effectiveMode}</span>
@@ -61,6 +62,16 @@ export function RuntimeDiagnosticsCard({
         <span>
           Session present: {diagnostics.session.sessionPresent ? "yes" : "no"} / Forwarded auth:{" "}
           {diagnostics.session.forwardedAuthPresent ? "yes" : "no"}
+        </span>
+        <span>
+          Current-session endpoint: {diagnostics.session.currentSessionEndpointStatus} / Available:{" "}
+          {diagnostics.session.currentSessionAvailable ? "yes" : "no"}
+        </span>
+        <span>
+          Session availability: {diagnostics.session.availabilityState}
+          {diagnostics.session.currentUser
+            ? ` / User: ${diagnostics.session.currentUser.displayName ?? diagnostics.session.currentUser.username ?? diagnostics.session.currentUser.id}`
+            : ""}
         </span>
         <span>
           Session bootstrap enabled: {diagnostics.session.bootstrapEnabled ? "yes" : "no"} / UI state:{" "}

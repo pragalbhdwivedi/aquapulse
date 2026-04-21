@@ -2,6 +2,7 @@ import type {
   AlertsRuntimeDiagnostics,
   AlertsLiveUpdatesRuntimeDiagnostics,
   AquaPulseAuthMode,
+  CurrentSessionPayload,
   FrontendAuthRuntimeDiagnostics,
   FrontendSessionBootstrapStatus,
   FeedRuntimeDiagnostics,
@@ -786,10 +787,17 @@ export function getFrontendRuntimeDiagnostics(
   authForwarding?: {
     readonly forwardedAuthPresent?: boolean;
     readonly forwardingSource?: "env_token" | "cookie_token" | "authorization_header" | "none";
+  },
+  currentSession?: {
+    readonly payload?: CurrentSessionPayload;
+    readonly endpointStatus?: FrontendSessionBootstrapStatus["currentSessionEndpointStatus"];
   }
 ): FrontendRuntimeDiagnostics {
   const auth = getAuthRuntimeDiagnostics(config, authForwarding);
-  const session: FrontendSessionBootstrapStatus = deriveFrontendSessionBootstrap(auth);
+  const session: FrontendSessionBootstrapStatus = deriveFrontendSessionBootstrap(auth, {
+    currentSession: currentSession?.payload,
+    currentSessionEndpointStatus: currentSession?.endpointStatus
+  });
   const alerts = getAlertsRuntimeDiagnostics(config);
   const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
   const feed = getFeedRuntimeDiagnostics(config);
@@ -865,6 +873,7 @@ export function getFrontendRuntimeDiagnostics(
     waterQuality,
     localBridge,
     warnings: [
+      ...session.warnings,
       ...auth.warnings,
       ...alerts.warnings,
       ...alertsLiveUpdates.warnings,

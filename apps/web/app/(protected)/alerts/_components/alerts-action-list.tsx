@@ -491,6 +491,10 @@ export function AlertsActionList({
             {session.protectedOperatorUiState}. Secondary guarded slice:{" "}
             {session.secondaryGuardedSliceLabel ?? "none"}.
           </span>
+          <span style={{ color: "#94a3b8" }}>
+            Session source: {session.sourceOfTruth}. Endpoint: {session.currentSessionEndpointStatus}. Current user:{" "}
+            {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
+          </span>
           {lastLiveEventAt ? (
             <span style={{ color: "#94a3b8" }}>Last live event: {lastLiveEventAt}</span>
           ) : null}

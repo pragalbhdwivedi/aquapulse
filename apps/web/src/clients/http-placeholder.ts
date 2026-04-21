@@ -53,6 +53,9 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
   const execute = createFetchPlaceholderExecutor(handlers);
 
   return {
+    auth: {
+      session: createFetchDelegatedHandler(aquaPulseEndpointCatalog.auth.session, execute)
+    },
     ponds: {
       create: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ponds.create, execute),
       list: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ponds.list, execute),

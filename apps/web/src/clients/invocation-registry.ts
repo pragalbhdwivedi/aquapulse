@@ -46,6 +46,9 @@ export function defineEndpointInvocationConfig<TEndpoint extends EndpointContrac
 }
 
 export const endpointInvocationRegistry = {
+  auth: {
+    session: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.auth.session)
+  },
   ponds: {
     create: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ponds.create),
     list: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ponds.list),
@@ -131,6 +134,7 @@ export type EndpointInvocationRegistry = typeof endpointInvocationRegistry;
 
 export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRegistry) {
   return {
+    [registry.auth.session.endpointId]: registry.auth.session,
     [registry.ponds.create.endpointId]: registry.ponds.create,
     [registry.ponds.list.endpointId]: registry.ponds.list,
     [registry.ponds.getById.endpointId]: registry.ponds.getById,

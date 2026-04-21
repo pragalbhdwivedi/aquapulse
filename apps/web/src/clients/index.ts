@@ -1,4 +1,5 @@
 import type {
+  AuthApiClient,
   AiApiClient,
   AlertsApiClient,
   AttachmentsApiClient,
@@ -38,6 +39,7 @@ import {
 } from "./runtime-config";
 
 export interface AquaPulseApiClients {
+  auth: AuthApiClient;
   ponds: PondsApiClient;
   batches: BatchesApiClient;
   waterQuality: WaterQualityApiClient;
@@ -66,6 +68,24 @@ function resolveScopedFetchBaseUrl(
 
 export function createMockApiClients(): AquaPulseApiClients {
   return {
+    auth: {
+      async getSession() {
+        return {
+          ok: true,
+          data: {
+            requestedMode: "disabled",
+            effectiveMode: "disabled",
+            availabilityState: "disabled",
+            authSource: "none",
+            sessionPresent: false,
+            protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+            protectedOperatorSliceEnforced: false,
+            verificationState: "disabled",
+            warnings: []
+          }
+        };
+      }
+    },
     ponds: pondsMockAdapter,
     batches: batchesMockAdapter,
     waterQuality: waterQualityMockAdapter,

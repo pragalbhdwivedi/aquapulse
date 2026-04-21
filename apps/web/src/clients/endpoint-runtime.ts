@@ -16,6 +16,7 @@ import type {
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   AttachmentMetadata,
+  CurrentSessionPayload,
   EndpointRequest,
   EndpointResponse,
   ListResponse,
@@ -141,6 +142,9 @@ function createAlertBulkActionHandler<TItem, TInput>(
 }
 
 export interface AquaPulseEndpointHandlers {
+  auth: {
+    session: EndpointHandler<EndpointCatalog["auth"]["session"]>;
+  };
   ponds: {
     create: EndpointHandler<EndpointCatalog["ponds"]["create"]>;
     list: EndpointHandler<EndpointCatalog["ponds"]["list"]>;
@@ -274,6 +278,9 @@ export function createEndpointHandlersFromClients(
   clients: AquaPulseApiClients
 ): AquaPulseEndpointHandlers {
   return {
+    auth: {
+      session: async () => clients.auth.getSession()
+    },
     ponds: {
       create: createMutationFromDetailHandler(clients.ponds),
       list: createListHandler(clients.ponds, { page: 1, pageSize: 20 }),
@@ -528,6 +535,9 @@ export function createEndpointHandlersFromClients(
 
 export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHandlers): AquaPulseApiClients {
   return {
+    auth: {
+      getSession: () => handlers.auth.session({})
+    },
     ponds: {
       list: (query) => handlers.ponds.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.ponds.getById({ id }),

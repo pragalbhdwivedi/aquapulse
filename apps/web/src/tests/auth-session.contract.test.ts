@@ -10,6 +10,8 @@ describe("Frontend auth session bootstrap", () => {
 
     expect(session.bootstrapEnabled).toBe(true);
     expect(session.bootstrapState).toBe("bypassed");
+    expect(session.sourceOfTruth).toBe("runtime_derived");
+    expect(session.currentSessionEndpointStatus).toBe("not_requested");
     expect(session.sessionPresent).toBe(true);
     expect(session.protectedOperatorUiState).toBe("bypassed");
     expect(lifecycleGuard.enabled).toBe(true);
@@ -35,6 +37,7 @@ describe("Frontend auth session bootstrap", () => {
     });
 
     expect(session.bootstrapState).toBe("active");
+    expect(session.sourceOfTruth).toBe("runtime_derived");
     expect(session.forwardingActive).toBe(true);
     expect(session.sessionPresent).toBe(true);
     expect(lifecycleGuard.state).toBe("enabled");
@@ -51,6 +54,7 @@ describe("Frontend auth session bootstrap", () => {
     const session = deriveFrontendSessionBootstrap(auth);
 
     expect(session.bootstrapState).toBe("degraded");
+    expect(session.availabilityState).toBe("degraded");
     expect(session.protectedOperatorUiState).toBe("bypassed");
     expect(session.warnings.map((warning) => warning.code)).toContain(
       "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
@@ -70,6 +74,7 @@ describe("Frontend auth session bootstrap", () => {
     const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
 
     expect(session.bootstrapState).toBe("unavailable");
+    expect(session.currentSessionAvailable).toBe(false);
     expect(session.sessionPresent).toBe(false);
     expect(lifecycleGuard.enabled).toBe(false);
     expect(lifecycleGuard.message).toContain("forwarded auth session");

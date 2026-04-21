@@ -1,13 +1,13 @@
 import {
   probeBackendRuntimeDiagnostics,
-  readFrontendRuntimeDiagnostics,
   readRuntimeProbeConfig
 } from "@web/features/runtime-diagnostics";
+import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { PageShell } from "../_components/page-shell";
 import { RuntimeDiagnosticsCard } from "../_components/runtime-diagnostics-card";
 
 export default async function RuntimePage() {
-  const diagnostics = readFrontendRuntimeDiagnostics();
+  const diagnostics = await readResolvedFrontendRuntimeDiagnostics();
   const backendProbe = await probeBackendRuntimeDiagnostics(
     readRuntimeProbeConfig({
       AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES: process.env.AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES,

@@ -1,12 +1,12 @@
 import { getDashboardPageData } from "@web/queries";
 import { defaultAlertWorkbenchOwner, deriveOwnerAlertIndicators } from "@web/features/alert-workbench";
-import { readFrontendRuntimeDiagnostics } from "@web/features/runtime-diagnostics";
+import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { PageShell } from "../_components/page-shell";
 import { RuntimeDiagnosticsCard } from "../_components/runtime-diagnostics-card";
 
 export default async function DashboardPage() {
   const dashboard = await getDashboardPageData();
-  const runtimeDiagnostics = readFrontendRuntimeDiagnostics();
+  const runtimeDiagnostics = await readResolvedFrontendRuntimeDiagnostics();
   const ownerIndicators = deriveOwnerAlertIndicators(
     dashboard.alertSummary,
     defaultAlertWorkbenchOwner

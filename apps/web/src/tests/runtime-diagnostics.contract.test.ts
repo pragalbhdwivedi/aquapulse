@@ -23,6 +23,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
+    expect(diagnostics.session.sourceOfTruth).toBe("runtime_derived");
+    expect(diagnostics.session.currentSessionEndpointStatus).toBe("not_requested");
     expect(diagnostics.session.sessionPresent).toBe(true);
     expect(diagnostics.session.protectedOperatorUiState).toBe("bypassed");
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
@@ -46,6 +48,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.verificationState).toBe("disabled");
     expect(diagnostics.auth.forwardingActive).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("degraded");
+    expect(diagnostics.session.currentSessionEndpointStatus).toBe("not_requested");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
     );
@@ -66,6 +69,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
     expect(diagnostics.session.bootstrapState).toBe("active");
+    expect(diagnostics.session.sourceOfTruth).toBe("runtime_derived");
     expect(diagnostics.session.protectedOperatorUiState).toBe("enabled");
   });
 

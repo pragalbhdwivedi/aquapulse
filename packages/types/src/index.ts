@@ -615,6 +615,14 @@ export function defineEndpoint<TRequest, TResponse>(
 }
 
 export const aquaPulseEndpointCatalog = {
+  auth: {
+    session: defineEndpoint<Record<string, never>, ApiSuccessEnvelope<CurrentSessionPayload>>({
+      id: "auth.session",
+      method: "GET",
+      path: "/api/auth/session",
+      semantics: "detail"
+    })
+  },
   ponds: {
     create: defineEndpoint<PlaceholderMutationRequest, ApiSuccessEnvelope<PondSummary>>({
       id: "ponds.create",
@@ -1269,9 +1277,61 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface CurrentSessionUserSummary {
+  readonly id: EntityId;
+  readonly username?: string;
+  readonly displayName?: string;
+  readonly email?: string;
+  readonly provider: "local" | "keycloak";
+  readonly roles: string[];
+  readonly permissions: string[];
+  readonly claimKeys: string[];
+}
+
+export type CurrentSessionAvailabilityState =
+  | "disabled"
+  | "local_user"
+  | "authenticated_user"
+  | "unauthenticated"
+  | "degraded";
+
+export type CurrentSessionAuthSource =
+  | "none"
+  | "local_dev_headers"
+  | "local_default_user"
+  | "keycloak_bearer"
+  | "keycloak_missing_bearer";
+
+export interface CurrentSessionPayload {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly availabilityState: CurrentSessionAvailabilityState;
+  readonly authSource: CurrentSessionAuthSource;
+  readonly user?: CurrentSessionUserSummary;
+  readonly sessionPresent: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
+  readonly verificationState:
+    | "disabled"
+    | "local_bypass"
+    | "not_configured"
+    | "ready"
+    | "verified"
+    | "degraded";
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface FrontendSessionBootstrapStatus {
   readonly bootstrapEnabled: boolean;
   readonly bootstrapState: "active" | "bypassed" | "degraded" | "unavailable";
+  readonly sourceOfTruth: "runtime_derived" | "backend_session";
+  readonly currentSessionEndpointStatus:
+    | "not_requested"
+    | "available"
+    | "unreachable"
+    | "degraded";
+  readonly currentSessionAvailable: boolean;
+  readonly availabilityState: CurrentSessionAvailabilityState;
   readonly requestedMode: AquaPulseAuthMode;
   readonly effectiveMode: AquaPulseAuthMode;
   readonly sessionPresent: boolean;
@@ -1287,6 +1347,7 @@ export interface FrontendSessionBootstrapStatus {
   readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
   readonly secondaryGuardedSliceLabel?: string;
   readonly secondaryGuardedSliceEnforced: boolean;
+  readonly currentUser?: CurrentSessionUserSummary;
   readonly warnings: RuntimeWarning[];
 }
 

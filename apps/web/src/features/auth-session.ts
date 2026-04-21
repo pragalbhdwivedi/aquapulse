@@ -1,4 +1,5 @@
 import type {
+  CurrentSessionPayload,
   FrontendAuthRuntimeDiagnostics,
   FrontendSessionBootstrapStatus,
   RuntimeWarning
@@ -14,24 +15,69 @@ export interface ProtectedOperatorUiGuard {
 }
 
 export function deriveFrontendSessionBootstrap(
-  auth: FrontendAuthRuntimeDiagnostics
+  auth: FrontendAuthRuntimeDiagnostics,
+  options: {
+    readonly currentSession?: CurrentSessionPayload;
+    readonly currentSessionEndpointStatus?: FrontendSessionBootstrapStatus["currentSessionEndpointStatus"];
+  } = {}
 ): FrontendSessionBootstrapStatus {
-  const bootstrapState: FrontendSessionBootstrapStatus["bootstrapState"] =
-    auth.effectiveMode === "keycloak"
+  const currentSessionEndpointStatus = options.currentSessionEndpointStatus ?? "not_requested";
+  const currentSession = options.currentSession;
+  const bootstrapState: FrontendSessionBootstrapStatus["bootstrapState"] = currentSession
+    ? currentSession.availabilityState === "authenticated_user"
+      ? "active"
+      : currentSession.availabilityState === "local_user" || currentSession.availabilityState === "disabled"
+        ? "bypassed"
+        : currentSession.availabilityState === "degraded"
+          ? "degraded"
+          : "unavailable"
+    : auth.effectiveMode === "keycloak"
       ? auth.forwardingActive
         ? "active"
         : "unavailable"
       : auth.requestedMode === "keycloak" && auth.effectiveMode === "disabled"
         ? "degraded"
         : "bypassed";
+  const warnings = [...auth.warnings, ...(currentSession?.warnings ?? [])];
+
+  if (currentSessionEndpointStatus === "unreachable") {
+    warnings.push({
+      code: "CURRENT_SESSION_ENDPOINT_UNREACHABLE",
+      message:
+        "The backend current-session endpoint could not be reached, so the frontend is using runtime-derived auth state."
+    });
+  }
+
+  if (currentSessionEndpointStatus === "degraded") {
+    warnings.push({
+      code: "CURRENT_SESSION_ENDPOINT_DEGRADED",
+      message:
+        "The backend current-session endpoint responded unexpectedly, so the frontend is using runtime-derived auth state."
+    });
+  }
 
   return {
     bootstrapEnabled: true,
     bootstrapState,
+    sourceOfTruth: currentSession ? "backend_session" : "runtime_derived",
+    currentSessionEndpointStatus,
+    currentSessionAvailable: Boolean(currentSession),
+    availabilityState:
+      currentSession?.availabilityState ??
+      (auth.requestedMode === "keycloak" && auth.effectiveMode === "disabled"
+        ? "degraded"
+        : auth.effectiveMode === "keycloak"
+          ? auth.forwardedAuthPresent
+            ? "authenticated_user"
+            : "unauthenticated"
+          : auth.effectiveMode === "local"
+            ? "local_user"
+            : "disabled"),
     requestedMode: auth.requestedMode,
     effectiveMode: auth.effectiveMode,
     sessionPresent:
-      auth.effectiveMode === "keycloak" ? auth.forwardedAuthPresent : true,
+      currentSession?.sessionPresent ??
+      (auth.effectiveMode === "keycloak" ? auth.forwardedAuthPresent : true),
     forwardedAuthPresent: auth.forwardedAuthPresent,
     forwardingActive: auth.forwardingActive,
     forwardingMode: auth.forwardingMode,
@@ -44,7 +90,8 @@ export function deriveFrontendSessionBootstrap(
           : "disabled",
     secondaryGuardedSliceLabel: "alerts_triage_actions",
     secondaryGuardedSliceEnforced: false,
-    warnings: [...auth.warnings]
+    currentUser: currentSession?.user,
+    warnings
   };
 }
 
