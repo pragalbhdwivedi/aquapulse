@@ -6,6 +6,7 @@ import {
   flattenEndpointInvocationRegistry
 } from "../clients/invocation-registry";
 import {
+  getAuthRuntimeDiagnostics,
   getAlertsLiveUpdatesRuntimeDiagnostics,
   getAlertsRuntimeDiagnostics,
   getFeedRuntimeDiagnostics,
@@ -102,6 +103,23 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.tasksMode).toBe("http");
     expect(config.enableFetchHttp).toBe(true);
     expect(config.tasksHttpBaseUrl).toBe("http://tasks-backend.local");
+  });
+
+  it("keeps auth disabled by default and surfaces safe keycloak warnings when config is incomplete", () => {
+    const disabledConfig = parseClientRuntimeConfig({});
+    const keycloakConfig = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse"
+    });
+
+    expect(disabledConfig.authMode).toBe("disabled");
+    expect(getAuthRuntimeDiagnostics(disabledConfig).effectiveMode).toBe("disabled");
+    expect(getAuthRuntimeDiagnostics(keycloakConfig).effectiveMode).toBe("disabled");
+    expect(getAuthRuntimeDiagnostics(keycloakConfig).warnings).toContainEqual({
+      code: "AUTH_KEYCLOAK_CONFIG_INCOMPLETE",
+      message:
+        "Keycloak auth mode was requested in web runtime config, but issuer URL, realm, or client ID is missing. The frontend remains on the safe auth-disabled posture."
+    });
   });
 
   it("defaults alerts-only fetch HTTP mode to the local proxy path", () => {

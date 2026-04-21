@@ -1198,6 +1198,8 @@ export type RuntimeServiceIdentity = "api" | "web";
 export type RuntimeConnectionCheckStatus = "not_attempted" | "configured_only" | "reachable" | "unreachable";
 export type RuntimeTransportMode = "mock" | "proxy" | "direct";
 export type RuntimeProbeStatus = "disabled" | "reachable" | "partial" | "unreachable";
+export type AquaPulseAuthMode = "disabled" | "local" | "keycloak";
+export type AquaPulseAuthProvider = "local" | "keycloak";
 export type AlertsLiveUpdatesConnectionState =
   | "disabled"
   | "inactive"
@@ -1221,6 +1223,49 @@ export interface RuntimeModeSummary {
   readonly requestedMode?: string;
   readonly effectiveMode: string;
   readonly safeFallbackActive: boolean;
+}
+
+export interface AuthenticatedUserSession {
+  readonly id: EntityId;
+  readonly subject?: string;
+  readonly username?: string;
+  readonly displayName?: string;
+  readonly email?: string;
+  readonly provider: AquaPulseAuthProvider;
+  readonly roles: string[];
+  readonly permissions: string[];
+  readonly claims: Record<string, string | number | boolean | string[] | undefined>;
+}
+
+export interface FrontendAuthRuntimeDiagnostics {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly active: boolean;
+  readonly bypassActive: boolean;
+  readonly keycloakConfigured: boolean;
+  readonly issuerLabel: string;
+  readonly realm?: string;
+  readonly clientId?: string;
+  readonly localDevUserLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendAuthRuntimeDiagnostics {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly active: boolean;
+  readonly bypassActive: boolean;
+  readonly keycloakConfigured: boolean;
+  readonly issuerLabel: string;
+  readonly realm?: string;
+  readonly clientId?: string;
+  readonly validationStrategy: "disabled" | "local_headers" | "keycloak_bearer_claims";
+  readonly tokenValidation:
+    | "not_applicable"
+    | "not_attempted"
+    | "claims_only_ready";
+  readonly defaultLocalUserLabel: string;
+  readonly warnings: RuntimeWarning[];
 }
 
 export interface DatabaseRuntimeDiagnostics {
@@ -1301,6 +1346,7 @@ export interface LocalBridgeDiagnostics {
 export interface FrontendRuntimeDiagnostics {
   readonly service: "web";
   readonly mode: RuntimeModeSummary;
+  readonly auth: FrontendAuthRuntimeDiagnostics;
   readonly alerts: AlertsRuntimeDiagnostics;
   readonly alertsLiveUpdates: AlertsLiveUpdatesRuntimeDiagnostics;
   readonly feed: FeedRuntimeDiagnostics;
@@ -1406,6 +1452,7 @@ export interface BackendAlertsLiveUpdatesDiagnostics {
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
+  readonly auth?: BackendAuthRuntimeDiagnostics;
   readonly database: DatabaseRuntimeDiagnostics;
   readonly aiExplanations: {
     readonly advisoryOnly: true;

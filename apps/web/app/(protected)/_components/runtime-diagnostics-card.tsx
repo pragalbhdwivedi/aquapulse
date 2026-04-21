@@ -36,6 +36,7 @@ export function RuntimeDiagnosticsCard({
       <strong>{title}</strong>
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
+        <span>Auth runtime: {diagnostics.auth.effectiveMode}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
         <span>Feed runtime: {diagnostics.feed.effectiveMode}</span>
         <span>Tasks runtime: {diagnostics.tasks.effectiveMode}</span>
@@ -48,6 +49,19 @@ export function RuntimeDiagnosticsCard({
         <span>Fallbacks active: {diagnostics.mode.safeFallbackActive ? "yes" : "no"}</span>
       </div>
       <div style={{ display: "grid", gap: "0.25rem", color: "#94a3b8" }}>
+        <span>
+          Auth requested/effective: {diagnostics.auth.requestedMode} / {diagnostics.auth.effectiveMode}
+        </span>
+        <span>
+          Auth active: {diagnostics.auth.active ? "yes" : "no"} / Bypass active:{" "}
+          {diagnostics.auth.bypassActive ? "yes" : "no"}
+        </span>
+        <span>
+          Auth provider target: {diagnostics.auth.issuerLabel}
+          {diagnostics.auth.realm ? ` / realm ${diagnostics.auth.realm}` : ""}
+          {diagnostics.auth.clientId ? ` / client ${diagnostics.auth.clientId}` : ""}
+        </span>
+        <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
@@ -81,6 +95,19 @@ export function RuntimeDiagnosticsCard({
         {backendProbe?.health ? (
           <span>
             Backend health: {backendProbe.health.status} ({backendProbe.health.runtime.mode.effectiveMode})
+          </span>
+        ) : null}
+        {backendProbe?.runtime ? (
+          <span>
+            Backend auth: {backendProbe.runtime.auth?.effectiveMode ?? "disabled"} / Requested:{" "}
+            {backendProbe.runtime.auth?.requestedMode ?? "disabled"} / Active:{" "}
+            {backendProbe.runtime.auth?.active ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend auth validation: {backendProbe.runtime.auth.validationStrategy} / Token mode:{" "}
+            {backendProbe.runtime.auth.tokenValidation}
           </span>
         ) : null}
         {backendProbe?.runtime ? (
@@ -152,6 +179,13 @@ export function RuntimeDiagnosticsCard({
       {backendProbe?.runtime?.alerts.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.runtime.alerts.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {backendProbe?.runtime?.auth?.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.auth.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
           ))}
         </div>

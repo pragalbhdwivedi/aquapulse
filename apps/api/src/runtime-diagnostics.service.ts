@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import type {
+  BackendAuthRuntimeDiagnostics,
   BackendHealthDiagnostics,
   BackendRuntimeDiagnostics,
   RuntimeConnectionCheckStatus,
@@ -7,6 +8,10 @@ import type {
   RuntimeWarning
 } from "@aquapulse/types";
 import { resolvePersistenceSelection } from "@aquapulse/database";
+import {
+  readApiAuthRuntimeConfig,
+  type ApiAuthRuntimeEnvSource
+} from "./common/auth/auth-runtime.config";
 import {
   readApiDatabaseRuntimeConfig,
   type ApiDatabaseRuntimeEnvSource
@@ -20,24 +25,31 @@ import {
 } from "./modules/alerts/live-updates/alerts-live-updates.config";
 
 export interface RuntimeDiagnosticsServiceOptions {
-  readonly env?: ApiDatabaseRuntimeEnvSource & AlertsLiveUpdatesRuntimeEnvSource;
+  readonly env?: ApiDatabaseRuntimeEnvSource &
+    AlertsLiveUpdatesRuntimeEnvSource &
+    ApiAuthRuntimeEnvSource;
   readonly now?: () => string;
   readonly version?: string;
 }
 
 @Injectable()
 export class RuntimeDiagnosticsService {
-  private readonly env: ApiDatabaseRuntimeEnvSource;
+  private readonly env: ApiDatabaseRuntimeEnvSource &
+    AlertsLiveUpdatesRuntimeEnvSource &
+    ApiAuthRuntimeEnvSource;
   private readonly now: () => string;
   private readonly version: string;
 
   constructor(options: RuntimeDiagnosticsServiceOptions = {}) {
-    this.env = (options.env ?? process.env) as ApiDatabaseRuntimeEnvSource;
+    this.env = (options.env ?? process.env) as ApiDatabaseRuntimeEnvSource &
+      AlertsLiveUpdatesRuntimeEnvSource &
+      ApiAuthRuntimeEnvSource;
     this.now = options.now ?? (() => new Date().toISOString());
     this.version = options.version ?? "0.1.0";
   }
 
   getRuntimeDiagnostics(): BackendRuntimeDiagnostics {
+    const authRuntime = readApiAuthRuntimeConfig(this.env);
     const runtime = readApiDatabaseRuntimeConfig(this.env);
     const alertExplanationRuntime = readAlertExplanationRuntimeConfig({ ...this.env });
     const alertsLiveUpdatesRuntime = readAlertsLiveUpdatesRuntimeConfig(
@@ -229,6 +241,36 @@ export class RuntimeDiagnosticsService {
       });
     }
 
+    const authWarnings: RuntimeWarning[] = [...authRuntime.warnings];
+    const authDiagnostics: BackendAuthRuntimeDiagnostics = {
+      requestedMode: authRuntime.requestedMode,
+      effectiveMode: authRuntime.effectiveMode,
+      active: authRuntime.effectiveMode === "keycloak",
+      bypassActive: authRuntime.effectiveMode !== "keycloak",
+      keycloakConfigured: authRuntime.keycloak.configured,
+      issuerLabel: authRuntime.keycloak.issuerUrl ?? "not configured",
+      realm: authRuntime.keycloak.realm,
+      clientId: authRuntime.keycloak.clientId,
+      validationStrategy:
+        authRuntime.effectiveMode === "keycloak"
+          ? "keycloak_bearer_claims"
+          : authRuntime.effectiveMode === "local"
+            ? "local_headers"
+            : "disabled",
+      tokenValidation:
+        authRuntime.effectiveMode === "keycloak" ? "claims_only_ready" : "not_applicable",
+      defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
+      warnings: authWarnings
+    };
+
+    if (authRuntime.effectiveMode === "keycloak") {
+      authWarnings.push({
+        code: "AUTH_KEYCLOAK_CLAIMS_ONLY",
+        message:
+          "Keycloak mode is enabled through the bounded cutover seam. This stage only parses bearer claims and does not yet perform full production-grade token verification."
+      });
+    }
+
     const mode: RuntimeModeSummary = {
       defaultMode: "in-memory",
       requestedMode: runtime.persistence.requestedAdapter,
@@ -239,6 +281,7 @@ export class RuntimeDiagnosticsService {
     return {
       service: "api",
       mode,
+      auth: authDiagnostics,
       database: {
         configured,
         selectedAdapter: selection.adapter,

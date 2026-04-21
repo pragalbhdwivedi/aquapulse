@@ -16,6 +16,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.service).toBe("web");
     expect(diagnostics.mode.effectiveMode).toBe("mock");
     expect(diagnostics.mode.safeFallbackActive).toBe(true);
+    expect(diagnostics.auth.effectiveMode).toBe("disabled");
+    expect(diagnostics.auth.bypassActive).toBe(true);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -23,6 +25,20 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.tasks.effectiveMode).toBe("mock");
     expect(diagnostics.waterQuality.effectiveMode).toBe("mock");
     expect(diagnostics.localBridge.backendTargetLabel).toBe("http://localhost:4000");
+  });
+
+  it("keeps auth diagnostics aligned with requested vs effective frontend mode", () => {
+    const diagnostics = readFrontendRuntimeDiagnostics({
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse"
+    });
+
+    expect(diagnostics.auth.requestedMode).toBe("keycloak");
+    expect(diagnostics.auth.effectiveMode).toBe("disabled");
+    expect(diagnostics.auth.keycloakConfigured).toBe(false);
+    expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
+    );
   });
 
   it("represents alerts-only HTTP proxy mode and bridge assumptions consistently", () => {
@@ -582,6 +598,18 @@ describe("Frontend runtime diagnostics", () => {
                   effectiveMode: "in-memory",
                   safeFallbackActive: true
                 },
+                auth: {
+                  requestedMode: "disabled",
+                  effectiveMode: "disabled",
+                  active: false,
+                  bypassActive: true,
+                  keycloakConfigured: false,
+                  issuerLabel: "not configured",
+                  validationStrategy: "disabled",
+                  tokenValidation: "not_applicable",
+                  defaultLocalUserLabel: "Local Operator (local.operator)",
+                  warnings: []
+                },
                 database: {
                   configured: false,
                   selectedAdapter: "in-memory",
@@ -632,6 +660,18 @@ describe("Frontend runtime diagnostics", () => {
               defaultMode: "in-memory",
               effectiveMode: "in-memory",
               safeFallbackActive: true
+            },
+            auth: {
+              requestedMode: "disabled",
+              effectiveMode: "disabled",
+              active: false,
+              bypassActive: true,
+              keycloakConfigured: false,
+              issuerLabel: "not configured",
+              validationStrategy: "disabled",
+              tokenValidation: "not_applicable",
+              defaultLocalUserLabel: "Local Operator (local.operator)",
+              warnings: []
             },
             database: {
               configured: false,

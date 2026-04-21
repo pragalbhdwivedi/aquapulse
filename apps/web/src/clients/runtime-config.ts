@@ -1,6 +1,8 @@
 import type {
   AlertsRuntimeDiagnostics,
   AlertsLiveUpdatesRuntimeDiagnostics,
+  AquaPulseAuthMode,
+  FrontendAuthRuntimeDiagnostics,
   FeedRuntimeDiagnostics,
   FrontendRuntimeDiagnostics,
   TasksRuntimeDiagnostics,
@@ -34,6 +36,11 @@ export interface AquaPulseClientRuntimeConfig {
   readonly waterQualityHttpBaseUrl?: string;
   readonly waterQualityHttpTransport?: AquaPulseHttpTransportMode;
   readonly localApiBackendUrl?: string;
+  readonly authMode?: AquaPulseAuthMode;
+  readonly keycloakIssuerUrl?: string;
+  readonly keycloakRealm?: string;
+  readonly keycloakClientId?: string;
+  readonly localAuthUserLabel?: string;
   readonly warnings?: readonly RuntimeWarning[];
 }
 
@@ -54,6 +61,11 @@ export interface AquaPulseClientRuntimeEnv {
   readonly AQUAPULSE_WEB_TASKS_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT?: string;
   readonly AQUAPULSE_WEB_LOCAL_API_BACKEND_URL?: string;
+  readonly AQUAPULSE_WEB_AUTH_MODE?: string;
+  readonly AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL?: string;
+  readonly AQUAPULSE_WEB_KEYCLOAK_REALM?: string;
+  readonly AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID?: string;
+  readonly AQUAPULSE_WEB_LOCAL_AUTH_USER_LABEL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP?: string;
@@ -69,6 +81,11 @@ export interface AquaPulseClientRuntimeEnv {
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_LOCAL_AUTH_USER_LABEL?: string;
   readonly AQUAPULSE_WEB_WATER_QUALITY_MODE?: string;
   readonly AQUAPULSE_WEB_WATER_QUALITY_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_WATER_QUALITY_HTTP_TRANSPORT?: string;
@@ -98,6 +115,15 @@ export function parseScopedClientRuntimeMode(value: string | undefined): AquaPul
 
 export function parseHttpTransportMode(value: string | undefined): AquaPulseHttpTransportMode {
   return normalizeEnvValue(value)?.toLowerCase() === "direct" ? "direct" : "proxy";
+}
+
+export function parseAuthMode(value: string | undefined): AquaPulseAuthMode {
+  const normalizedValue = normalizeEnvValue(value)?.toLowerCase();
+  if (normalizedValue === "local" || normalizedValue === "keycloak") {
+    return normalizedValue;
+  }
+
+  return "disabled";
 }
 
 function tryParseAbsoluteHttpUrl(value: string): string | undefined {
@@ -300,6 +326,42 @@ export function parseClientRuntimeConfig(
       env.NEXT_PUBLIC_AQUAPULSE_WEB_WATER_QUALITY_HTTP_TRANSPORT
     )
   );
+  const authMode = parseAuthMode(
+    coalesceEnvValue(env.AQUAPULSE_WEB_AUTH_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE)
+  );
+  const keycloakIssuerUrl = normalizeHttpBaseUrl(
+    env.AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL,
+    warnings,
+    "AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL"
+  ) ?? normalizeHttpBaseUrl(
+    env.NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL,
+    warnings,
+    "NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL"
+  );
+  const keycloakRealm = normalizeEnvValue(
+    coalesceEnvValue(env.AQUAPULSE_WEB_KEYCLOAK_REALM, env.NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM)
+  );
+  const keycloakClientId = normalizeEnvValue(
+    coalesceEnvValue(
+      env.AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID,
+      env.NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID
+    )
+  );
+  const localAuthUserLabel =
+    normalizeEnvValue(
+      coalesceEnvValue(
+        env.AQUAPULSE_WEB_LOCAL_AUTH_USER_LABEL,
+        env.NEXT_PUBLIC_AQUAPULSE_WEB_LOCAL_AUTH_USER_LABEL
+      )
+    ) ?? "Local Operator";
+
+  if (authMode === "keycloak" && (!keycloakIssuerUrl || !keycloakRealm || !keycloakClientId)) {
+    warnings.push({
+      code: "AUTH_KEYCLOAK_CONFIG_INCOMPLETE",
+      message:
+        "Keycloak auth mode was requested in web runtime config, but issuer URL, realm, or client ID is missing. The frontend remains on the safe auth-disabled posture."
+    });
+  }
 
   if (alertsMode === "http" && !enableFetchHttp && !enablePlaceholderHttp) {
     warnings.push({
@@ -357,6 +419,11 @@ export function parseClientRuntimeConfig(
       warnings,
       "AQUAPULSE_WEB_LOCAL_API_BACKEND_URL"
     ),
+    authMode,
+    keycloakIssuerUrl,
+    keycloakRealm,
+    keycloakClientId,
+    localAuthUserLabel,
     warnings
   };
 }
@@ -643,10 +710,35 @@ export function getWaterQualityRuntimeDiagnostics(
   };
 }
 
+export function getAuthRuntimeDiagnostics(
+  config: AquaPulseClientRuntimeConfig
+): FrontendAuthRuntimeDiagnostics {
+  const requestedMode = config.authMode ?? "disabled";
+  const keycloakConfigured = Boolean(
+    config.keycloakIssuerUrl && config.keycloakRealm && config.keycloakClientId
+  );
+  const effectiveMode =
+    requestedMode === "keycloak" && !keycloakConfigured ? "disabled" : requestedMode;
+
+  return {
+    requestedMode,
+    effectiveMode,
+    active: effectiveMode === "keycloak",
+    bypassActive: effectiveMode !== "keycloak",
+    keycloakConfigured,
+    issuerLabel: config.keycloakIssuerUrl ?? "not configured",
+    realm: config.keycloakRealm,
+    clientId: config.keycloakClientId,
+    localDevUserLabel: config.localAuthUserLabel ?? "Local Operator",
+    warnings: [...(config.warnings ?? [])]
+  };
+}
+
 export function getFrontendRuntimeDiagnostics(
   config: AquaPulseClientRuntimeConfig,
   localBridgeConfig?: { readonly backendBaseUrl?: string }
 ): FrontendRuntimeDiagnostics {
+  const auth = getAuthRuntimeDiagnostics(config);
   const alerts = getAlertsRuntimeDiagnostics(config);
   const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
   const feed = getFeedRuntimeDiagnostics(config);
@@ -713,6 +805,7 @@ export function getFrontendRuntimeDiagnostics(
   return {
     service: "web",
     mode,
+    auth,
     alerts,
     alertsLiveUpdates,
     feed,
@@ -720,6 +813,7 @@ export function getFrontendRuntimeDiagnostics(
     waterQuality,
     localBridge,
     warnings: [
+      ...auth.warnings,
       ...alerts.warnings,
       ...alertsLiveUpdates.warnings,
       ...feed.warnings,

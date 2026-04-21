@@ -24,6 +24,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.service).toBe("api");
     expect(diagnostics.mode.defaultMode).toBe("in-memory");
     expect(diagnostics.mode.effectiveMode).toBe("in-memory");
+    expect(diagnostics.auth?.effectiveMode).toBe("disabled");
+    expect(diagnostics.auth?.bypassActive).toBe(true);
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -63,6 +65,28 @@ describe("API runtime diagnostics", () => {
     );
     expect(diagnostics.waterQuality.warnings.map((warning) => warning.code)).toContain(
       "WATER_QUALITY_POSTGRES_DISABLED"
+    );
+  });
+
+  it("surfaces bounded auth diagnostics without requiring a live keycloak instance", () => {
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_AUTH_MODE: "keycloak",
+        AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+        AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      }
+    });
+
+    const diagnostics = service.getRuntimeDiagnostics();
+
+    expect(diagnostics.auth?.requestedMode).toBe("keycloak");
+    expect(diagnostics.auth?.effectiveMode).toBe("keycloak");
+    expect(diagnostics.auth?.active).toBe(true);
+    expect(diagnostics.auth?.validationStrategy).toBe("keycloak_bearer_claims");
+    expect(diagnostics.auth?.tokenValidation).toBe("claims_only_ready");
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_KEYCLOAK_CLAIMS_ONLY"
     );
   });
 

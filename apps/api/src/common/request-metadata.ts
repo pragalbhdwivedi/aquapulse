@@ -1,9 +1,10 @@
 import type { RequestMetadata } from "./request-metadata.interface";
+import type { AuthenticatedUserSession } from "@aquapulse/types";
 
 export interface RequestLike {
   readonly id?: string;
   readonly headers?: Record<string, string | string[] | undefined>;
-  readonly user?: { id?: string } | null;
+  readonly user?: AuthenticatedUserSession | null;
 }
 
 function getHeaderValue(
