@@ -293,6 +293,8 @@ export class RuntimeDiagnosticsService {
       secondaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       tertiaryProtectedSliceLabel: "alerts_bulk_actions",
       tertiaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+      quaternaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -325,6 +327,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_BULK_SLICE_ACTIVE",
         message:
           "Alerts bulk actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded bulk flow usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_SAVED_VIEW_MUTATION_SLICE_ACTIVE",
+        message:
+          "Alerts saved-view mutation actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded saved-view flow usable for development."
       });
     }
 

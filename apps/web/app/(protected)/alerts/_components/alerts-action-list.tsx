@@ -111,6 +111,13 @@ export function AlertsActionList({
       }),
     [session]
   );
+  const savedViewMutationGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.quaternaryGuardedSliceLabel
+      }),
+    [session]
+  );
   const acknowledgeSubmitter = useMemo(
     () => createAlertLifecycleSubmitter(repositories, "acknowledge"),
     [repositories]
@@ -513,11 +520,15 @@ export function AlertsActionList({
             {session.tertiaryGuardedSliceEnforced || authDiagnostics.tertiaryProtectedSliceEnforced ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
+            Fourth slice: {session.quaternaryGuardedSliceLabel ?? authDiagnostics.quaternaryProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {session.quaternaryGuardedSliceEnforced || authDiagnostics.quaternaryProtectedSliceEnforced ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
             Session source: {session.sourceOfTruth}. Endpoint: {session.currentSessionEndpointStatus}. Current user:{" "}
             {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
-            Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}.
+            Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
           </span>
           {session.currentUser ? (
             <span style={{ color: "#94a3b8" }}>
@@ -565,10 +576,13 @@ export function AlertsActionList({
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
-          <button type="button" onClick={async () => { if (!savedViewName.trim()) { setFeedbackTone("error"); setFeedbackMessage("Name the view before saving it."); return; } try { const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackTone("success"); setFeedbackMessage("Saved the current queue view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
+          <button type="button" disabled={!savedViewMutationGuard.enabled} onClick={async () => { if (!savedViewName.trim()) { setFeedbackTone("error"); setFeedbackMessage("Name the view before saving it."); return; } try { const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackTone("success"); setFeedbackMessage("Saved the current queue view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); resetQueuePagination(); setFeedbackTone("success"); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
-          <button type="button" disabled={!activeSavedViewId} onClick={async () => { try { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackTone("success"); setFeedbackMessage("Removed saved view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
+          <button type="button" disabled={!activeSavedViewId || !savedViewMutationGuard.enabled} onClick={async () => { try { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackTone("success"); setFeedbackMessage("Removed saved view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
         </div>
+        <p style={{ margin: 0, color: savedViewMutationGuard.enabled ? "#94a3b8" : "#fbbf24" }}>
+          Saved-view auth state: {savedViewMutationGuard.state}. {savedViewMutationGuard.message}
+        </p>
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>Bulk actions</strong>
           <p style={{ margin: 0, color: "#94a3b8" }}>Selected alerts: {selectedAlertIds.length}</p>

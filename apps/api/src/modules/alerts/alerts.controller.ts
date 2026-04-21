@@ -107,6 +107,8 @@ export class AlertsController {
   }
 
   @Post("views")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async saveSavedView(
     @Body() input: CreateAlertSavedViewDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.saveSavedView>> {
@@ -119,6 +121,8 @@ export class AlertsController {
   }
 
   @Post("views/:id/remove")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async removeSavedView(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.removeSavedView>> {

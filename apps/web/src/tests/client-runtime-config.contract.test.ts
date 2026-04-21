@@ -144,6 +144,8 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
     expect(diagnostics.tertiaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
+    expect(diagnostics.quaternaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.forwardingActive).toBe(true);
     expect(diagnostics.forwardedAuthPresent).toBe(true);

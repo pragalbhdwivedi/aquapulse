@@ -18,6 +18,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.secondaryGuardedSliceEnforced).toBe(false);
     expect(session.tertiaryGuardedSliceLabel).toBe("alerts_bulk_actions");
     expect(session.tertiaryGuardedSliceEnforced).toBe(false);
+    expect(session.quaternaryGuardedSliceLabel).toBe("alerts_saved_view_mutations");
+    expect(session.quaternaryGuardedSliceEnforced).toBe(false);
     expect(lifecycleGuard.enabled).toBe(true);
     expect(lifecycleGuard.enforcedByBackend).toBe(true);
   });
@@ -41,6 +43,9 @@ describe("Frontend auth session bootstrap", () => {
     const bulkGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.tertiaryGuardedSliceLabel
     });
+    const savedViewGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.quaternaryGuardedSliceLabel
+    });
 
     expect(session.bootstrapState).toBe("active");
     expect(session.sourceOfTruth).toBe("runtime_derived");
@@ -51,6 +56,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(triageGuard.state).toBe("enabled");
     expect(bulkGuard.enforcedByBackend).toBe(true);
     expect(bulkGuard.state).toBe("enabled");
+    expect(savedViewGuard.enforcedByBackend).toBe(true);
+    expect(savedViewGuard.state).toBe("enabled");
   });
 
   it("degrades safely when keycloak mode is requested but config is incomplete", () => {

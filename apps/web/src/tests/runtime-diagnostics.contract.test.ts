@@ -22,6 +22,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.auth.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(diagnostics.auth.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
+    expect(diagnostics.auth.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
@@ -69,6 +70,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.quaternaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
@@ -656,6 +658,8 @@ describe("Frontend runtime diagnostics", () => {
                   secondaryProtectedSliceEnforced: false,
                   tertiaryProtectedSliceLabel: "alerts_bulk_actions",
                   tertiaryProtectedSliceEnforced: false,
+                  quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+                  quaternaryProtectedSliceEnforced: false,
                   forwardingMode: "bypassed",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
@@ -735,6 +739,8 @@ describe("Frontend runtime diagnostics", () => {
               secondaryProtectedSliceEnforced: false,
               tertiaryProtectedSliceLabel: "alerts_bulk_actions",
               tertiaryProtectedSliceEnforced: false,
+              quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+              quaternaryProtectedSliceEnforced: false,
               forwardingMode: "bypassed",
               forwardingActive: false,
               forwardedAuthPresent: false,
@@ -858,6 +864,8 @@ describe("Frontend runtime diagnostics", () => {
                   secondaryProtectedSliceEnforced: true,
                   tertiaryProtectedSliceLabel: "alerts_bulk_actions",
                   tertiaryProtectedSliceEnforced: true,
+                  quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+                  quaternaryProtectedSliceEnforced: true,
                   forwardingMode: "unavailable",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
