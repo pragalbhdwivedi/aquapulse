@@ -96,6 +96,10 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.secondaryProtectedSliceEnforced || diagnostics.session.secondaryGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
+          Third operator slice: {diagnostics.auth.tertiaryProtectedSliceLabel ?? diagnostics.session.tertiaryGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.tertiaryProtectedSliceEnforced || diagnostics.session.tertiaryGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
           Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}
           {diagnostics.auth.forwardingMode}
         </span>
@@ -171,6 +175,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend secondary operator slice: {backendProbe.runtime.auth.secondaryProtectedSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.secondaryProtectedSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend third operator slice: {backendProbe.runtime.auth.tertiaryProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.tertiaryProtectedSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

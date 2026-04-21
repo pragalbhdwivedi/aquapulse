@@ -37,6 +37,7 @@ import {
   deriveAlertsRuntimeIndicator,
   formatAlertsRuntimeError
 } from "@web/features/alerts-runtime";
+import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 import {
   createAlertAssignSubmitter,
   createAlertReviewStateSubmitter,
@@ -95,6 +96,21 @@ export function AlertsActionList({
     [runtimeConfig]
   );
   const runtimeIndicator = useMemo(() => deriveAlertsRuntimeIndicator(runtimeConfig), [runtimeConfig]);
+  const lifecycleGuard = useMemo(() => deriveProtectedOperatorUiGuard(session), [session]);
+  const triageGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.secondaryGuardedSliceLabel
+      }),
+    [session]
+  );
+  const bulkGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.tertiaryGuardedSliceLabel
+      }),
+    [session]
+  );
   const acknowledgeSubmitter = useMemo(
     () => createAlertLifecycleSubmitter(repositories, "acknowledge"),
     [repositories]
@@ -493,9 +509,21 @@ export function AlertsActionList({
             {session.secondaryGuardedSliceEnforced || authDiagnostics.secondaryProtectedSliceEnforced ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
+            Third slice: {session.tertiaryGuardedSliceLabel ?? authDiagnostics.tertiaryProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {session.tertiaryGuardedSliceEnforced || authDiagnostics.tertiaryProtectedSliceEnforced ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
             Session source: {session.sourceOfTruth}. Endpoint: {session.currentSessionEndpointStatus}. Current user:{" "}
             {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
           </span>
+          <span style={{ color: "#94a3b8" }}>
+            Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}.
+          </span>
+          {session.currentUser ? (
+            <span style={{ color: "#94a3b8" }}>
+              User provider: {session.currentUser.provider}. Roles: {session.currentUser.roles.join(", ") || "none"}.
+            </span>
+          ) : null}
           {lastLiveEventAt ? (
             <span style={{ color: "#94a3b8" }}>Last live event: {lastLiveEventAt}</span>
           ) : null}
@@ -544,6 +572,9 @@ export function AlertsActionList({
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>Bulk actions</strong>
           <p style={{ margin: 0, color: "#94a3b8" }}>Selected alerts: {selectedAlertIds.length}</p>
+          <p style={{ margin: 0, color: bulkGuard.enabled ? "#94a3b8" : "#fbbf24" }}>
+            Bulk auth state: {bulkGuard.state}. {bulkGuard.message}
+          </p>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
             <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={bulkOwner} onChange={(event) => setBulkOwner(event.target.value)} placeholder={defaultAlertWorkbenchOwner} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
             <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={bulkReviewState} onChange={(event) => setBulkReviewState(event.target.value as AlertReviewState)} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
@@ -551,10 +582,10 @@ export function AlertsActionList({
             <label style={{ display: "grid", gap: "0.35rem", minWidth: "16rem" }}><span>Bulk note</span><input value={bulkNote} onChange={(event) => setBulkNote(event.target.value)} placeholder="Optional note for the selected alerts" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
           </div>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkAcknowledge")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk acknowledge</button>
-            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkResolve")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk resolve</button>
-            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkAssign")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk assign</button>
-            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0} onClick={() => handleBulkAction("bulkSetReviewState")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk review-state update</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0 || !bulkGuard.enabled} onClick={() => handleBulkAction("bulkAcknowledge")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk acknowledge</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0 || !bulkGuard.enabled} onClick={() => handleBulkAction("bulkResolve")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk resolve</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0 || !bulkGuard.enabled} onClick={() => handleBulkAction("bulkAssign")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk assign</button>
+            <button type="button" disabled={isSubmitting || selectedAlertIds.length === 0 || !bulkGuard.enabled} onClick={() => handleBulkAction("bulkSetReviewState")} style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Bulk review-state update</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "#94a3b8", flexWrap: "wrap" }}>

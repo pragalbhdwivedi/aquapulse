@@ -91,6 +91,8 @@ export class CurrentSessionService {
       protectedOperatorSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryProtectedSliceLabel: "alerts_triage_actions",
       secondaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
+      tertiaryProtectedSliceLabel: "alerts_bulk_actions",
+      tertiaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       verificationState:
         runtime.effectiveMode === "disabled"
           ? "disabled"

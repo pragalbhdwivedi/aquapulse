@@ -159,6 +159,8 @@ export class AlertsController {
   }
 
   @Post("bulk/acknowledge")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkAcknowledge(
     @Body() input: BulkAcknowledgeAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAcknowledge>> {
@@ -171,6 +173,8 @@ export class AlertsController {
   }
 
   @Post("bulk/resolve")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkResolve(
     @Body() input: BulkResolveAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkResolve>> {
@@ -183,6 +187,8 @@ export class AlertsController {
   }
 
   @Post("bulk/assign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkAssign(
     @Body() input: BulkAssignAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAssign>> {
@@ -195,6 +201,8 @@ export class AlertsController {
   }
 
   @Post("bulk/review-state")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkSetReviewState(
     @Body() input: BulkSetAlertReviewStateDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkSetReviewState>> {

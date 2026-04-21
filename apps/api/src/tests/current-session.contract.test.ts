@@ -21,6 +21,8 @@ describe("Current session surface", () => {
     expect(session.sessionPresent).toBe(false);
     expect(session.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
+    expect(session.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
+    expect(session.tertiaryProtectedSliceEnforced).toBe(false);
     expect(session.user).toBeUndefined();
   });
 
@@ -45,6 +47,7 @@ describe("Current session surface", () => {
     expect(session.user?.displayName).toBe("Shift Operator");
     expect(session.user?.username).toBe("pond.supervisor");
     expect(session.secondaryProtectedSliceEnforced).toBe(false);
+    expect(session.tertiaryProtectedSliceEnforced).toBe(false);
   });
 
   it("returns a verified keycloak-backed current user when a valid bearer token is supplied", async () => {
@@ -97,5 +100,6 @@ describe("Current session surface", () => {
     expect(session.user?.provider).toBe("keycloak");
     expect(session.user?.roles).toEqual(["operator"]);
     expect(session.secondaryProtectedSliceEnforced).toBe(true);
+    expect(session.tertiaryProtectedSliceEnforced).toBe(true);
   });
 });

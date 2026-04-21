@@ -15,6 +15,11 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
         diagnostics.session.currentUser?.username ??
         diagnostics.session.currentUser?.id
       }
+      currentUserDetail={
+        diagnostics.session.currentUser
+          ? `${diagnostics.session.currentUser.provider} / roles: ${diagnostics.session.currentUser.roles.join(", ") || "none"}`
+          : undefined
+      }
     >
       {children}
     </ProtectedLayoutShell>

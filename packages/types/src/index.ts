@@ -1267,6 +1267,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
   readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
   readonly forwardingMode:
     | "bypassed"
     | "proxy_env_token"
@@ -1315,6 +1317,8 @@ export interface CurrentSessionPayload {
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
   readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
   readonly verificationState:
     | "disabled"
     | "local_bypass"
@@ -1351,6 +1355,8 @@ export interface FrontendSessionBootstrapStatus {
   readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
   readonly secondaryGuardedSliceLabel?: string;
   readonly secondaryGuardedSliceEnforced: boolean;
+  readonly tertiaryGuardedSliceLabel?: string;
+  readonly tertiaryGuardedSliceEnforced: boolean;
   readonly currentUser?: CurrentSessionUserSummary;
   readonly warnings: RuntimeWarning[];
 }
@@ -1390,6 +1396,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
   readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

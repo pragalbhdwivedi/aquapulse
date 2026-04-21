@@ -92,6 +92,10 @@ export function deriveFrontendSessionBootstrap(
       currentSession?.secondaryProtectedSliceLabel ?? auth.secondaryProtectedSliceLabel,
     secondaryGuardedSliceEnforced:
       currentSession?.secondaryProtectedSliceEnforced ?? auth.secondaryProtectedSliceEnforced,
+    tertiaryGuardedSliceLabel:
+      currentSession?.tertiaryProtectedSliceLabel ?? auth.tertiaryProtectedSliceLabel,
+    tertiaryGuardedSliceEnforced:
+      currentSession?.tertiaryProtectedSliceEnforced ?? auth.tertiaryProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -107,13 +111,26 @@ export function deriveProtectedOperatorUiGuard(
   const sliceLabel = options.sliceLabel ?? session.protectedOperatorSliceLabel;
   const isPrimarySlice = sliceLabel === session.protectedOperatorSliceLabel;
   const isSecondarySlice = sliceLabel === session.secondaryGuardedSliceLabel;
+  const isTertiarySlice = sliceLabel === session.tertiaryGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
-    (isPrimarySlice ? true : isSecondarySlice ? session.secondaryGuardedSliceEnforced : false);
+    (isPrimarySlice
+      ? true
+      : isSecondarySlice
+        ? session.secondaryGuardedSliceEnforced
+        : isTertiarySlice
+          ? session.tertiaryGuardedSliceEnforced
+          : false);
   const state =
     isPrimarySlice
       ? session.protectedOperatorUiState
       : isSecondarySlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isTertiarySlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"

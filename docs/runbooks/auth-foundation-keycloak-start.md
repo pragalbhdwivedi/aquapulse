@@ -68,8 +68,10 @@ x-aquapulse-dev-permissions
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
 - The second protected operator slice is `alerts triage actions`:
   `POST /alerts/:id/assign`, `POST /alerts/:id/unassign`, and `POST /alerts/:id/review-state`.
+- The third protected operator slice is `alerts bulk actions`:
+  `POST /alerts/bulk/acknowledge`, `POST /alerts/bulk/resolve`, `POST /alerts/bulk/assign`, and `POST /alerts/bulk/review-state`.
 - The alerts workbench now reflects bounded operator guarding in the UI:
-  lifecycle and triage actions are disabled when Keycloak mode is active but no forwarded auth session is available, while disabled/local modes continue to use the safe bounded bypass path.
+  lifecycle, triage, and bulk actions are disabled when Keycloak mode is active but no forwarded auth session is available, while disabled/local modes continue to use the safe bounded bypass path.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
 
 ## Web-to-API token forwarding
@@ -112,6 +114,7 @@ Safe payload scope:
 - active roles and permissions
 - protected operator slice label/enforcement
 - secondary protected operator slice label/enforcement
+- tertiary protected operator slice label/enforcement
 - safe warnings
 
 What is intentionally not exposed:
@@ -122,7 +125,7 @@ What is intentionally not exposed:
 - login/logout flows
 
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
-Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state.
+Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary when available.
 
 ## Intentionally deferred in this branch
 
