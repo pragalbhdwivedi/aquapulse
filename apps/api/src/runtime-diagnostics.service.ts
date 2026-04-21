@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import type {
   BackendHealthDiagnostics,
   BackendRuntimeDiagnostics,
+  RuntimeConnectionCheckStatus,
   RuntimeModeSummary,
   RuntimeWarning
 } from "@aquapulse/types";
@@ -10,6 +11,7 @@ import {
   readApiDatabaseRuntimeConfig,
   type ApiDatabaseRuntimeEnvSource
 } from "./common/config/database-runtime.config";
+import { getCachedDatabaseConnectionStatus } from "./common/config/database-connectivity-cache";
 import { readAlertExplanationRuntimeConfig } from "./modules/ai/config/alert-explanation.config";
 
 export interface RuntimeDiagnosticsServiceOptions {
@@ -47,11 +49,32 @@ export class RuntimeDiagnosticsService {
     });
     const warnings: RuntimeWarning[] = [];
     const alertWarnings: RuntimeWarning[] = [];
+    const cachedConnectionStatus = getCachedDatabaseConnectionStatus();
     const configured =
       Boolean(this.env.DATABASE_HOST) ||
       Boolean(this.env.DATABASE_NAME) ||
       Boolean(this.env.DATABASE_USER) ||
       Boolean(this.env.DATABASE_PASSWORD);
+    const connectivityStatus: RuntimeConnectionCheckStatus =
+      cachedConnectionStatus != null
+        ? cachedConnectionStatus.ready
+          ? "reachable"
+          : "unreachable"
+        : configured
+          ? "configured_only"
+          : "not_attempted";
+    const connectivity =
+      cachedConnectionStatus != null
+        ? {
+            status: connectivityStatus,
+            message: cachedConnectionStatus.message
+          }
+        : {
+            status: connectivityStatus,
+            message: configured
+              ? "Database configuration is present, but no live connectivity check was attempted."
+              : "No explicit database configuration was supplied, and no live connectivity check was attempted."
+          };
 
     if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
       warnings.push({
@@ -123,12 +146,7 @@ export class RuntimeDiagnosticsService {
         database: runtime.database.database,
         sslMode: runtime.database.sslMode,
         healthcheckOnBoot: runtime.healthcheckOnBoot,
-        connectivity: {
-          status: configured ? "configured_only" : "not_attempted",
-          message: configured
-            ? "Database configuration is present, but no live connectivity check was attempted."
-            : "No explicit database configuration was supplied, and no live connectivity check was attempted."
-        }
+        connectivity
       },
       aiExplanations: {
         advisoryOnly: true,
@@ -149,7 +167,7 @@ export class RuntimeDiagnosticsService {
         runtimeSwitchEnabled: true,
         cutoverActive: alertsSelection.adapter === "postgres",
         databaseConfigured: configured,
-        connectivityStatus: configured ? "configured_only" : "not_attempted",
+        connectivityStatus: connectivity.status,
         localBridgeExpectedPath: "/api/alerts",
         localAiExplainBridgeExpectedPath: "/api/ai/alerts",
         warnings: alertWarnings

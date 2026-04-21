@@ -14,6 +14,7 @@ const verificationOwner =
   (process.env.AQUAPULSE_ALERTS_VERIFY_OWNER ?? "operator-verification").trim() ||
   "operator-verification";
 const enableMutations = parseBoolean(process.env.AQUAPULSE_ALERTS_VERIFY_ENABLE_MUTATIONS);
+const expectSeededSmoke = parseBoolean(process.env.AQUAPULSE_ALERTS_VERIFY_EXPECT_SEEDED_SMOKE);
 const notePrefix = "Runtime verification";
 
 function parseBoolean(value) {
@@ -79,6 +80,7 @@ async function verifyReads() {
   );
   const summary = await readJsonResponse(`${webBaseUrl}/api/alerts/summary?page=1&pageSize=20`);
   const detail = await readJsonResponse(`${webBaseUrl}/api/alerts/${alertId}`);
+  const savedViews = await readJsonResponse(`${webBaseUrl}/api/alerts/views`);
   const explanation = await readJsonResponse(`${webBaseUrl}/api/ai/alerts/explain`, {
     method: "POST",
     headers: {
@@ -102,12 +104,71 @@ async function verifyReads() {
     throw new Error(`Alert detail verification expected ${alertId}, received ${detail?.data?.id}.`);
   }
 
+  if (!Array.isArray(savedViews?.data)) {
+    throw new Error("Saved views response shape is invalid.");
+  }
+
   if (explanation?.data?.metadata?.advisoryOnly !== true) {
     throw new Error("AI explanation verification expected advisory-only semantics.");
   }
 
+  if (expectSeededSmoke) {
+    verifySeededSmokeExpectations({
+      list,
+      summary,
+      detail,
+      savedViews
+    });
+  }
+
   logStep(`Reads verified: ${list.data.items.length} alerts, ${summary.data.totalAlerts} total alerts.`);
   logStep(`AI explanations mode: ${explanation.data.metadata.mode}`);
+}
+
+function verifySeededSmokeExpectations({ list, summary, detail, savedViews }) {
+  const ids = list.data.items.map((item) => item.id);
+
+  if (!ids.includes("alert-1")) {
+    throw new Error("Seeded smoke verification expected alert-1 in the alerts list.");
+  }
+
+  if (summary.data.totalAlerts !== 4) {
+    throw new Error(`Seeded smoke verification expected 4 alerts, received ${summary.data.totalAlerts}.`);
+  }
+
+  if (
+    summary.data.statusCounts.open !== 2 ||
+    summary.data.statusCounts.acknowledged !== 1 ||
+    summary.data.statusCounts.resolved !== 1
+  ) {
+    throw new Error("Seeded smoke verification found unexpected status counts.");
+  }
+
+  if (
+    summary.data.assignmentCounts.assigned !== 3 ||
+    summary.data.assignmentCounts.unassigned !== 1
+  ) {
+    throw new Error("Seeded smoke verification found unexpected assignment counts.");
+  }
+
+  if (
+    summary.data.reviewStateCounts.unreviewed !== 1 ||
+    summary.data.reviewStateCounts.underReview !== 1 ||
+    summary.data.reviewStateCounts.reviewed !== 1 ||
+    summary.data.reviewStateCounts.deferred !== 1
+  ) {
+    throw new Error("Seeded smoke verification found unexpected review-state counts.");
+  }
+
+  if (detail.data.id !== "alert-1" || detail.data.status !== "open") {
+    throw new Error("Seeded smoke verification expected alert-1 detail to remain open.");
+  }
+
+  if (!savedViews.data.some((item) => item.id === "alert-view-1" && item.name === "Open queue")) {
+    throw new Error("Seeded smoke verification expected the default saved view to be present.");
+  }
+
+  logStep("Seeded smoke dataset assertions passed.");
 }
 
 async function verifyMutations() {
@@ -190,6 +251,7 @@ async function main() {
   logStep(`Backend base URL: ${backendBaseUrl}`);
   logStep(`Expected backend adapter: ${expectedBackendAdapter}`);
   logStep(`Mutations enabled: ${enableMutations ? "yes" : "no"}`);
+  logStep(`Seeded smoke assertions: ${expectSeededSmoke ? "enabled" : "disabled"}`);
 
   await verifyReads();
 

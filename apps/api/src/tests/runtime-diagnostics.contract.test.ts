@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { setCachedDatabaseConnectionStatus } from "../common/config/database-connectivity-cache";
 import { DiagnosticsController } from "../diagnostics.controller";
 import { HealthController } from "../health.controller";
 import { RuntimeDiagnosticsService } from "../runtime-diagnostics.service";
@@ -74,5 +75,30 @@ describe("API runtime diagnostics", () => {
     expect(health.timestamp).toBe("2026-04-16T00:00:00.000Z");
     expect(health.runtime).toEqual(runtime);
     expect(health.status).toBe("degraded");
+  });
+
+  it("surfaces cached DB connectivity when the boot-time healthcheck has run", () => {
+    setCachedDatabaseConnectionStatus({
+      ready: true,
+      message: "Database connectivity check succeeded.",
+      checkedAt: "2026-04-21T00:00:00.000Z"
+    });
+
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        DATABASE_HOST: "localhost",
+        DATABASE_NAME: "aquapulse",
+        AQUAPULSE_PERSISTENCE_MODE: "postgres",
+        AQUAPULSE_ENABLE_POSTGRES_ADAPTERS: "true",
+        AQUAPULSE_DB_HEALTHCHECK_ON_BOOT: "true"
+      }
+    });
+
+    const diagnostics = service.getRuntimeDiagnostics();
+
+    expect(diagnostics.database.connectivity.status).toBe("reachable");
+    expect(diagnostics.alerts.connectivityStatus).toBe("reachable");
+
+    setCachedDatabaseConnectionStatus(undefined);
   });
 });

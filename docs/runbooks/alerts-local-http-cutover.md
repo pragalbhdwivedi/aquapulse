@@ -2,6 +2,9 @@
 
 This runbook explains the alerts-only opt-in HTTP mode for AquaPulse.
 
+If you want the smallest practical local Postgres-backed alerts stack, use
+`docs/runbooks/alerts-local-postgres-smoke-stack.md` alongside this runbook.
+
 ## What It Is
 
 - By default, the web app stays mock-backed and the API stays on the in-memory path.
@@ -47,6 +50,7 @@ AQUAPULSE_ALERTS_VERIFY_API_BASE_URL=http://localhost:4000
 AQUAPULSE_ALERTS_VERIFY_EXPECT_BACKEND_ADAPTER=postgres
 AQUAPULSE_ALERTS_VERIFY_ALERT_ID=alert-1
 AQUAPULSE_ALERTS_VERIFY_ENABLE_MUTATIONS=false
+AQUAPULSE_ALERTS_VERIFY_EXPECT_SEEDED_SMOKE=false
 ```
 
 ## Recommended Local Setup
@@ -114,7 +118,15 @@ That script verifies:
 
 - backend diagnostics are reachable
 - backend alerts adapter matches `AQUAPULSE_ALERTS_VERIFY_EXPECT_BACKEND_ADAPTER`
-- alerts list, summary, detail, and AI explanation requests work through the web bridge
+- alerts list, summary, detail, saved views, and AI explanation requests work through the web bridge
+
+If you are using the local seeded smoke stack, also set:
+
+```powershell
+$env:AQUAPULSE_ALERTS_VERIFY_EXPECT_SEEDED_SMOKE='true'
+```
+
+That adds deterministic assertions for the known-good smoke dataset.
 
 To also exercise lifecycle, triage, bulk actions, and saved views against a local dev database-backed alerts adapter:
 

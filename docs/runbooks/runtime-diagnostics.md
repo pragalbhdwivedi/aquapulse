@@ -29,6 +29,8 @@ For database diagnostics:
 - `configured` means DB-related env is present
 - `connectivity.status = configured_only` means config exists but no live DB check was attempted
 - `connectivity.status = not_attempted` means AquaPulse is only showing safe assumptions and defaults
+- `connectivity.status = reachable` means the API boot-time DB readiness check succeeded
+- `connectivity.status = unreachable` means the API attempted a boot-time DB readiness check and it failed
 
 For alerts diagnostics:
 

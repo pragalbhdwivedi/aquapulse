@@ -7,6 +7,11 @@
     "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck",
     "test:contracts": "corepack pnpm exec vitest run",
     "alerts:verify-runtime": "node ./scripts/verify-alerts-runtime.mjs",
+    "alerts:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",
+    "alerts:smoke:db:down": "docker compose -f ./infra/local/alerts-smoke.compose.yaml down",
+    "alerts:smoke:db:migrate": "corepack pnpm --filter @aquapulse/database db:migrations:apply",
+    "alerts:smoke:db:seed": "corepack pnpm --filter @aquapulse/database db:seed:alerts-smoke",
+    "alerts:smoke:db:prepare": "corepack pnpm --filter @aquapulse/database db:prepare:alerts-smoke",
     "db:migrations:list": "corepack pnpm --filter @aquapulse/database db:migrations:list",
     "db:migrations:verify": "corepack pnpm --filter @aquapulse/database db:migrations:verify",
     "db:migrations:show": "corepack pnpm --filter @aquapulse/database db:migrations:show"

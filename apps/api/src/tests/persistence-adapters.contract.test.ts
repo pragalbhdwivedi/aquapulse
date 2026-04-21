@@ -1,3 +1,9 @@
+import {
+  createPlaceholderAlertRow,
+  createPlaceholderAlertSavedViewRow,
+  createRecordingConnectionFactory,
+  createTestDatabaseConfig
+} from "@aquapulse/database";
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { resolvePersistenceAdapter } from "../common/persistence/persistence-adapter.types";
 import type { AiRepositoryPort } from "../modules/ai/ports/ai-repository.port";
@@ -36,7 +42,18 @@ import type { TasksListQueryContract } from "../modules/tasks/query-contracts/ta
 describe("Persistence adapter skeletons", () => {
   it("postgres adapter skeletons satisfy the repository ports", async () => {
     const pondsRepository: PondsRepositoryPort = new PostgresPondsRepository();
-    const alertsRepository: AlertsRepositoryPort = new PostgresAlertsRepository();
+    const alertsRepository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        resolveRows(statement) {
+          if (statement.includes("from saved_alert_views")) {
+            return [createPlaceholderAlertSavedViewRow({ id: "alert-view-1" })] as never[];
+          }
+
+          return [createPlaceholderAlertRow({ id: "alert-1" })] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const attachmentsRepository: AttachmentsRepositoryPort = new PostgresAttachmentsRepository();
     const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
     const feedRepository: FeedRepositoryPort = new PostgresFeedRepository();

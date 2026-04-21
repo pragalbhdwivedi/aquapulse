@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import {
   AQUAPULSE_SCHEMA_TABLES,
-  PlaceholderDatabaseConnectionFactory,
   PostgresRowGateway,
+  PostgresDatabaseConnectionFactory,
   alertActionHistoryRowMapper,
   alertRowMapper,
   alertSavedViewRowMapper,
@@ -701,7 +701,7 @@ export function buildUpdateAlertQueryPlan(id: string, patch: AlertRowPatch): Com
 
 @Injectable()
 export class PostgresAlertsRepository implements AlertsRepositoryPort {
-  private connectionFactory: DatabaseConnectionFactory = new PlaceholderDatabaseConnectionFactory();
+  private connectionFactory: DatabaseConnectionFactory = new PostgresDatabaseConnectionFactory();
   private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
 
   static forTesting(
