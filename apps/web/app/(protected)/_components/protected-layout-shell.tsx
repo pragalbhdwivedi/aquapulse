@@ -7,13 +7,15 @@ export function ProtectedLayoutShell({
   authLabel,
   sessionLabel,
   currentUserLabel,
-  currentUserDetail
+  currentUserDetail,
+  readSurfaceLabel
 }: {
   children: ReactNode;
   authLabel?: string;
   sessionLabel?: string;
   currentUserLabel?: string;
   currentUserDetail?: string;
+  readSurfaceLabel?: string;
 }) {
   return (
     <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "240px 1fr" }}>
@@ -30,6 +32,9 @@ export function ProtectedLayoutShell({
         </p>
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
           Identity: {currentUserDetail ?? "not resolved from backend session"}
+        </p>
+        <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
+          Alerts detail: {readSurfaceLabel ?? "safe fallback"}
         </p>
         <ul style={{ listStyle: "none", padding: 0 }}>
           {protectedNavigation.map((item) => (

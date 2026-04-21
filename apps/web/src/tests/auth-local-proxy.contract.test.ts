@@ -35,6 +35,8 @@ describe("Auth local API proxy", () => {
           availabilityState: "local_user",
           authSource: "local_default_user",
           sessionPresent: true,
+          protectedReadSliceLabel: "alerts_detail_read",
+          protectedReadSliceEnforced: false,
           protectedOperatorSliceLabel: "alerts_lifecycle_actions",
           protectedOperatorSliceEnforced: false,
           secondaryProtectedSliceLabel: "alerts_triage_actions",

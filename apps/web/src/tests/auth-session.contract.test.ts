@@ -13,6 +13,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sourceOfTruth).toBe("runtime_derived");
     expect(session.currentSessionEndpointStatus).toBe("not_requested");
     expect(session.sessionPresent).toBe(true);
+    expect(session.protectedReadGuardedSliceLabel).toBe("alerts_detail_read");
+    expect(session.protectedReadGuardedSliceEnforced).toBe(false);
     expect(session.protectedOperatorUiState).toBe("bypassed");
     expect(session.secondaryGuardedSliceLabel).toBe("alerts_triage_actions");
     expect(session.secondaryGuardedSliceEnforced).toBe(false);
@@ -37,6 +39,10 @@ describe("Frontend auth session bootstrap", () => {
     });
     const session = deriveFrontendSessionBootstrap(auth);
     const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
+    const detailReadGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.protectedReadGuardedSliceLabel,
+      enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
     const triageGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.secondaryGuardedSliceLabel
     });
@@ -51,6 +57,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sourceOfTruth).toBe("runtime_derived");
     expect(session.forwardingActive).toBe(true);
     expect(session.sessionPresent).toBe(true);
+    expect(detailReadGuard.enforcedByBackend).toBe(true);
+    expect(detailReadGuard.state).toBe("enabled");
     expect(lifecycleGuard.state).toBe("enabled");
     expect(triageGuard.enforcedByBackend).toBe(true);
     expect(triageGuard.state).toBe("enabled");

@@ -40,6 +40,14 @@ class ProtectedAlertBulkHandler {
   }
 }
 
+class ProtectedAlertDetailReadHandler {
+  @RequireAuthentication()
+  @RequireRoles("operator")
+  run() {
+    return true;
+  }
+}
+
 class ProtectedAlertSavedViewMutationHandler {
   @RequireAuthentication()
   @RequireRoles("operator")
@@ -55,6 +63,7 @@ function createExecutionContext(
     | typeof ProtectedAlertLifecycleHandler
     | typeof ProtectedAlertTriageHandler
     | typeof ProtectedAlertBulkHandler
+    | typeof ProtectedAlertDetailReadHandler
     | typeof ProtectedAlertSavedViewMutationHandler =
     ProtectedRuntimeDiagnosticsHandler
 ): ExecutionContext {
@@ -224,6 +233,26 @@ describe("First protected auth slice", () => {
 
     await expect(
       guard.canActivate(createExecutionContext({ headers: {} }, ProtectedAlertBulkHandler))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("requires an authenticated operator on the alerts detail read slice when keycloak mode is active", async () => {
+    const guard = new PlaceholderAuthGuard(
+      new Reflector(),
+      new ApiAuthService({
+        runtime: readApiAuthRuntimeConfig({
+          AQUAPULSE_AUTH_MODE: "keycloak",
+          AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+          AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+          AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+          AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+        }),
+        fetchImpl: (async () => new Response(JSON.stringify({ keys: [] }), { status: 200 })) as typeof fetch
+      })
+    );
+
+    await expect(
+      guard.canActivate(createExecutionContext({ headers: {} }, ProtectedAlertDetailReadHandler))
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 

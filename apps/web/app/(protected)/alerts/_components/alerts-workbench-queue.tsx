@@ -11,6 +11,9 @@ import { AlertsWorkbenchDetail } from "./alerts-workbench-detail";
 
 interface AlertsWorkbenchQueueProps {
   readonly alerts: AlertSummary[];
+  readonly detailAlerts: Record<string, AlertSummary | undefined>;
+  readonly detailReadStates: Record<string, "enabled" | "loading" | "blocked" | "bypassed" | "error" | undefined>;
+  readonly detailReadMessages: Record<string, string | undefined>;
   readonly detailAlertId: string | null;
   readonly selectedAlertIds: string[];
   readonly isSubmitting: boolean;
@@ -27,7 +30,7 @@ interface AlertsWorkbenchQueueProps {
   readonly submittingFeedbackAlertId: string | null;
   readonly session: FrontendSessionBootstrapStatus;
   readonly onToggleSelection: (alertId: string) => void;
-  readonly onToggleDetail: (alertId: string) => void;
+  readonly onToggleDetail: (alertId: string) => void | Promise<void>;
   readonly onNoteChange: (alertId: string, value: string) => void;
   readonly onOwnerChange: (alertId: string, value: string) => void;
   readonly onReviewLabelChange: (alertId: string, value: string) => void;
@@ -46,6 +49,9 @@ interface AlertsWorkbenchQueueProps {
 export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
   const {
     alerts,
+    detailAlerts,
+    detailReadStates,
+    detailReadMessages,
     detailAlertId,
     selectedAlertIds,
     isSubmitting,
@@ -89,6 +95,7 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
   return (
     <ul style={{ display: "grid", gap: "0.75rem", padding: 0, margin: 0, listStyle: "none" }}>
       {alerts.map((alert) => {
+        const detailAlert = detailAlerts[alert.id] ?? alert;
         const isSelected = selectedAlertIds.includes(alert.id);
         const isDetailOpen = detailAlertId === alert.id;
 
@@ -117,7 +124,9 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
             {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
             {isDetailOpen ? (
               <AlertsWorkbenchDetail
-                alert={alert}
+                alert={detailAlert}
+                detailReadState={detailReadStates[alert.id]}
+                detailReadMessage={detailReadMessages[alert.id]}
                 note={notes[alert.id] ?? ""}
                 ownerInput={ownerInputs[alert.id] ?? alert.assignedTo ?? ""}
                 reviewLabel={reviewLabels[alert.id] ?? alert.reviewLabel ?? ""}

@@ -64,6 +64,7 @@ x-aquapulse-dev-permissions
 - If backend probes are enabled, compare frontend auth mode with backend auth mode and validation strategy.
 - The protected layout sidebar also shows the current effective frontend auth label.
 - The first bounded protected slice is `GET /diagnostics/runtime`.
+- The bounded protected read slice is `GET /alerts/:id` for alerts detail reads.
 - The first protected operator action slice is `alerts lifecycle actions`:
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
 - The second protected operator slice is `alerts triage actions`:
@@ -116,6 +117,7 @@ Safe payload scope:
 - current user id/display name/username/email when available
 - active roles and permissions
 - protected operator slice label/enforcement
+- protected read slice label/enforcement
 - secondary protected operator slice label/enforcement
 - tertiary protected operator slice label/enforcement
 - quaternary protected operator slice label/enforcement

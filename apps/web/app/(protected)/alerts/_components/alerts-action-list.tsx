@@ -111,6 +111,14 @@ export function AlertsActionList({
       }),
     [session]
   );
+  const detailReadGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.protectedReadGuardedSliceLabel,
+        enforcedByBackend: session.protectedReadGuardedSliceEnforced
+      }),
+    [session]
+  );
   const savedViewMutationGuard = useMemo(
     () =>
       deriveProtectedOperatorUiGuard(session, {
@@ -144,6 +152,11 @@ export function AlertsActionList({
   );
   const [alerts, setAlerts] = useState(initialAlerts);
   const [summary, setSummary] = useState(initialSummary);
+  const [detailAlerts, setDetailAlerts] = useState<Record<string, AlertSummary | undefined>>({});
+  const [detailReadStates, setDetailReadStates] = useState<
+    Record<string, "enabled" | "loading" | "blocked" | "bypassed" | "error" | undefined>
+  >({});
+  const [detailReadMessages, setDetailReadMessages] = useState<Record<string, string | undefined>>({});
   const [detailAlertId, setDetailAlertId] = useState<string | null>(null);
   const [selectedAlertIds, setSelectedAlertIds] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -505,6 +518,10 @@ export function AlertsActionList({
             Live target: {liveUpdatesDiagnostics.targetLabel}. Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}.
           </span>
           <span style={{ color: "#94a3b8" }}>
+            Read slice: {session.protectedReadGuardedSliceLabel ?? authDiagnostics.protectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {session.protectedReadGuardedSliceEnforced || authDiagnostics.protectedReadSliceEnforced ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
             Protected operator slice: {authDiagnostics.protectedOperatorSliceLabel}. Enforced:{" "}
             {authDiagnostics.protectedOperatorSliceEnforced ? "yes" : "no"}. Forwarded auth present:{" "}
             {authDiagnostics.forwardedAuthPresent ? "yes" : "no"}.
@@ -528,7 +545,7 @@ export function AlertsActionList({
             {session.currentUser?.displayName ?? session.currentUser?.username ?? session.currentUser?.id ?? "not resolved"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
-            Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
+            Detail read state: {detailReadGuard.state}. Lifecycle state: {lifecycleGuard.state}. Triage state: {triageGuard.state}. Bulk state: {bulkGuard.state}. Saved views state: {savedViewMutationGuard.state}.
           </span>
           {session.currentUser ? (
             <span style={{ color: "#94a3b8" }}>
@@ -613,6 +630,9 @@ export function AlertsActionList({
 
       <AlertsWorkbenchQueue
         alerts={alerts}
+        detailAlerts={detailAlerts}
+        detailReadStates={detailReadStates}
+        detailReadMessages={detailReadMessages}
         detailAlertId={detailAlertId}
         selectedAlertIds={selectedAlertIds}
         isSubmitting={isSubmitting}
@@ -629,7 +649,53 @@ export function AlertsActionList({
         submittingFeedbackAlertId={submittingFeedbackAlertId}
         session={session}
         onToggleSelection={(alertId) => setSelectedAlertIds((current) => current.includes(alertId) ? current.filter((item) => item !== alertId) : [...current, alertId])}
-        onToggleDetail={(alertId) => setDetailAlertId((current) => current === alertId ? null : alertId)}
+        onToggleDetail={async (alertId) => {
+          if (detailAlertId === alertId) {
+            setDetailAlertId(null);
+            return;
+          }
+
+          setDetailAlertId(alertId);
+
+          if (!detailReadGuard.enabled) {
+            setDetailReadStates((current) => ({
+              ...current,
+              [alertId]: detailReadGuard.state === "disabled" ? "blocked" : "bypassed"
+            }));
+            setDetailReadMessages((current) => ({
+              ...current,
+              [alertId]:
+                detailReadGuard.state === "disabled"
+                  ? `${detailReadGuard.message} Using queue-summary fallback only.`
+                  : "Detailed backend reads are staying on the safe bypass path. Queue-summary data remains visible."
+            }));
+            return;
+          }
+
+          setDetailReadStates((current) => ({ ...current, [alertId]: "loading" }));
+          setDetailReadMessages((current) => ({
+            ...current,
+            [alertId]: "Loading protected alert detail from the backend detail surface."
+          }));
+
+          try {
+            const response = await repositories.alerts.getById(alertId);
+            setDetailAlerts((current) => ({ ...current, [alertId]: response.data }));
+            setDetailReadStates((current) => ({ ...current, [alertId]: "enabled" }));
+            setDetailReadMessages((current) => ({
+              ...current,
+              [alertId]:
+                "Protected detail read is available with current session and forwarding state."
+            }));
+          } catch (error) {
+            setDetailReadStates((current) => ({ ...current, [alertId]: "error" }));
+            setDetailReadMessages((current) => ({
+              ...current,
+              [alertId]: formatAlertsRuntimeError(error, runtimeConfig)
+            }));
+            reportRuntimeError(error);
+          }
+        }}
         onNoteChange={(alertId, value) => setNotes((current) => ({ ...current, [alertId]: value }))}
         onOwnerChange={(alertId, value) => setOwnerInputs((current) => ({ ...current, [alertId]: value }))}
         onReviewLabelChange={(alertId, value) => setReviewLabels((current) => ({ ...current, [alertId]: value }))}

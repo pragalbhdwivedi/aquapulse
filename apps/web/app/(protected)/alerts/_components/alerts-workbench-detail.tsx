@@ -11,6 +11,8 @@ import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 
 interface AlertsWorkbenchDetailProps {
   readonly alert: AlertSummary;
+  readonly detailReadState?: "enabled" | "loading" | "blocked" | "bypassed" | "error";
+  readonly detailReadMessage?: string;
   readonly note: string;
   readonly ownerInput: string;
   readonly reviewLabel: string;
@@ -49,6 +51,8 @@ const reviewStateOptions: AlertReviewState[] = [
 
 export function AlertsWorkbenchDetail({
   alert,
+  detailReadState,
+  detailReadMessage,
   note,
   ownerInput,
   reviewLabel,
@@ -84,6 +88,11 @@ export function AlertsWorkbenchDetail({
 
   return (
     <div style={{ display: "grid", gap: "0.5rem" }}>
+      {detailReadState ? (
+        <p style={{ margin: 0, color: detailReadState === "error" || detailReadState === "blocked" ? "#fbbf24" : "#94a3b8" }}>
+          Detail read state: {detailReadState}. {detailReadMessage}
+        </p>
+      ) : null}
       <div>Status: {alert.status}</div>
       <div>Source: {alert.source}</div>
       <div>Pond: {alert.pondId ?? "N/A"}</div>

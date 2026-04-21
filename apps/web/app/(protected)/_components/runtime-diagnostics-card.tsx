@@ -2,6 +2,7 @@ import type {
   BackendRuntimeProbeDiagnostics,
   FrontendRuntimeDiagnostics
 } from "@aquapulse/types";
+import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 import {
   deriveAlertsEndToEndRuntimeStatus,
   deriveFeedEndToEndRuntimeStatus,
@@ -22,6 +23,10 @@ export function RuntimeDiagnosticsCard({
   const feedEndToEnd = deriveFeedEndToEndRuntimeStatus(diagnostics, backendProbe);
   const tasksEndToEnd = deriveTasksEndToEndRuntimeStatus(diagnostics, backendProbe);
   const waterQualityEndToEnd = deriveWaterQualityEndToEndRuntimeStatus(diagnostics, backendProbe);
+  const detailReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+    sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
+    enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
+  });
 
   return (
     <section
@@ -88,6 +93,10 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.firstProtectedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
+          Protected read slice: {diagnostics.auth.protectedReadSliceLabel ?? diagnostics.session.protectedReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.protectedReadSliceEnforced || diagnostics.session.protectedReadGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
           Protected operator slice: {diagnostics.auth.protectedOperatorSliceLabel} / Enforced:{" "}
           {diagnostics.auth.protectedOperatorSliceEnforced ? "yes" : "no"}
         </span>
@@ -106,6 +115,9 @@ export function RuntimeDiagnosticsCard({
         <span>
           Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}
           {diagnostics.auth.forwardingMode}
+        </span>
+        <span>
+          Alerts detail read access: {detailReadGuard.state} / {detailReadGuard.message}
         </span>
         <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
@@ -167,6 +179,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend protected slice: {backendProbe.runtime.auth.firstProtectedSliceLabel} / Enforced:{" "}
             {backendProbe.runtime.auth.firstProtectedSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend protected read slice: {backendProbe.runtime.auth.protectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.protectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (

@@ -37,6 +37,8 @@ describe("Backend-backed frontend auth session resolution", () => {
                 claimKeys: ["aud", "iss", "preferred_username"]
               },
               sessionPresent: true,
+              protectedReadSliceLabel: "alerts_detail_read",
+              protectedReadSliceEnforced: true,
               protectedOperatorSliceLabel: "alerts_lifecycle_actions",
               protectedOperatorSliceEnforced: true,
               secondaryProtectedSliceLabel: "alerts_triage_actions",
@@ -56,6 +58,7 @@ describe("Backend-backed frontend auth session resolution", () => {
     expect(diagnostics.session.sourceOfTruth).toBe("backend_session");
     expect(diagnostics.session.currentSessionEndpointStatus).toBe("available");
     expect(diagnostics.session.currentUser?.displayName).toBe("Verified Operator");
+    expect(diagnostics.session.protectedReadGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.protectedOperatorUiState).toBe("enabled");
     expect(diagnostics.session.secondaryGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.tertiaryGuardedSliceEnforced).toBe(true);

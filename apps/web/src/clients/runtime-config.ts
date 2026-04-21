@@ -771,6 +771,8 @@ export function getAuthRuntimeDiagnostics(
     clientId: config.keycloakClientId,
     firstProtectedSliceLabel: "runtime_diagnostics_api",
     firstProtectedSliceEnforced: effectiveMode === "keycloak",
+    protectedReadSliceLabel: "alerts_detail_read",
+    protectedReadSliceEnforced: effectiveMode === "keycloak",
     protectedOperatorSliceLabel: "alerts_lifecycle_actions",
     protectedOperatorSliceEnforced: effectiveMode === "keycloak",
     secondaryProtectedSliceLabel: "alerts_triage_actions",

@@ -1263,6 +1263,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly clientId?: string;
   readonly firstProtectedSliceLabel: string;
   readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1315,6 +1317,8 @@ export interface CurrentSessionPayload {
   readonly authSource: CurrentSessionAuthSource;
   readonly user?: CurrentSessionUserSummary;
   readonly sessionPresent: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;
@@ -1355,6 +1359,8 @@ export interface FrontendSessionBootstrapStatus {
     | "proxy_cookie"
     | "proxy_header_passthrough"
     | "unavailable";
+  readonly protectedReadGuardedSliceLabel?: string;
+  readonly protectedReadGuardedSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
   readonly secondaryGuardedSliceLabel?: string;
@@ -1398,6 +1404,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly lastVerificationMessage?: string;
   readonly firstProtectedSliceLabel: string;
   readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
   readonly protectedOperatorSliceLabel: string;
   readonly protectedOperatorSliceEnforced: boolean;
   readonly secondaryProtectedSliceLabel?: string;

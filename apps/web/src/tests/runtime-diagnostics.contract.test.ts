@@ -19,6 +19,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.effectiveMode).toBe("disabled");
     expect(diagnostics.auth.bypassActive).toBe(true);
     expect(diagnostics.auth.firstProtectedSliceLabel).toBe("runtime_diagnostics_api");
+    expect(diagnostics.auth.protectedReadSliceLabel).toBe("alerts_detail_read");
     expect(diagnostics.auth.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.auth.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(diagnostics.auth.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
@@ -67,6 +68,7 @@ describe("Frontend runtime diagnostics", () => {
     });
 
     expect(diagnostics.auth.effectiveMode).toBe("keycloak");
+    expect(diagnostics.auth.protectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryProtectedSliceEnforced).toBe(true);
@@ -652,6 +654,8 @@ describe("Frontend runtime diagnostics", () => {
                   verificationStatus: "disabled",
                   firstProtectedSliceLabel: "runtime_diagnostics_api",
                   firstProtectedSliceEnforced: false,
+                  protectedReadSliceLabel: "alerts_detail_read",
+                  protectedReadSliceEnforced: false,
                   protectedOperatorSliceLabel: "alerts_lifecycle_actions",
                   protectedOperatorSliceEnforced: false,
                   secondaryProtectedSliceLabel: "alerts_triage_actions",
@@ -733,6 +737,8 @@ describe("Frontend runtime diagnostics", () => {
               verificationStatus: "disabled",
               firstProtectedSliceLabel: "runtime_diagnostics_api",
               firstProtectedSliceEnforced: false,
+              protectedReadSliceLabel: "alerts_detail_read",
+              protectedReadSliceEnforced: false,
               protectedOperatorSliceLabel: "alerts_lifecycle_actions",
               protectedOperatorSliceEnforced: false,
               secondaryProtectedSliceLabel: "alerts_triage_actions",
@@ -858,6 +864,8 @@ describe("Frontend runtime diagnostics", () => {
                   verificationStatus: "ready",
                   firstProtectedSliceLabel: "runtime_diagnostics_api",
                   firstProtectedSliceEnforced: true,
+                  protectedReadSliceLabel: "alerts_detail_read",
+                  protectedReadSliceEnforced: true,
                   protectedOperatorSliceLabel: "alerts_lifecycle_actions",
                   protectedOperatorSliceEnforced: true,
                   secondaryProtectedSliceLabel: "alerts_triage_actions",

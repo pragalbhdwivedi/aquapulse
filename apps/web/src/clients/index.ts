@@ -78,6 +78,8 @@ export function createMockApiClients(): AquaPulseApiClients {
             availabilityState: "disabled",
             authSource: "none",
             sessionPresent: false,
+            protectedReadSliceLabel: "alerts_detail_read",
+            protectedReadSliceEnforced: false,
             protectedOperatorSliceLabel: "alerts_lifecycle_actions",
             protectedOperatorSliceEnforced: false,
             secondaryProtectedSliceLabel: "alerts_triage_actions",

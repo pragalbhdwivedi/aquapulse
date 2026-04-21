@@ -87,6 +87,8 @@ export class CurrentSessionService {
           }
         : undefined,
       sessionPresent: Boolean(user),
+      protectedReadSliceLabel: "alerts_detail_read",
+      protectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
       protectedOperatorSliceLabel: "alerts_lifecycle_actions",
       protectedOperatorSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryProtectedSliceLabel: "alerts_triage_actions",

@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
-import { formatFrontendSessionLabel } from "@web/features/auth-session";
+import { deriveProtectedOperatorUiGuard, formatFrontendSessionLabel } from "@web/features/auth-session";
 import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { ProtectedLayoutShell } from "./_components/protected-layout-shell";
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const diagnostics = await readResolvedFrontendRuntimeDiagnostics();
+  const detailReadGuard = deriveProtectedOperatorUiGuard(diagnostics.session, {
+    sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
+    enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
+  });
 
   return (
     <ProtectedLayoutShell
@@ -20,6 +24,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
           ? `${diagnostics.session.currentUser.provider} / roles: ${diagnostics.session.currentUser.roles.join(", ") || "none"}`
           : undefined
       }
+      readSurfaceLabel={`${diagnostics.session.protectedReadGuardedSliceLabel ?? diagnostics.auth.protectedReadSliceLabel ?? "alerts_detail_read"} / ${detailReadGuard.state}`}
     >
       {children}
     </ProtectedLayoutShell>

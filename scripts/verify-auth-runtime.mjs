@@ -141,6 +141,35 @@ async function verifyProtectedSlices(backendRuntime, currentSession) {
 
   logStep(`Protected alerts expectation: ${expectedOutcome}`);
 
+  const detailAlertId =
+    expectedOutcome === "success" ? config.alertId : "alert-auth-verifier-missing";
+  const detailRead = await readJsonResponse(
+    `${config.webBaseUrl}/api/alerts/${detailAlertId}`,
+    {
+      method: "GET",
+      headers: createVerifierRequestHeaders(config)
+    }
+  );
+  ensureJsonEnvelope(detailRead, "Alerts detail read slice");
+
+  if (expectedOutcome === "success") {
+    if (!detailRead.ok) {
+      throw new Error(
+        `Alerts detail read slice expected success but received ${detailRead.status}: ${JSON.stringify(detailRead.body)}`
+      );
+    }
+
+    logStep("Alerts detail read slice: succeeded");
+  } else {
+    if (detailRead.status !== 401 && detailRead.status !== 403) {
+      throw new Error(
+        `Alerts detail read slice expected an auth failure but received ${detailRead.status}: ${JSON.stringify(detailRead.body)}`
+      );
+    }
+
+    logStep(`Alerts detail read slice: rejected as expected with ${detailRead.status}`);
+  }
+
   if (!config.enableMutations && expectedOutcome === "success") {
     logStep(
       "Protected mutation checks were skipped. Set AQUAPULSE_AUTH_VERIFY_ENABLE_MUTATIONS=true to verify success-path lifecycle, triage, bulk, and saved-view mutation slices."

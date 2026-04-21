@@ -81,6 +81,10 @@ export function deriveFrontendSessionBootstrap(
     forwardedAuthPresent: auth.forwardedAuthPresent,
     forwardingActive: auth.forwardingActive,
     forwardingMode: auth.forwardingMode,
+    protectedReadGuardedSliceLabel:
+      currentSession?.protectedReadSliceLabel ?? auth.protectedReadSliceLabel,
+    protectedReadGuardedSliceEnforced:
+      currentSession?.protectedReadSliceEnforced ?? auth.protectedReadSliceEnforced,
     protectedOperatorSliceLabel: auth.protectedOperatorSliceLabel,
     protectedOperatorUiState:
       bootstrapState === "active"
