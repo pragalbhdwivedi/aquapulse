@@ -9,10 +9,12 @@ import {
   getAlertsRuntimeDiagnostics,
   getFeedRuntimeDiagnostics,
   getDefaultClientRuntimeConfig,
+  getTasksRuntimeDiagnostics,
   getWaterQualityRuntimeDiagnostics,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
   resolveFeedHttpBaseUrl,
+  resolveTasksHttpBaseUrl,
   resolveWaterQualityHttpBaseUrl
 } from "../clients/runtime-config";
 
@@ -88,6 +90,19 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.feedHttpBaseUrl).toBe("http://feed-backend.local");
   });
 
+  it("allows tasks-only HTTP override without changing the default global mode", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL: "http://tasks-backend.local"
+    });
+
+    expect(config.mode).toBe("mock");
+    expect(config.tasksMode).toBe("http");
+    expect(config.enableFetchHttp).toBe(true);
+    expect(config.tasksHttpBaseUrl).toBe("http://tasks-backend.local");
+  });
+
   it("defaults alerts-only fetch HTTP mode to the local proxy path", () => {
     const config = parseClientRuntimeConfig({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
@@ -113,6 +128,15 @@ describe("Client runtime config and invocation registry", () => {
     });
 
     expect(resolveFeedHttpBaseUrl(config)).toBe("");
+  });
+
+  it("defaults tasks-only fetch HTTP mode to the local proxy path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    expect(resolveTasksHttpBaseUrl(config)).toBe("");
   });
 
   it("keeps malformed alerts HTTP settings safe and visible through diagnostics", () => {
@@ -184,6 +208,29 @@ describe("Client runtime config and invocation registry", () => {
     });
   });
 
+  it("keeps malformed tasks HTTP settings safe and visible through diagnostics", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "false",
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL: "bad-target"
+    });
+    const diagnostics = getTasksRuntimeDiagnostics(config);
+
+    expect(config.mode).toBe("mock");
+    expect(config.tasksHttpBaseUrl).toBeUndefined();
+    expect(diagnostics.effectiveMode).toBe("mock");
+    expect(diagnostics.warnings).toContainEqual({
+      code: "INVALID_HTTP_URL",
+      message:
+        "NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
+    });
+    expect(diagnostics.warnings).toContainEqual({
+      code: "TASKS_HTTP_DISABLED",
+      message:
+        "Tasks HTTP mode was requested, but no HTTP executor is enabled. Tasks will remain mock-backed."
+    });
+  });
+
   it("supports direct alerts HTTP transport when explicitly configured", () => {
     const config = parseClientRuntimeConfig({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
@@ -227,6 +274,21 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.effectiveMode).toBe("http");
     expect(diagnostics.usesLocalProxy).toBe(false);
     expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/feed");
+  });
+
+  it("supports direct tasks HTTP transport when explicitly configured", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL: "http://localhost:4000"
+    });
+    const diagnostics = getTasksRuntimeDiagnostics(config);
+
+    expect(resolveTasksHttpBaseUrl(config)).toBe("http://localhost:4000");
+    expect(diagnostics.effectiveMode).toBe("http");
+    expect(diagnostics.usesLocalProxy).toBe(false);
+    expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/tasks");
   });
 
   it("keeps the invocation registry aligned with the endpoint catalog", () => {

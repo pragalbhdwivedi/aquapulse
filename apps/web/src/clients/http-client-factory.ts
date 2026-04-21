@@ -303,6 +303,9 @@ export function createHttpClientFactory({
           query ?? { page: 1, pageSize: 20 }
         );
       },
+      getById(id: string) {
+        return invokeItemEndpoint<TaskSummary>(executor, registry.tasks.getById, { id });
+      },
       update(id: string, input: TaskUpdateRequest) {
         return invokeCreateEndpoint<TaskSummary, { readonly id: string; readonly body: TaskUpdateRequest }>(
           executor,

@@ -1259,6 +1259,16 @@ export interface WaterQualityRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface TasksRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface LocalBridgeDiagnostics {
   readonly routePrefix: string;
   readonly transport: "proxy";
@@ -1272,6 +1282,7 @@ export interface FrontendRuntimeDiagnostics {
   readonly mode: RuntimeModeSummary;
   readonly alerts: AlertsRuntimeDiagnostics;
   readonly feed: FeedRuntimeDiagnostics;
+  readonly tasks: TasksRuntimeDiagnostics;
   readonly waterQuality: WaterQualityRuntimeDiagnostics;
   readonly localBridge: LocalBridgeDiagnostics;
   readonly warnings: RuntimeWarning[];

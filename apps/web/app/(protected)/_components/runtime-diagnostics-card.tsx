@@ -5,6 +5,7 @@ import type {
 import {
   deriveAlertsEndToEndRuntimeStatus,
   deriveFeedEndToEndRuntimeStatus,
+  deriveTasksEndToEndRuntimeStatus,
   deriveWaterQualityEndToEndRuntimeStatus
 } from "@web/features/runtime-diagnostics";
 
@@ -19,6 +20,7 @@ export function RuntimeDiagnosticsCard({
 }) {
   const alertsEndToEnd = deriveAlertsEndToEndRuntimeStatus(diagnostics, backendProbe);
   const feedEndToEnd = deriveFeedEndToEndRuntimeStatus(diagnostics, backendProbe);
+  const tasksEndToEnd = deriveTasksEndToEndRuntimeStatus(diagnostics, backendProbe);
   const waterQualityEndToEnd = deriveWaterQualityEndToEndRuntimeStatus(diagnostics, backendProbe);
 
   return (
@@ -36,9 +38,11 @@ export function RuntimeDiagnosticsCard({
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
         <span>Feed runtime: {diagnostics.feed.effectiveMode}</span>
+        <span>Tasks runtime: {diagnostics.tasks.effectiveMode}</span>
         <span>Water-quality runtime: {diagnostics.waterQuality.effectiveMode}</span>
         <span>Alerts transport: {diagnostics.alerts.transport}</span>
         <span>Feed transport: {diagnostics.feed.transport}</span>
+        <span>Tasks transport: {diagnostics.tasks.transport}</span>
         <span>Water-quality transport: {diagnostics.waterQuality.transport}</span>
         <span>Fallbacks active: {diagnostics.mode.safeFallbackActive ? "yes" : "no"}</span>
       </div>
@@ -47,11 +51,14 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Feed scope: {diagnostics.feed.scopeLabel}</span>
         <span>Feed target: {diagnostics.feed.targetLabel}</span>
+        <span>Tasks scope: {diagnostics.tasks.scopeLabel}</span>
+        <span>Tasks target: {diagnostics.tasks.targetLabel}</span>
         <span>Water-quality scope: {diagnostics.waterQuality.scopeLabel}</span>
         <span>Water-quality target: {diagnostics.waterQuality.targetLabel}</span>
         <span>Local bridge target: {diagnostics.localBridge.backendTargetLabel}</span>
         <span>Alerts cutover status: {alertsEndToEnd.statusLabel}</span>
         <span>Feed cutover status: {feedEndToEnd.statusLabel}</span>
+        <span>Tasks cutover status: {tasksEndToEnd.statusLabel}</span>
         <span>Water-quality cutover status: {waterQualityEndToEnd.statusLabel}</span>
       </div>
       <div style={{ display: "grid", gap: "0.25rem", color: "#cbd5e1" }}>
@@ -101,7 +108,7 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime ? (
           <span>
-            Local bridges: {backendProbe.runtime.alerts.localBridgeExpectedPath}, {backendProbe.runtime.feed?.localBridgeExpectedPath ?? "/api/feed"}, and {backendProbe.runtime.alerts.localAiExplainBridgeExpectedPath}
+            Local bridges: {backendProbe.runtime.alerts.localBridgeExpectedPath}, {backendProbe.runtime.feed?.localBridgeExpectedPath ?? "/api/feed"}, /api/tasks, and {backendProbe.runtime.alerts.localAiExplainBridgeExpectedPath}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

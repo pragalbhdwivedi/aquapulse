@@ -94,7 +94,7 @@ describe("HTTP client factory foundation", () => {
     expect(empty.data.page.page).toBe(3);
   });
 
-  it("supports readonly HTTP-style clients for pond list/detail, alerts list, and tasks list", async () => {
+  it("supports readonly HTTP-style clients for pond list/detail, alerts list, and tasks list/detail", async () => {
     const baseClients = createMockApiClients();
     const executor = createFetchPlaceholderExecutor(createEndpointHandlersFromClients(baseClients));
     const clients = createHttpClientFactory({
@@ -103,17 +103,19 @@ describe("HTTP client factory foundation", () => {
       executor
     });
 
-    const [ponds, pond, alerts, tasks] = await Promise.all([
+    const [ponds, pond, alerts, tasks, task] = await Promise.all([
       clients.ponds.list({ page: 1, pageSize: 20 }),
       clients.ponds.getById("pond-1"),
       clients.alerts.list({ page: 1, pageSize: 20, status: "open" }),
-      clients.tasks.list({ page: 1, pageSize: 20 })
+      clients.tasks.list({ page: 1, pageSize: 20 }),
+      clients.tasks.getById("task-1")
     ]);
 
     expect(ponds.data.items[0]?.id).toBe("pond-1");
     expect(pond.data.id).toBe("pond-1");
     expect(alerts.data.items[0]?.id).toBe("alert-1");
     expect(tasks.data.items[0]?.id).toBe("task-1");
+    expect(task.data.id).toBe("task-1");
   });
 
   it("supports alert saved-view methods through the HTTP client factory seam", async () => {

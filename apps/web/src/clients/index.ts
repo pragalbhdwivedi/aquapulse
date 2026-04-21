@@ -28,6 +28,7 @@ import {
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
   resolveFeedHttpBaseUrl,
+  resolveTasksHttpBaseUrl,
   resolveWaterQualityHttpBaseUrl,
   type AquaPulseHttpTransportMode,
   type AquaPulseClientRuntimeConfig,
@@ -159,6 +160,33 @@ export function createApiClientsFromConfig(
     clients = {
       ...clients,
       feed: feedHttpClients.feed
+    };
+  }
+
+  if (config.tasksMode === "http") {
+    const tasksHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.tasksMode,
+              config.tasksHttpTransport,
+              resolveTasksHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      tasks: tasksHttpClients.tasks
     };
   }
 

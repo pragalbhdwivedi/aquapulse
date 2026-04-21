@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { submitTask } from "@web/features/task-create";
+import { useMemo, useState } from "react";
+import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import { createRepositoriesFromConfig } from "@web/repositories";
+import {
+  createTaskSubmitter,
+  type TaskCreateSubmissionResult
+} from "@web/features/task-create";
+import {
+  deriveTasksRuntimeIndicator,
+  formatTasksRuntimeError
+} from "@web/features/tasks-runtime";
 import { toMutationPageState } from "@web/features/mutation-refresh";
 
 interface TaskCreateFormProps {
@@ -11,8 +20,32 @@ interface TaskCreateFormProps {
 export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("user-1");
-  const [result, setResult] = useState<Awaited<ReturnType<typeof submitTask>> | null>(null);
+  const [result, setResult] = useState<TaskCreateSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const runtimeConfig = useMemo(
+    () =>
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT
+      }),
+    []
+  );
+  const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
+  const submitTask = useMemo(() => createTaskSubmitter(repositories), [repositories]);
+  const runtimeIndicator = useMemo(
+    () => deriveTasksRuntimeIndicator(runtimeConfig),
+    [runtimeConfig]
+  );
   const pageState = toMutationPageState(result, isSubmitting);
 
   return (
@@ -20,17 +53,22 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
       onSubmit={async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
+        setRuntimeError(null);
 
-        const submission = await submitTask({
-          title,
-          assigneeId: assigneeId || undefined,
-          pondId
-        });
-        setResult(submission);
-        if (submission.status === "success") {
-          setAssigneeId(submission.data.assigneeId ?? "user-1");
+        try {
+          const submission = await submitTask({
+            title,
+            assigneeId: assigneeId || undefined,
+            pondId
+          });
+          setResult(submission);
+          if (submission.status === "success") {
+            setAssigneeId(submission.data.assigneeId ?? "user-1");
+          }
+          setTitle("");
+        } catch (error) {
+          setRuntimeError(formatTasksRuntimeError(error, runtimeConfig));
         }
-        setTitle("");
         setIsSubmitting(false);
       }}
       style={{
@@ -44,6 +82,26 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Create task</h2>
+      <div
+        style={{
+          display: "grid",
+          gap: "0.25rem",
+          padding: "0.65rem 0.8rem",
+          borderRadius: "0.65rem",
+          background: "rgba(30, 41, 59, 0.45)",
+          color: "#cbd5e1"
+        }}
+      >
+        <span>
+          Tasks runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
+        </span>
+        <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        {runtimeIndicator.warnings.map((warning) => (
+          <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
+            {warning.message}
+          </span>
+        ))}
+      </div>
       <label style={{ display: "grid", gap: "0.35rem" }}>
         <span>Title</span>
         <input
@@ -86,6 +144,7 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
           Created task: {pageState.data?.title}. Refreshed tasks: {pageState.refreshedList?.items.length ?? 0}
         </p>
       ) : null}
+      {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
     </form>
   );
 }
