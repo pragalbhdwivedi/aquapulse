@@ -1243,9 +1243,18 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly active: boolean;
   readonly bypassActive: boolean;
   readonly keycloakConfigured: boolean;
+  readonly verificationAvailable: boolean;
+  readonly verificationState:
+    | "disabled"
+    | "local_bypass"
+    | "keycloak_incomplete"
+    | "jwks_ready";
   readonly issuerLabel: string;
+  readonly jwksLabel: string;
   readonly realm?: string;
   readonly clientId?: string;
+  readonly firstProtectedSliceLabel: string;
+  readonly firstProtectedSliceEnforced: boolean;
   readonly localDevUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }
@@ -1256,14 +1265,31 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly active: boolean;
   readonly bypassActive: boolean;
   readonly keycloakConfigured: boolean;
+  readonly verificationAvailable: boolean;
+  readonly verificationActive: boolean;
+  readonly verificationBypassed: boolean;
   readonly issuerLabel: string;
+  readonly jwksLabel: string;
   readonly realm?: string;
   readonly clientId?: string;
   readonly validationStrategy: "disabled" | "local_headers" | "keycloak_bearer_claims";
   readonly tokenValidation:
     | "not_applicable"
     | "not_attempted"
-    | "claims_only_ready";
+    | "jwks_ready"
+    | "verified"
+    | "verification_failed";
+  readonly verificationStatus:
+    | "disabled"
+    | "local_bypass"
+    | "not_configured"
+    | "ready"
+    | "verified"
+    | "degraded";
+  readonly lastVerificationAt?: ISODateString;
+  readonly lastVerificationMessage?: string;
+  readonly firstProtectedSliceLabel: string;
+  readonly firstProtectedSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

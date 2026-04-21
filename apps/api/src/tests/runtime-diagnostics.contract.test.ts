@@ -26,6 +26,7 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.mode.effectiveMode).toBe("in-memory");
     expect(diagnostics.auth?.effectiveMode).toBe("disabled");
     expect(diagnostics.auth?.bypassActive).toBe(true);
+    expect(diagnostics.auth?.verificationStatus).toBe("disabled");
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -73,6 +74,7 @@ describe("API runtime diagnostics", () => {
       env: {
         AQUAPULSE_AUTH_MODE: "keycloak",
         AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
         AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
         AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
       }
@@ -84,9 +86,10 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.effectiveMode).toBe("keycloak");
     expect(diagnostics.auth?.active).toBe(true);
     expect(diagnostics.auth?.validationStrategy).toBe("keycloak_bearer_claims");
-    expect(diagnostics.auth?.tokenValidation).toBe("claims_only_ready");
+    expect(diagnostics.auth?.verificationAvailable).toBe(true);
+    expect(diagnostics.auth?.tokenValidation).toBe("jwks_ready");
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
-      "AUTH_KEYCLOAK_CLAIMS_ONLY"
+      "AUTH_FIRST_PROTECTED_SLICE_ACTIVE"
     );
   });
 

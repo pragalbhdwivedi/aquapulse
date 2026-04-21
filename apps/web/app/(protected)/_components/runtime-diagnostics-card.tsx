@@ -37,6 +37,7 @@ export function RuntimeDiagnosticsCard({
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Auth runtime: {diagnostics.auth.effectiveMode}</span>
+        <span>Auth verification: {diagnostics.auth.verificationState}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
         <span>Feed runtime: {diagnostics.feed.effectiveMode}</span>
         <span>Tasks runtime: {diagnostics.tasks.effectiveMode}</span>
@@ -60,6 +61,11 @@ export function RuntimeDiagnosticsCard({
           Auth provider target: {diagnostics.auth.issuerLabel}
           {diagnostics.auth.realm ? ` / realm ${diagnostics.auth.realm}` : ""}
           {diagnostics.auth.clientId ? ` / client ${diagnostics.auth.clientId}` : ""}
+        </span>
+        <span>Auth JWKS target: {diagnostics.auth.jwksLabel}</span>
+        <span>
+          First protected slice: {diagnostics.auth.firstProtectedSliceLabel} / Enforced:{" "}
+          {diagnostics.auth.firstProtectedSliceEnforced ? "yes" : "no"}
         </span>
         <span>Local auth user label: {diagnostics.auth.localDevUserLabel}</span>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
@@ -108,6 +114,19 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend auth validation: {backendProbe.runtime.auth.validationStrategy} / Token mode:{" "}
             {backendProbe.runtime.auth.tokenValidation}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend auth verification: {backendProbe.runtime.auth.verificationStatus} / Available:{" "}
+            {backendProbe.runtime.auth.verificationAvailable ? "yes" : "no"} / Last check:{" "}
+            {backendProbe.runtime.auth.lastVerificationAt ?? "not yet attempted"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend protected slice: {backendProbe.runtime.auth.firstProtectedSliceLabel} / Enforced:{" "}
+            {backendProbe.runtime.auth.firstProtectedSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

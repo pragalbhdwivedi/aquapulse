@@ -1,13 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiAuthService } from "../common/auth/api-auth.service";
+import { generateKeyPairSync, type JsonWebKey } from "node:crypto";
+import { ApiAuthService, createSignedJwtForTest } from "../common/auth/api-auth.service";
 import { readApiAuthRuntimeConfig } from "../common/auth/auth-runtime.config";
-
-function createJwtPayloadToken(payload: Record<string, unknown>): string {
-  const header = Buffer.from(JSON.stringify({ alg: "none", typ: "JWT" }))
-    .toString("base64url");
-  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
-  return `${header}.${body}.`;
-}
 
 describe("Auth foundation contracts", () => {
   afterEach(() => {
@@ -37,13 +31,13 @@ describe("Auth foundation contracts", () => {
     );
   });
 
-  it("hydrates a deterministic local operator when local auth mode is enabled", () => {
+  it("hydrates a deterministic local operator when local auth mode is enabled", async () => {
     vi.stubEnv("AQUAPULSE_AUTH_MODE", "local");
     vi.stubEnv("AQUAPULSE_AUTH_LOCAL_DISPLAY_NAME", "Shift Operator");
     vi.stubEnv("AQUAPULSE_AUTH_LOCAL_ROLES", "operator,manager");
 
     const service = new ApiAuthService();
-    const user = service.hydrateRequestUser({
+    const user = await service.hydrateRequestUser({
       headers: {
         "x-aquapulse-dev-username": "pond.supervisor"
       }
@@ -55,40 +49,51 @@ describe("Auth foundation contracts", () => {
     expect(user?.roles).toEqual(["operator", "manager"]);
   });
 
-  it("hydrates a claims-based keycloak user without mutating lifecycle state", () => {
-    vi.stubEnv("AQUAPULSE_AUTH_MODE", "keycloak");
-    vi.stubEnv("AQUAPULSE_KEYCLOAK_ISSUER_URL", "https://id.example.com/realms/aquapulse");
-    vi.stubEnv("AQUAPULSE_KEYCLOAK_REALM", "aquapulse");
-    vi.stubEnv("AQUAPULSE_KEYCLOAK_CLIENT_ID", "aquapulse-web");
+  it("verifies a keycloak bearer token against JWKS when verification is available", async () => {
+    const { privateKey, publicKey } = generateKeyPairSync("rsa", {
+      modulusLength: 2048
+    });
+    const publicJwk = publicKey.export({ format: "jwk" }) as JsonWebKey;
+    const token = createSignedJwtForTest(
+      {
+        sub: "verified-user",
+        iss: "https://id.example.com/realms/aquapulse",
+        aud: ["aquapulse-web"],
+        exp: Math.floor(Date.now() / 1000) + 300,
+        preferred_username: "verified.operator",
+        realm_access: { roles: ["operator"] }
+      },
+      {
+        kid: "test-kid",
+        privateKeyPem: privateKey.export({ format: "pem", type: "pkcs8" }).toString()
+      }
+    );
 
-    const service = new ApiAuthService();
-    const token = createJwtPayloadToken({
-      sub: "user-123",
-      iss: "https://id.example.com/realms/aquapulse",
-      aud: ["aquapulse-web"],
-      preferred_username: "aquapulse.operator",
-      name: "AquaPulse Operator",
-      email: "operator@example.com",
-      realm_access: {
-        roles: ["operator"]
-      },
-      resource_access: {
-        "aquapulse-web": {
-          roles: ["reviewer"]
-        }
-      },
-      scope: "alerts:read alerts:write"
+    const service = new ApiAuthService({
+      runtime: readApiAuthRuntimeConfig({
+        AQUAPULSE_AUTH_MODE: "keycloak",
+        AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+        AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+        AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+        AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+      }),
+      fetchImpl: (async () =>
+        new Response(
+          JSON.stringify({
+            keys: [{ ...publicJwk, kid: "test-kid", use: "sig", alg: "RS256" }]
+          }),
+          { status: 200 }
+        )) as typeof fetch
     });
 
-    const user = service.hydrateRequestUser({
+    const user = await service.hydrateRequestUser({
       headers: {
         authorization: `Bearer ${token}`
       }
     });
 
+    expect(user?.id).toBe("verified-user");
     expect(user?.provider).toBe("keycloak");
-    expect(user?.id).toBe("user-123");
-    expect(user?.roles).toEqual(["operator", "reviewer"]);
-    expect(user?.permissions).toEqual(["alerts:read", "alerts:write"]);
+    expect(user?.roles).toEqual(["operator"]);
   });
 });

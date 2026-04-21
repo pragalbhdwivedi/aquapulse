@@ -19,6 +19,7 @@ Backend:
 ```bash
 AQUAPULSE_AUTH_MODE=keycloak
 AQUAPULSE_KEYCLOAK_ISSUER_URL=http://localhost:8080/realms/aquapulse
+AQUAPULSE_KEYCLOAK_JWKS_URL=http://localhost:8080/realms/aquapulse/protocol/openid-connect/certs
 AQUAPULSE_KEYCLOAK_REALM=aquapulse
 AQUAPULSE_KEYCLOAK_CLIENT_ID=aquapulse-web
 ```
@@ -60,10 +61,11 @@ x-aquapulse-dev-permissions
 - Check `Auth runtime` on the web diagnostics card.
 - If backend probes are enabled, compare frontend auth mode with backend auth mode and validation strategy.
 - The protected layout sidebar also shows the current effective frontend auth label.
+- The first bounded protected slice is `GET /diagnostics/runtime`.
+- In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
 
 ## Intentionally deferred in this branch
 
-- Full production-grade token verification and JWKS validation
 - Full repo-wide guard enforcement
 - Login/logout UI
 - Production SSO hardening

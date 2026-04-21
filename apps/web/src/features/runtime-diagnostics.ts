@@ -468,6 +468,26 @@ async function fetchWithTimeout(
   }
 }
 
+function isBackendHealthDiagnostics(value: unknown): value is BackendHealthDiagnostics {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "service" in value &&
+      "runtime" in value &&
+      "ok" in value
+  );
+}
+
+function isBackendRuntimeDiagnostics(value: unknown): value is BackendRuntimeDiagnostics {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "service" in value &&
+      "database" in value &&
+      "alerts" in value
+  );
+}
+
 export async function probeBackendRuntimeDiagnostics(
   config: RuntimeProbeConfig,
   fetchImpl: typeof fetch = fetch
@@ -489,8 +509,10 @@ export async function probeBackendRuntimeDiagnostics(
       fetchWithTimeout(`${config.targetBaseUrl}/api/diagnostics/runtime`, { method: "GET", headers: jsonHeaders() }, config.timeoutMs, fetchImpl)
     ]);
 
-    const health = (await healthResponse.json()) as BackendHealthDiagnostics;
-    const runtime = (await runtimeResponse.json()) as BackendRuntimeDiagnostics;
+    const healthPayload = (await healthResponse.json()) as unknown;
+    const runtimePayload = (await runtimeResponse.json()) as unknown;
+    const health = isBackendHealthDiagnostics(healthPayload) ? healthPayload : undefined;
+    const runtime = isBackendRuntimeDiagnostics(runtimePayload) ? runtimePayload : undefined;
     const warnings: RuntimeWarning[] = [...config.warnings];
     const allOk = healthResponse.ok && runtimeResponse.ok;
 
@@ -499,6 +521,14 @@ export async function probeBackendRuntimeDiagnostics(
         code: "PROBE_PARTIAL_RESPONSE",
         message:
           "The backend responded, but one or more diagnostics endpoints did not return a successful response."
+      });
+    }
+
+    if (runtimeResponse.status === 401 || runtimeResponse.status === 403) {
+      warnings.push({
+        code: "PROBE_AUTH_REQUIRED",
+        message:
+          "The backend runtime diagnostics endpoint is protected in the current auth mode. The frontend probe reached the backend, but runtime diagnostics access requires authentication."
       });
     }
 

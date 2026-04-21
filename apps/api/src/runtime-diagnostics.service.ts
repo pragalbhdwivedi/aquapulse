@@ -12,6 +12,7 @@ import {
   readApiAuthRuntimeConfig,
   type ApiAuthRuntimeEnvSource
 } from "./common/auth/auth-runtime.config";
+import { getCachedKeycloakVerificationState } from "./common/auth/keycloak-verification-cache";
 import {
   readApiDatabaseRuntimeConfig,
   type ApiDatabaseRuntimeEnvSource
@@ -50,6 +51,7 @@ export class RuntimeDiagnosticsService {
 
   getRuntimeDiagnostics(): BackendRuntimeDiagnostics {
     const authRuntime = readApiAuthRuntimeConfig(this.env);
+    const cachedKeycloakVerification = getCachedKeycloakVerificationState();
     const runtime = readApiDatabaseRuntimeConfig(this.env);
     const alertExplanationRuntime = readAlertExplanationRuntimeConfig({ ...this.env });
     const alertsLiveUpdatesRuntime = readAlertsLiveUpdatesRuntimeConfig(
@@ -248,7 +250,11 @@ export class RuntimeDiagnosticsService {
       active: authRuntime.effectiveMode === "keycloak",
       bypassActive: authRuntime.effectiveMode !== "keycloak",
       keycloakConfigured: authRuntime.keycloak.configured,
+      verificationAvailable: authRuntime.keycloak.verificationAvailable,
+      verificationActive: authRuntime.effectiveMode === "keycloak",
+      verificationBypassed: authRuntime.effectiveMode !== "keycloak",
       issuerLabel: authRuntime.keycloak.issuerUrl ?? "not configured",
+      jwksLabel: authRuntime.keycloak.jwksUrl ?? "not configured",
       realm: authRuntime.keycloak.realm,
       clientId: authRuntime.keycloak.clientId,
       validationStrategy:
@@ -258,16 +264,53 @@ export class RuntimeDiagnosticsService {
             ? "local_headers"
             : "disabled",
       tokenValidation:
-        authRuntime.effectiveMode === "keycloak" ? "claims_only_ready" : "not_applicable",
+        authRuntime.effectiveMode !== "keycloak"
+          ? "not_applicable"
+          : cachedKeycloakVerification?.status === "verified"
+            ? "verified"
+            : authRuntime.keycloak.verificationAvailable
+              ? "jwks_ready"
+              : "verification_failed",
+      verificationStatus:
+        authRuntime.effectiveMode === "disabled"
+          ? "disabled"
+          : authRuntime.effectiveMode === "local"
+            ? "local_bypass"
+            : !authRuntime.keycloak.verificationAvailable
+              ? "not_configured"
+              : cachedKeycloakVerification?.status === "verified"
+                ? "verified"
+                : cachedKeycloakVerification?.status === "degraded"
+                  ? "degraded"
+                  : "ready",
+      lastVerificationAt: cachedKeycloakVerification?.checkedAt,
+      lastVerificationMessage: cachedKeycloakVerification?.message,
+      firstProtectedSliceLabel: "runtime_diagnostics_api",
+      firstProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
 
-    if (authRuntime.effectiveMode === "keycloak") {
+    if (authRuntime.effectiveMode === "keycloak" && !authRuntime.keycloak.verificationAvailable) {
       authWarnings.push({
-        code: "AUTH_KEYCLOAK_CLAIMS_ONLY",
+        code: "AUTH_KEYCLOAK_VERIFICATION_UNAVAILABLE",
         message:
-          "Keycloak mode is enabled through the bounded cutover seam. This stage only parses bearer claims and does not yet perform full production-grade token verification."
+          "Keycloak mode is enabled, but JWKS verification is not available yet because auth config is incomplete."
+      });
+    }
+
+    if (authRuntime.effectiveMode === "keycloak" && authRuntime.keycloak.verificationAvailable) {
+      authWarnings.push({
+        code: "AUTH_FIRST_PROTECTED_SLICE_ACTIVE",
+        message:
+          "The first protected auth slice is active on the runtime diagnostics API. Other API surfaces remain on incremental rollout for now."
+      });
+    }
+
+    if (cachedKeycloakVerification?.status === "degraded" && cachedKeycloakVerification.message) {
+      authWarnings.push({
+        code: "AUTH_VERIFICATION_DEGRADED",
+        message: cachedKeycloakVerification.message
       });
     }
 

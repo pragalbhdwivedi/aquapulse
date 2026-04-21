@@ -18,6 +18,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.mode.safeFallbackActive).toBe(true);
     expect(diagnostics.auth.effectiveMode).toBe("disabled");
     expect(diagnostics.auth.bypassActive).toBe(true);
+    expect(diagnostics.auth.firstProtectedSliceLabel).toBe("runtime_diagnostics_api");
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -36,6 +37,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.requestedMode).toBe("keycloak");
     expect(diagnostics.auth.effectiveMode).toBe("disabled");
     expect(diagnostics.auth.keycloakConfigured).toBe(false);
+    expect(diagnostics.auth.verificationState).toBe("disabled");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "AUTH_KEYCLOAK_CONFIG_INCOMPLETE"
     );
@@ -604,9 +606,16 @@ describe("Frontend runtime diagnostics", () => {
                   active: false,
                   bypassActive: true,
                   keycloakConfigured: false,
+                  verificationAvailable: false,
+                  verificationActive: false,
+                  verificationBypassed: true,
                   issuerLabel: "not configured",
+                  jwksLabel: "not configured",
                   validationStrategy: "disabled",
                   tokenValidation: "not_applicable",
+                  verificationStatus: "disabled",
+                  firstProtectedSliceLabel: "runtime_diagnostics_api",
+                  firstProtectedSliceEnforced: false,
                   defaultLocalUserLabel: "Local Operator (local.operator)",
                   warnings: []
                 },
@@ -667,9 +676,16 @@ describe("Frontend runtime diagnostics", () => {
               active: false,
               bypassActive: true,
               keycloakConfigured: false,
+              verificationAvailable: false,
+              verificationActive: false,
+              verificationBypassed: true,
               issuerLabel: "not configured",
+              jwksLabel: "not configured",
               validationStrategy: "disabled",
               tokenValidation: "not_applicable",
+              verificationStatus: "disabled",
+              firstProtectedSliceLabel: "runtime_diagnostics_api",
+              firstProtectedSliceEnforced: false,
               defaultLocalUserLabel: "Local Operator (local.operator)",
               warnings: []
             },
@@ -734,5 +750,107 @@ describe("Frontend runtime diagnostics", () => {
     expect(probe.status).toBe("unreachable");
     expect(probe.errorMessage).toContain("ECONNREFUSED");
     expect(probe.warnings.map((warning) => warning.code)).toContain("PROBE_UNREACHABLE");
+  });
+
+  it("surfaces a clear partial state when the runtime diagnostics endpoint is protected", async () => {
+    const probe = await probeBackendRuntimeDiagnostics(
+      readRuntimeProbeConfig({
+        AQUAPULSE_WEB_ENABLE_RUNTIME_PROBES: "true"
+      }),
+      (async (input: string | URL) => {
+        if (String(input).endsWith("/api/health")) {
+          return new Response(
+            JSON.stringify({
+              ok: true,
+              status: "ok",
+              service: "api",
+              version: "0.1.0",
+              timestamp: "2026-04-22T00:00:00.000Z",
+              runtime: {
+                service: "api",
+                mode: {
+                  defaultMode: "in-memory",
+                  effectiveMode: "in-memory",
+                  safeFallbackActive: true
+                },
+                database: {
+                  configured: false,
+                  selectedAdapter: "in-memory",
+                  postgresAdaptersEnabled: false,
+                  runtimeSwitchEnabled: false,
+                  healthcheckOnBoot: false,
+                  connectivity: {
+                    status: "not_attempted",
+                    message: "No DB check."
+                  }
+                },
+                auth: {
+                  requestedMode: "keycloak",
+                  effectiveMode: "keycloak",
+                  active: true,
+                  bypassActive: false,
+                  keycloakConfigured: true,
+                  verificationAvailable: true,
+                  verificationActive: true,
+                  verificationBypassed: false,
+                  issuerLabel: "https://id.example.com/realms/aquapulse",
+                  jwksLabel: "https://id.example.com/jwks",
+                  validationStrategy: "keycloak_bearer_claims",
+                  tokenValidation: "jwks_ready",
+                  verificationStatus: "ready",
+                  firstProtectedSliceLabel: "runtime_diagnostics_api",
+                  firstProtectedSliceEnforced: true,
+                  defaultLocalUserLabel: "Local Operator (local.operator)",
+                  warnings: []
+                },
+                alerts: {
+                  workbenchCutoverAvailable: true,
+                  postgresReadCutoverAvailable: true,
+                  postgresWriteCutoverAvailable: true,
+                  requestedAdapter: "in-memory",
+                  effectiveAdapter: "in-memory",
+                  runtimeSwitchEnabled: true,
+                  cutoverActive: false,
+                  databaseConfigured: false,
+                  connectivityStatus: "not_attempted",
+                  localBridgeExpectedPath: "/api/alerts",
+                  localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+                  warnings: []
+                },
+                waterQuality: {
+                  postgresReadCutoverAvailable: true,
+                  postgresWriteCutoverAvailable: true,
+                  requestedAdapter: "in-memory",
+                  effectiveAdapter: "in-memory",
+                  runtimeSwitchEnabled: true,
+                  cutoverActive: false,
+                  databaseConfigured: false,
+                  connectivityStatus: "not_attempted",
+                  warnings: []
+                },
+                aiExplanations: {
+                  advisoryOnly: true,
+                  mode: "fallback",
+                  configured: false,
+                  modelLabel: "gpt-5-nano",
+                  cacheEnabled: true,
+                  attachmentAvailable: true,
+                  feedbackEnabled: true,
+                  warnings: []
+                },
+                warnings: []
+              }
+            }),
+            { status: 200 }
+          );
+        }
+
+        return new Response(JSON.stringify({ message: "Unauthorized" }), { status: 401 });
+      }) as typeof fetch
+    );
+
+    expect(probe.status).toBe("partial");
+    expect(probe.runtime).toBeUndefined();
+    expect(probe.warnings.map((warning) => warning.code)).toContain("PROBE_AUTH_REQUIRED");
   });
 });

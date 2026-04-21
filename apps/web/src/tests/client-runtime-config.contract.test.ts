@@ -114,6 +114,7 @@ describe("Client runtime config and invocation registry", () => {
 
     expect(disabledConfig.authMode).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(disabledConfig).effectiveMode).toBe("disabled");
+    expect(getAuthRuntimeDiagnostics(disabledConfig).verificationState).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(keycloakConfig).effectiveMode).toBe("disabled");
     expect(getAuthRuntimeDiagnostics(keycloakConfig).warnings).toContainEqual({
       code: "AUTH_KEYCLOAK_CONFIG_INCOMPLETE",

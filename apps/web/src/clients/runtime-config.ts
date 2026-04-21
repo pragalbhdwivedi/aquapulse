@@ -726,9 +726,23 @@ export function getAuthRuntimeDiagnostics(
     active: effectiveMode === "keycloak",
     bypassActive: effectiveMode !== "keycloak",
     keycloakConfigured,
+    verificationAvailable: keycloakConfigured,
+    verificationState:
+      effectiveMode === "disabled"
+        ? "disabled"
+        : effectiveMode === "local"
+          ? "local_bypass"
+          : keycloakConfigured
+            ? "jwks_ready"
+            : "keycloak_incomplete",
     issuerLabel: config.keycloakIssuerUrl ?? "not configured",
+    jwksLabel: config.keycloakIssuerUrl
+      ? `${config.keycloakIssuerUrl}/protocol/openid-connect/certs`
+      : "not configured",
     realm: config.keycloakRealm,
     clientId: config.keycloakClientId,
+    firstProtectedSliceLabel: "runtime_diagnostics_api",
+    firstProtectedSliceEnforced: effectiveMode === "keycloak",
     localDevUserLabel: config.localAuthUserLabel ?? "Local Operator",
     warnings: [...(config.warnings ?? [])]
   };
