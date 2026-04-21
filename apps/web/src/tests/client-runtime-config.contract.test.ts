@@ -6,6 +6,7 @@ import {
   flattenEndpointInvocationRegistry
 } from "../clients/invocation-registry";
 import {
+  getAlertsLiveUpdatesRuntimeDiagnostics,
   getAlertsRuntimeDiagnostics,
   getFeedRuntimeDiagnostics,
   getDefaultClientRuntimeConfig,
@@ -244,6 +245,36 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.effectiveMode).toBe("http");
     expect(diagnostics.usesLocalProxy).toBe(false);
     expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/alerts");
+  });
+
+  it("keeps alerts live updates opt-in and derives a websocket target only on the HTTP path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true"
+    });
+    const diagnostics = getAlertsLiveUpdatesRuntimeDiagnostics(config);
+
+    expect(diagnostics.requested).toBe(true);
+    expect(diagnostics.enabled).toBe(true);
+    expect(diagnostics.targetLabel).toBe("ws://localhost:4000/ws/alerts");
+    expect(diagnostics.connectionState).toBe("inactive");
+  });
+
+  it("keeps alerts live updates failure-safe when websocket config is requested without a usable HTTP path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true"
+    });
+    const diagnostics = getAlertsLiveUpdatesRuntimeDiagnostics(config);
+
+    expect(diagnostics.requested).toBe(true);
+    expect(diagnostics.enabled).toBe(false);
+    expect(diagnostics.connectionState).toBe("unavailable");
+    expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
+      "ALERTS_LIVE_UPDATES_HTTP_REQUIRED"
+    );
   });
 
   it("supports direct water-quality HTTP transport when explicitly configured", () => {

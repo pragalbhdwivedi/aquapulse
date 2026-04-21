@@ -41,6 +41,7 @@ export function RuntimeDiagnosticsCard({
         <span>Tasks runtime: {diagnostics.tasks.effectiveMode}</span>
         <span>Water-quality runtime: {diagnostics.waterQuality.effectiveMode}</span>
         <span>Alerts transport: {diagnostics.alerts.transport}</span>
+        <span>Alerts live updates: {diagnostics.alertsLiveUpdates.connectionState}</span>
         <span>Feed transport: {diagnostics.feed.transport}</span>
         <span>Tasks transport: {diagnostics.tasks.transport}</span>
         <span>Water-quality transport: {diagnostics.waterQuality.transport}</span>
@@ -49,6 +50,7 @@ export function RuntimeDiagnosticsCard({
       <div style={{ display: "grid", gap: "0.25rem", color: "#94a3b8" }}>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
+        <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
         <span>Feed scope: {diagnostics.feed.scopeLabel}</span>
         <span>Feed target: {diagnostics.feed.targetLabel}</span>
         <span>Tasks scope: {diagnostics.tasks.scopeLabel}</span>
@@ -89,6 +91,19 @@ export function RuntimeDiagnosticsCard({
         {backendProbe?.runtime ? (
           <span>
             Backend alerts adapter: {backendProbe.runtime.alerts.effectiveAdapter} / Requested: {backendProbe.runtime.alerts.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.alerts.cutoverActive ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates ? (
+          <span>
+            Backend alerts live gateway: {backendProbe.runtime.alertsLiveUpdates.enabled ? "enabled" : "disabled"} / Attached: {backendProbe.runtime.alertsLiveUpdates.gatewayAttached ? "yes" : "no"} / Connections: {backendProbe.runtime.alertsLiveUpdates.activeConnections}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates ? (
+          <span>
+            Backend alerts live path: {backendProbe.runtime.alertsLiveUpdates.gatewayPath}
+            {backendProbe.runtime.alertsLiveUpdates.lastEventAt
+              ? ` / Last event: ${backendProbe.runtime.alertsLiveUpdates.lastEventAt}`
+              : ""}
           </span>
         ) : null}
         {backendProbe?.runtime ? (
@@ -137,6 +152,13 @@ export function RuntimeDiagnosticsCard({
       {backendProbe?.runtime?.alerts.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.runtime.alerts.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {backendProbe?.runtime?.alertsLiveUpdates?.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.alertsLiveUpdates.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
           ))}
         </div>

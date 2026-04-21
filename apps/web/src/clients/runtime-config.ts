@@ -1,5 +1,6 @@
 import type {
   AlertsRuntimeDiagnostics,
+  AlertsLiveUpdatesRuntimeDiagnostics,
   FeedRuntimeDiagnostics,
   FrontendRuntimeDiagnostics,
   TasksRuntimeDiagnostics,
@@ -21,6 +22,8 @@ export interface AquaPulseClientRuntimeConfig {
   readonly alertsMode?: AquaPulseScopedRuntimeMode;
   readonly alertsHttpBaseUrl?: string;
   readonly alertsHttpTransport?: AquaPulseHttpTransportMode;
+  readonly alertsLiveUpdatesEnabled?: boolean;
+  readonly alertsLiveUpdatesBaseUrl?: string;
   readonly feedMode?: AquaPulseScopedRuntimeMode;
   readonly feedHttpBaseUrl?: string;
   readonly feedHttpTransport?: AquaPulseHttpTransportMode;
@@ -42,6 +45,8 @@ export interface AquaPulseClientRuntimeEnv {
   readonly AQUAPULSE_WEB_ALERTS_MODE?: string;
   readonly AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT?: string;
+  readonly AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
+  readonly AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly AQUAPULSE_WEB_FEED_MODE?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -56,6 +61,8 @@ export interface AquaPulseClientRuntimeEnv {
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -133,6 +140,42 @@ function normalizeHttpBaseUrl(
   return undefined;
 }
 
+function normalizeSocketBaseUrl(
+  value: string | undefined,
+  warnings: RuntimeWarning[],
+  label: string
+): string | undefined {
+  const normalizedValue = normalizeEnvValue(value);
+
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  try {
+    const parsedUrl = new URL(normalizedValue);
+    if (
+      parsedUrl.protocol === "ws:" ||
+      parsedUrl.protocol === "wss:" ||
+      parsedUrl.protocol === "http:" ||
+      parsedUrl.protocol === "https:"
+    ) {
+      return parsedUrl.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    warnings.push({
+      code: "INVALID_SOCKET_URL",
+      message: `${label} was ignored because it is not a valid ws/wss/http/https URL.`
+    });
+    return undefined;
+  }
+
+  warnings.push({
+    code: "INVALID_SOCKET_URL",
+    message: `${label} was ignored because it is not a valid ws/wss/http/https URL.`
+  });
+  return undefined;
+}
+
 function coalesceEnvValue(
   ...values: Array<string | undefined>
 ): string | undefined {
@@ -184,6 +227,21 @@ export function parseClientRuntimeConfig(
       env.AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT,
       env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT
     )
+  );
+  const alertsLiveUpdatesEnabled = parseBooleanFlag(
+    coalesceEnvValue(
+      env.AQUAPULSE_WEB_ALERTS_LIVE_UPDATES,
+      env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES
+    )
+  );
+  const alertsLiveUpdatesBaseUrl = normalizeSocketBaseUrl(
+    env.AQUAPULSE_WEB_ALERTS_WS_BASE_URL,
+    warnings,
+    "AQUAPULSE_WEB_ALERTS_WS_BASE_URL"
+  ) ?? normalizeSocketBaseUrl(
+    env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL,
+    warnings,
+    "NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL"
   );
   const feedMode = parseScopedClientRuntimeMode(
     coalesceEnvValue(env.AQUAPULSE_WEB_FEED_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE)
@@ -283,6 +341,8 @@ export function parseClientRuntimeConfig(
     alertsMode,
     alertsHttpBaseUrl: alertsHttpBaseUrl ?? httpBaseUrl,
     alertsHttpTransport,
+    alertsLiveUpdatesEnabled,
+    alertsLiveUpdatesBaseUrl,
     feedMode,
     feedHttpBaseUrl: feedHttpBaseUrl ?? httpBaseUrl,
     feedHttpTransport,
@@ -317,6 +377,42 @@ export function resolveAlertsHttpBaseUrl(
   }
 
   return config.httpBaseUrl;
+}
+
+function coerceHttpUrlToWebSocketBaseUrl(value: string): string {
+  if (value.startsWith("ws://") || value.startsWith("wss://")) {
+    return value.replace(/\/+$/, "");
+  }
+
+  if (value.startsWith("https://")) {
+    return `wss://${value.slice("https://".length).replace(/\/+$/, "")}`;
+  }
+
+  if (value.startsWith("http://")) {
+    return `ws://${value.slice("http://".length).replace(/\/+$/, "")}`;
+  }
+
+  return value.replace(/\/+$/, "");
+}
+
+export function resolveAlertsLiveUpdatesBaseUrl(
+  config: AquaPulseClientRuntimeConfig
+): string | undefined {
+  if (config.alertsLiveUpdatesBaseUrl) {
+    return coerceHttpUrlToWebSocketBaseUrl(config.alertsLiveUpdatesBaseUrl);
+  }
+
+  const alertsHttpBaseUrl = resolveAlertsHttpBaseUrl(config);
+  if (
+    config.alertsLiveUpdatesEnabled &&
+    config.alertsMode === "http" &&
+    alertsHttpBaseUrl &&
+    !alertsHttpBaseUrl.startsWith("/")
+  ) {
+    return `${coerceHttpUrlToWebSocketBaseUrl(alertsHttpBaseUrl)}/ws/alerts`;
+  }
+
+  return undefined;
 }
 
 export function resolveFeedHttpBaseUrl(
@@ -401,6 +497,49 @@ export function getAlertsRuntimeDiagnostics(
     targetLabel,
     scopeLabel: alertsHttpRequested ? "alerts-only opt-in" : config.mode === "http" ? "global runtime" : "default mock runtime",
     warnings: [...(config.warnings ?? [])]
+  };
+}
+
+export function getAlertsLiveUpdatesRuntimeDiagnostics(
+  config: AquaPulseClientRuntimeConfig
+): AlertsLiveUpdatesRuntimeDiagnostics {
+  const requested = Boolean(config.alertsLiveUpdatesEnabled);
+  const alertsRuntime = getAlertsRuntimeDiagnostics(config);
+  const resolvedBaseUrl = resolveAlertsLiveUpdatesBaseUrl(config);
+  const warnings: RuntimeWarning[] = [...(config.warnings ?? [])];
+
+  if (requested && alertsRuntime.effectiveMode !== "http") {
+    warnings.push({
+      code: "ALERTS_LIVE_UPDATES_HTTP_REQUIRED",
+      message:
+        "Alerts live updates are opt-in on top of alerts HTTP mode. Enable alerts HTTP mode before expecting websocket refresh events."
+    });
+  }
+
+  if (requested && !resolvedBaseUrl) {
+    warnings.push({
+      code: "ALERTS_LIVE_UPDATES_TARGET_MISSING",
+      message:
+        "Alerts live updates were enabled, but no websocket target could be derived. Set NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL or use direct alerts HTTP mode with a backend base URL."
+    });
+  }
+
+  const enabled =
+    requested &&
+    alertsRuntime.effectiveMode === "http" &&
+    Boolean(resolvedBaseUrl);
+
+  return {
+    requested,
+    enabled,
+    targetLabel: requested
+      ? resolvedBaseUrl
+        ? resolvedBaseUrl
+        : "target not configured"
+      : "disabled",
+    connectionState: requested ? (enabled ? "inactive" : "unavailable") : "disabled",
+    fallbackMode: "manual_refresh",
+    warnings
   };
 }
 
@@ -509,6 +648,7 @@ export function getFrontendRuntimeDiagnostics(
   localBridgeConfig?: { readonly backendBaseUrl?: string }
 ): FrontendRuntimeDiagnostics {
   const alerts = getAlertsRuntimeDiagnostics(config);
+  const alertsLiveUpdates = getAlertsLiveUpdatesRuntimeDiagnostics(config);
   const feed = getFeedRuntimeDiagnostics(config);
   const tasks = getTasksRuntimeDiagnostics(config);
   const waterQuality = getWaterQualityRuntimeDiagnostics(config);
@@ -574,12 +714,14 @@ export function getFrontendRuntimeDiagnostics(
     service: "web",
     mode,
     alerts,
+    alertsLiveUpdates,
     feed,
     tasks,
     waterQuality,
     localBridge,
     warnings: [
       ...alerts.warnings,
+      ...alertsLiveUpdates.warnings,
       ...feed.warnings,
       ...tasks.warnings,
       ...waterQuality.warnings,

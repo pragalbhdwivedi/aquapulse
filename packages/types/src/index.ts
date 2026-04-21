@@ -1198,6 +1198,18 @@ export type RuntimeServiceIdentity = "api" | "web";
 export type RuntimeConnectionCheckStatus = "not_attempted" | "configured_only" | "reachable" | "unreachable";
 export type RuntimeTransportMode = "mock" | "proxy" | "direct";
 export type RuntimeProbeStatus = "disabled" | "reachable" | "partial" | "unreachable";
+export type AlertsLiveUpdatesConnectionState =
+  | "disabled"
+  | "inactive"
+  | "connecting"
+  | "active"
+  | "unavailable";
+export type AlertLiveUpdateEventType =
+  | "alert_created"
+  | "alert_updated"
+  | "alert_lifecycle_changed"
+  | "alert_bulk_action_completed"
+  | "alert_summary_changed";
 
 export interface RuntimeWarning {
   readonly code: string;
@@ -1269,6 +1281,15 @@ export interface TasksRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface AlertsLiveUpdatesRuntimeDiagnostics {
+  readonly requested: boolean;
+  readonly enabled: boolean;
+  readonly targetLabel: string;
+  readonly connectionState: AlertsLiveUpdatesConnectionState;
+  readonly fallbackMode: "manual_refresh";
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface LocalBridgeDiagnostics {
   readonly routePrefix: string;
   readonly transport: "proxy";
@@ -1281,6 +1302,7 @@ export interface FrontendRuntimeDiagnostics {
   readonly service: "web";
   readonly mode: RuntimeModeSummary;
   readonly alerts: AlertsRuntimeDiagnostics;
+  readonly alertsLiveUpdates: AlertsLiveUpdatesRuntimeDiagnostics;
   readonly feed: FeedRuntimeDiagnostics;
   readonly tasks: TasksRuntimeDiagnostics;
   readonly waterQuality: WaterQualityRuntimeDiagnostics;
@@ -1351,6 +1373,36 @@ export interface BackendTasksRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface AlertLiveUpdateAlertPreview {
+  readonly id: EntityId;
+  readonly status: AlertSummary["status"];
+  readonly severity: AlertSummary["severity"];
+  readonly assignedTo?: EntityId;
+  readonly reviewState?: AlertReviewState;
+  readonly updatedAt: ISODateString;
+}
+
+export interface AlertLiveUpdateEvent {
+  readonly source: "alerts";
+  readonly eventType: AlertLiveUpdateEventType;
+  readonly timestamp: ISODateString;
+  readonly alertId?: EntityId;
+  readonly alertIds?: EntityId[];
+  readonly totalUpdated?: number;
+  readonly changedFields?: string[];
+  readonly alert?: AlertLiveUpdateAlertPreview;
+  readonly summary?: AlertQueueSummary;
+}
+
+export interface BackendAlertsLiveUpdatesDiagnostics {
+  readonly enabled: boolean;
+  readonly gatewayPath: string;
+  readonly gatewayAttached: boolean;
+  readonly activeConnections: number;
+  readonly lastEventAt?: ISODateString;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
@@ -1366,6 +1418,7 @@ export interface BackendRuntimeDiagnostics {
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;
+  readonly alertsLiveUpdates?: BackendAlertsLiveUpdatesDiagnostics;
   readonly feed?: BackendFeedRuntimeDiagnostics;
   readonly tasks?: BackendTasksRuntimeDiagnostics;
   readonly waterQuality: BackendWaterQualityRuntimeDiagnostics;

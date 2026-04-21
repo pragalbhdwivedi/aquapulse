@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { setCachedAlertsLiveUpdatesGatewayState } from "../common/config/alerts-live-updates-cache";
 import { setCachedDatabaseConnectionStatus } from "../common/config/database-connectivity-cache";
 import { DiagnosticsController } from "../diagnostics.controller";
 import { HealthController } from "../health.controller";
@@ -30,6 +31,12 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiExplanations.configured).toBe(false);
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
+    expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);
+    expect(diagnostics.alertsLiveUpdates?.gatewayPath).toBe("/ws/alerts");
+    expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(false);
+    expect(diagnostics.alertsLiveUpdates?.warnings.map((warning) => warning.code)).toContain(
+      "ALERTS_LIVE_UPDATES_DISABLED"
+    );
     expect(diagnostics.alerts.requestedAdapter).toBe("postgres");
     expect(diagnostics.alerts.effectiveAdapter).toBe("in-memory");
     expect(diagnostics.alerts.cutoverActive).toBe(false);
@@ -82,6 +89,30 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.waterQuality.cutoverActive).toBe(true);
     expect(diagnostics.alerts.databaseConfigured).toBe(true);
     expect(diagnostics.alerts.runtimeSwitchEnabled).toBe(true);
+  });
+
+  it("surfaces websocket gateway diagnostics without requiring a live connection", () => {
+    setCachedAlertsLiveUpdatesGatewayState({
+      gatewayAttached: true,
+      activeConnections: 2,
+      lastEventAt: "2026-04-22T09:15:00.000Z"
+    });
+
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES: "true",
+        AQUAPULSE_ALERTS_LIVE_UPDATES_PATH: "/ws/alerts"
+      }
+    });
+
+    const diagnostics = service.getRuntimeDiagnostics();
+
+    expect(diagnostics.alertsLiveUpdates?.enabled).toBe(true);
+    expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(true);
+    expect(diagnostics.alertsLiveUpdates?.activeConnections).toBe(2);
+    expect(diagnostics.alertsLiveUpdates?.lastEventAt).toBe("2026-04-22T09:15:00.000Z");
+
+    setCachedAlertsLiveUpdatesGatewayState(undefined);
   });
 
   it("keeps health and runtime endpoints aligned through the shared diagnostics service", () => {

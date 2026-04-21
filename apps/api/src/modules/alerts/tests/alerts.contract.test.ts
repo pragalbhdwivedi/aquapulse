@@ -5,6 +5,7 @@ import { toAlertsItemResponse, toAlertsListResponse } from "../mappers/alerts.ma
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import { AlertsApplicationService } from "../application/alerts.application-service";
 import { AlertsController } from "../alerts.controller";
+import type { AlertsLiveUpdatesService } from "../live-updates/alerts-live-updates.service";
 
 const alert: AlertSummary = {
   id: "alert-1",
@@ -56,7 +57,10 @@ describe("Alerts contracts", () => {
       attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const result = await service.getById("alert-1");
 
     expect(repository.getById).toHaveBeenCalledWith("alert-1");
@@ -86,7 +90,10 @@ describe("Alerts contracts", () => {
       attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const acknowledged = await service.acknowledge("alert-1", { note: "Checked sensor." });
     const resolved = await service.resolve("alert-1", { note: "Restored." });
 
@@ -119,7 +126,10 @@ describe("Alerts contracts", () => {
       attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const assigned = await service.assign("alert-1", { assignedTo: "user-2", note: "Picked up for review." });
     const reviewState = await service.setReviewState("alert-1", {
       reviewState: "reviewed",
@@ -163,7 +173,10 @@ describe("Alerts contracts", () => {
       attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const result = await service.summary({ page: 1, pageSize: 20 });
 
     expect(repository.summary).toHaveBeenCalledWith({ page: 1, pageSize: 20 });
@@ -211,7 +224,9 @@ describe("Alerts contracts", () => {
       attachExplanation: vi.fn().mockResolvedValue(alert)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const service = new AlertsApplicationService(repository, {
+      emit: vi.fn()
+    } as unknown as AlertsLiveUpdatesService);
     const acknowledged = await service.bulkAcknowledge({ alertIds: ["alert-1"], note: "Bulk acknowledge." });
     const assigned = await service.bulkAssign({ alertIds: ["alert-1"], assignedTo: "operator-1", note: "Bulk assign." });
 
@@ -254,7 +269,10 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const listed = await service.listSavedViews();
     const saved = await service.saveSavedView({
       name: "Open queue",
@@ -314,7 +332,10 @@ describe("Alerts contracts", () => {
       listOpen: vi.fn().mockResolvedValue(alertList)
     };
 
-    const service = new AlertsApplicationService(repository);
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
     const result = await service.attachExplanation("alert-1", {
       explanation: {
         summary: "Alert explanation summary",
@@ -352,5 +373,75 @@ describe("Alerts contracts", () => {
       })
     );
     expect(result.data.actionHistory?.at(-1)?.action).toBe("ai_explanation_snapshot");
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "alerts",
+        eventType: "alert_updated",
+        alertId: "alert-1",
+        changedFields: ["latestNote", "actionHistory"],
+        summary: alertSummary
+      })
+    );
+  });
+
+  it("emits bounded live-update events after lifecycle and bulk mutations", async () => {
+    const repository: AlertsRepositoryPort = {
+      create: vi.fn().mockResolvedValue(alert),
+      update: vi.fn().mockResolvedValue(alert),
+      acknowledge: vi.fn().mockResolvedValue({ ...alert, status: "acknowledged" as const }),
+      bulkAcknowledge: vi.fn().mockResolvedValue({
+        updatedAlerts: [{ ...alert, status: "acknowledged" as const }],
+        totalRequested: 1,
+        totalUpdated: 1
+      }),
+      resolve: vi.fn().mockResolvedValue(alert),
+      bulkResolve: vi.fn().mockResolvedValue({
+        updatedAlerts: [alert],
+        totalRequested: 1,
+        totalUpdated: 1
+      }),
+      assign: vi.fn().mockResolvedValue(alert),
+      bulkAssign: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      unassign: vi.fn().mockResolvedValue(alert),
+      setReviewState: vi.fn().mockResolvedValue(alert),
+      bulkSetReviewState: vi.fn().mockResolvedValue({ updatedAlerts: [alert], totalRequested: 1, totalUpdated: 1 }),
+      listSavedViews: vi.fn().mockResolvedValue([]),
+      saveSavedView: vi.fn().mockResolvedValue([]),
+      removeSavedView: vi.fn().mockResolvedValue([]),
+      attachExplanation: vi.fn().mockResolvedValue(alert),
+      getById: vi.fn().mockResolvedValue(alert),
+      list: vi.fn().mockResolvedValue(alertList),
+      summary: vi.fn().mockResolvedValue(alertSummary),
+      listOpen: vi.fn().mockResolvedValue(alertList)
+    };
+    const emit = vi.fn();
+    const service = new AlertsApplicationService(repository, {
+      emit
+    } as unknown as AlertsLiveUpdatesService);
+
+    await service.acknowledge("alert-1", { note: "Checked sensor." });
+    await service.bulkAcknowledge({ alertIds: ["alert-1"], note: "Bulk note." });
+
+    expect(emit).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        source: "alerts",
+        eventType: "alert_lifecycle_changed",
+        alertId: "alert-1",
+        changedFields: ["status", "latestNote"],
+        summary: alertSummary
+      })
+    );
+    expect(emit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        source: "alerts",
+        eventType: "alert_bulk_action_completed",
+        alertIds: ["alert-1"],
+        totalUpdated: 1,
+        changedFields: ["status", "latestNote"],
+        summary: alertSummary
+      })
+    );
   });
 });

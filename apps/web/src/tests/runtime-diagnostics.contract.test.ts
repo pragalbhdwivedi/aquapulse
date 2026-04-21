@@ -17,6 +17,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.mode.effectiveMode).toBe("mock");
     expect(diagnostics.mode.safeFallbackActive).toBe(true);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
+    expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
+    expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
     expect(diagnostics.feed.effectiveMode).toBe("mock");
     expect(diagnostics.tasks.effectiveMode).toBe("mock");
     expect(diagnostics.waterQuality.effectiveMode).toBe("mock");
@@ -27,10 +29,14 @@ describe("Frontend runtime diagnostics", () => {
     const diagnostics = readFrontendRuntimeDiagnostics({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
       NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL: "ws://localhost:4000/ws/alerts",
       AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: "http://localhost:4001"
     });
 
     expect(diagnostics.alerts.effectiveMode).toBe("http");
+    expect(diagnostics.alertsLiveUpdates.enabled).toBe(true);
+    expect(diagnostics.alertsLiveUpdates.targetLabel).toBe("ws://localhost:4000/ws/alerts");
     expect(diagnostics.alerts.transport).toBe("proxy");
     expect(diagnostics.alerts.targetLabel).toBe("/api/alerts local bridge");
     expect(diagnostics.waterQuality.effectiveMode).toBe("mock");

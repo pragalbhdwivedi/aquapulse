@@ -13,10 +13,15 @@ import {
 } from "@aquapulse/types";
 import type { AlertsListQuery } from "@web/contracts/api";
 import {
+  getAlertsLiveUpdatesRuntimeDiagnostics,
   getAlertsRuntimeDiagnostics,
   parseClientRuntimeConfig
 } from "@web/clients/runtime-config";
-import { submitAlertLifecycleAction, type AlertLifecycleSubmissionResult } from "@web/features/alert-lifecycle";
+import {
+  createAlertLifecycleSubmitter,
+  type AlertLifecycleSubmissionResult
+} from "@web/features/alert-lifecycle";
+import { connectAlertsLiveUpdates } from "@web/features/alerts-live-updates";
 import {
   createAlertSavedViewsRepositoryStore,
   createAlertSavedViewsStore,
@@ -31,7 +36,9 @@ import {
   formatAlertsRuntimeError
 } from "@web/features/alerts-runtime";
 import {
-  submitAlertTriageAction,
+  createAlertAssignSubmitter,
+  createAlertReviewStateSubmitter,
+  createAlertUnassignSubmitter,
   type AlertAssignSubmissionResult,
   type AlertReviewStateSubmissionResult,
   type AlertUnassignSubmissionResult
@@ -63,13 +70,39 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL,
-        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL
       }),
     []
   );
   const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
   const runtimeDiagnostics = useMemo(() => getAlertsRuntimeDiagnostics(runtimeConfig), [runtimeConfig]);
+  const liveUpdatesDiagnostics = useMemo(
+    () => getAlertsLiveUpdatesRuntimeDiagnostics(runtimeConfig),
+    [runtimeConfig]
+  );
   const runtimeIndicator = useMemo(() => deriveAlertsRuntimeIndicator(runtimeConfig), [runtimeConfig]);
+  const acknowledgeSubmitter = useMemo(
+    () => createAlertLifecycleSubmitter(repositories, "acknowledge"),
+    [repositories]
+  );
+  const resolveSubmitter = useMemo(
+    () => createAlertLifecycleSubmitter(repositories, "resolve"),
+    [repositories]
+  );
+  const assignSubmitter = useMemo(() => createAlertAssignSubmitter(repositories), [repositories]);
+  const unassignSubmitter = useMemo(
+    () => createAlertUnassignSubmitter(repositories),
+    [repositories]
+  );
+  const reviewStateSubmitter = useMemo(
+    () => createAlertReviewStateSubmitter(repositories),
+    [repositories]
+  );
   const savedViewsStore = useMemo(
     () =>
       runtimeDiagnostics.effectiveMode === "http"
@@ -113,6 +146,8 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
   const [queuePageSize] = useState(20);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
   const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
+  const [liveUpdatesState, setLiveUpdatesState] = useState(liveUpdatesDiagnostics.connectionState);
+  const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
   const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: queuePage, pageSize: queuePageSize, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, queuePage, queuePageSize, reviewStateFilter, sortBy, statusFilter]);
@@ -185,6 +220,10 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
     previousQueueResetKeyRef.current = queueResetKey;
     resetQueuePagination();
   }, [queueResetKey, resetQueuePagination]);
+
+  useEffect(() => {
+    setLiveUpdatesState(liveUpdatesDiagnostics.connectionState);
+  }, [liveUpdatesDiagnostics.connectionState]);
 
   const handleExplainAlertWithOptions = useCallback(
     async (alertId: string, options: { readonly reuseCached?: boolean } = {}) => {
@@ -348,6 +387,25 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
     };
   }, [reportRuntimeError, repositories.alerts, reviewQueueQuery]);
 
+  useEffect(() => {
+    const connection = connectAlertsLiveUpdates({
+      config: runtimeConfig,
+      onEvent: (event) => {
+        setLastLiveEventAt(event.timestamp);
+        setFeedbackTone("success");
+        setFeedbackMessage("Received a live alert update. Refreshing the queue.");
+        void refreshQueue();
+      },
+      onStateChange: (state) => {
+        setLiveUpdatesState(state);
+      }
+    });
+
+    return () => {
+      connection.disconnect();
+    };
+  }, [refreshQueue, runtimeConfig]);
+
   async function handleSingleAction(alertId: string, run: () => Promise<AlertQueueSubmissionResult>, message: string) {
     setActiveAlertId(alertId);
     setIsSubmitting(true);
@@ -405,11 +463,32 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
             <span>Alerts runtime: {runtimeIndicator.modeLabel}</span>
             <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
             <span>Target: {runtimeIndicator.targetLabel}</span>
+            <span>Live updates: {liveUpdatesState}</span>
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+          <span style={{ color: "#94a3b8" }}>
+            Live target: {liveUpdatesDiagnostics.targetLabel}. Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}.
+          </span>
+          {lastLiveEventAt ? (
+            <span style={{ color: "#94a3b8" }}>Last live event: {lastLiveEventAt}</span>
+          ) : null}
           {runtimeIndicator.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>{warning.message}</span>
           ))}
+          {liveUpdatesDiagnostics.warnings
+            .filter(
+              (warning) =>
+                !runtimeIndicator.warnings.some(
+                  (runtimeWarning) =>
+                    runtimeWarning.code === warning.code &&
+                    runtimeWarning.message === warning.message
+                )
+            )
+            .map((warning) => (
+              <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
+                {warning.message}
+              </span>
+            ))}
         </div>
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
           <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
@@ -481,11 +560,11 @@ export function AlertsActionList({ initialAlerts, initialSummary }: AlertsAction
         onFeedbackNoteChange={(alertId, value) => setFeedbackNotes((current) => ({ ...current, [alertId]: value }))}
         onSubmitFeedback={handleSubmitExplanationFeedback}
         onAttachExplanation={handleAttachExplanation}
-        onAssign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("assign", alertId, { assignedTo: ownerInputs[alertId]?.trim() ?? defaultAlertWorkbenchOwner, note: notes[alertId]?.trim() || undefined }), "Alert owner updated.")}
-        onUnassign={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("unassign", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert returned to the general queue.")}
-        onApplyReviewState={(alertId) => handleSingleAction(alertId, () => submitAlertTriageAction("setReviewState", alertId, { reviewState: reviewStates[alertId] ?? "under_review", reviewLabel: reviewLabels[alertId]?.trim() || undefined, note: notes[alertId]?.trim() || undefined }), "Review flow updated.")}
-        onAcknowledge={(alertId) => handleSingleAction(alertId, () => submitAlertLifecycleAction("acknowledge", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert acknowledged successfully.")}
-        onResolve={(alertId) => handleSingleAction(alertId, () => submitAlertLifecycleAction("resolve", alertId, { note: notes[alertId]?.trim() || undefined }), "Alert resolved successfully.")}
+        onAssign={(alertId) => handleSingleAction(alertId, () => assignSubmitter(alertId)({ assignedTo: ownerInputs[alertId]?.trim() ?? defaultAlertWorkbenchOwner, note: notes[alertId]?.trim() || undefined }), "Alert owner updated.")}
+        onUnassign={(alertId) => handleSingleAction(alertId, () => unassignSubmitter(alertId)({ note: notes[alertId]?.trim() || undefined }), "Alert returned to the general queue.")}
+        onApplyReviewState={(alertId) => handleSingleAction(alertId, () => reviewStateSubmitter(alertId)({ reviewState: reviewStates[alertId] ?? "under_review", reviewLabel: reviewLabels[alertId]?.trim() || undefined, note: notes[alertId]?.trim() || undefined }), "Review flow updated.")}
+        onAcknowledge={(alertId) => handleSingleAction(alertId, () => acknowledgeSubmitter(alertId)({ note: notes[alertId]?.trim() || undefined }), "Alert acknowledged successfully.")}
+        onResolve={(alertId) => handleSingleAction(alertId, () => resolveSubmitter(alertId)({ note: notes[alertId]?.trim() || undefined }), "Alert resolved successfully.")}
       />
 
       {feedbackMessage ? <p style={{ margin: 0, color: feedbackTone === "success" ? "#86efac" : "#fca5a5" }}>{feedbackMessage}</p> : null}

@@ -11,11 +11,16 @@ import {
   readApiDatabaseRuntimeConfig,
   type ApiDatabaseRuntimeEnvSource
 } from "./common/config/database-runtime.config";
+import { getCachedAlertsLiveUpdatesGatewayState } from "./common/config/alerts-live-updates-cache";
 import { getCachedDatabaseConnectionStatus } from "./common/config/database-connectivity-cache";
 import { readAlertExplanationRuntimeConfig } from "./modules/ai/config/alert-explanation.config";
+import {
+  readAlertsLiveUpdatesRuntimeConfig,
+  type AlertsLiveUpdatesRuntimeEnvSource
+} from "./modules/alerts/live-updates/alerts-live-updates.config";
 
 export interface RuntimeDiagnosticsServiceOptions {
-  readonly env?: ApiDatabaseRuntimeEnvSource;
+  readonly env?: ApiDatabaseRuntimeEnvSource & AlertsLiveUpdatesRuntimeEnvSource;
   readonly now?: () => string;
   readonly version?: string;
 }
@@ -27,7 +32,7 @@ export class RuntimeDiagnosticsService {
   private readonly version: string;
 
   constructor(options: RuntimeDiagnosticsServiceOptions = {}) {
-    this.env = options.env ?? process.env;
+    this.env = (options.env ?? process.env) as ApiDatabaseRuntimeEnvSource;
     this.now = options.now ?? (() => new Date().toISOString());
     this.version = options.version ?? "0.1.0";
   }
@@ -35,6 +40,10 @@ export class RuntimeDiagnosticsService {
   getRuntimeDiagnostics(): BackendRuntimeDiagnostics {
     const runtime = readApiDatabaseRuntimeConfig(this.env);
     const alertExplanationRuntime = readAlertExplanationRuntimeConfig({ ...this.env });
+    const alertsLiveUpdatesRuntime = readAlertsLiveUpdatesRuntimeConfig(
+      this.env as ApiDatabaseRuntimeEnvSource & AlertsLiveUpdatesRuntimeEnvSource
+    );
+    const cachedAlertsLiveUpdatesState = getCachedAlertsLiveUpdatesGatewayState();
     const selection = resolvePersistenceSelection({
       defaultAdapter: "in-memory",
       requestedAdapter: runtime.persistence.requestedAdapter,
@@ -267,6 +276,23 @@ export class RuntimeDiagnosticsService {
         localBridgeExpectedPath: "/api/alerts",
         localAiExplainBridgeExpectedPath: "/api/ai/alerts",
         warnings: alertWarnings
+      },
+      alertsLiveUpdates: {
+        enabled: alertsLiveUpdatesRuntime.enabled,
+        gatewayPath: alertsLiveUpdatesRuntime.path,
+        gatewayAttached: cachedAlertsLiveUpdatesState?.gatewayAttached ?? false,
+        activeConnections: cachedAlertsLiveUpdatesState?.activeConnections ?? 0,
+        lastEventAt: cachedAlertsLiveUpdatesState?.lastEventAt,
+        warnings: alertsLiveUpdatesRuntime.enabled
+          ? [...alertsLiveUpdatesRuntime.warnings]
+          : [
+              ...alertsLiveUpdatesRuntime.warnings,
+              {
+                code: "ALERTS_LIVE_UPDATES_DISABLED",
+                message:
+                  "Alerts live updates are disabled by default. Enable AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES to attach the local websocket gateway."
+              }
+            ]
       },
       feed: {
         postgresReadCutoverAvailable: true,
