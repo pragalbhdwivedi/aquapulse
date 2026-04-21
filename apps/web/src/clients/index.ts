@@ -27,9 +27,12 @@ import {
   getDefaultClientRuntimeConfig,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
+  resolveWaterQualityHttpBaseUrl,
+  type AquaPulseHttpTransportMode,
   type AquaPulseClientRuntimeConfig,
   type AquaPulseClientRuntimeEnv,
-  type AquaPulseClientRuntimeMode
+  type AquaPulseClientRuntimeMode,
+  type AquaPulseScopedRuntimeMode
 } from "./runtime-config";
 
 export interface AquaPulseApiClients {
@@ -45,6 +48,19 @@ export interface AquaPulseApiClients {
 }
 
 export type AquaPulseClientSource = AquaPulseClientRuntimeMode;
+
+function resolveScopedFetchBaseUrl(
+  config: AquaPulseClientRuntimeConfig,
+  mode: AquaPulseScopedRuntimeMode | undefined,
+  transport: AquaPulseHttpTransportMode | undefined,
+  resolvedBaseUrl: string | undefined
+): string | undefined {
+  if (mode === "http" && (transport ?? "proxy") === "proxy" && config.localApiBackendUrl) {
+    return config.localApiBackendUrl;
+  }
+
+  return resolvedBaseUrl;
+}
 
 export function createMockApiClients(): AquaPulseApiClients {
   return {
@@ -100,7 +116,12 @@ export function createApiClientsFromConfig(
           },
           baseClients,
           executor: createFetchHttpExecutor({
-            baseUrl: resolveAlertsHttpBaseUrl(config)
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.alertsMode,
+              config.alertsHttpTransport,
+              resolveAlertsHttpBaseUrl(config)
+            )
           })
         })
       : config.enablePlaceholderHttp
@@ -110,6 +131,33 @@ export function createApiClientsFromConfig(
     clients = {
       ...clients,
       alerts: alertsHttpClients.alerts
+    };
+  }
+
+  if (config.waterQualityMode === "http") {
+    const waterQualityHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.waterQualityMode,
+              config.waterQualityHttpTransport,
+              resolveWaterQualityHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      waterQuality: waterQualityHttpClients.waterQuality
     };
   }
 

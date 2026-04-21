@@ -2,7 +2,10 @@ import type {
   BackendRuntimeProbeDiagnostics,
   FrontendRuntimeDiagnostics
 } from "@aquapulse/types";
-import { deriveAlertsEndToEndRuntimeStatus } from "@web/features/runtime-diagnostics";
+import {
+  deriveAlertsEndToEndRuntimeStatus,
+  deriveWaterQualityEndToEndRuntimeStatus
+} from "@web/features/runtime-diagnostics";
 
 export function RuntimeDiagnosticsCard({
   diagnostics,
@@ -14,6 +17,7 @@ export function RuntimeDiagnosticsCard({
   title?: string;
 }) {
   const alertsEndToEnd = deriveAlertsEndToEndRuntimeStatus(diagnostics, backendProbe);
+  const waterQualityEndToEnd = deriveWaterQualityEndToEndRuntimeStatus(diagnostics, backendProbe);
 
   return (
     <section
@@ -29,14 +33,19 @@ export function RuntimeDiagnosticsCard({
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Alerts runtime: {diagnostics.alerts.effectiveMode}</span>
+        <span>Water-quality runtime: {diagnostics.waterQuality.effectiveMode}</span>
         <span>Alerts transport: {diagnostics.alerts.transport}</span>
+        <span>Water-quality transport: {diagnostics.waterQuality.transport}</span>
         <span>Fallbacks active: {diagnostics.mode.safeFallbackActive ? "yes" : "no"}</span>
       </div>
       <div style={{ display: "grid", gap: "0.25rem", color: "#94a3b8" }}>
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
+        <span>Water-quality scope: {diagnostics.waterQuality.scopeLabel}</span>
+        <span>Water-quality target: {diagnostics.waterQuality.targetLabel}</span>
         <span>Local bridge target: {diagnostics.localBridge.backendTargetLabel}</span>
         <span>Alerts cutover status: {alertsEndToEnd.statusLabel}</span>
+        <span>Water-quality cutover status: {waterQualityEndToEnd.statusLabel}</span>
       </div>
       <div style={{ display: "grid", gap: "0.25rem", color: "#cbd5e1" }}>
         <span>

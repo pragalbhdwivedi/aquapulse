@@ -122,6 +122,19 @@ export function createHttpClientFactory({
           registry.waterQuality.create,
           input
         );
+      },
+      list(query) {
+        return invokeListEndpoint<
+          WaterQualityReading,
+          NonNullable<typeof query> | { page: number; pageSize: number }
+        >(executor, registry.waterQuality.list, query ?? { page: 1, pageSize: 20 });
+      },
+      getById(id: string) {
+        return invokeItemEndpoint<WaterQualityReading>(
+          executor,
+          registry.waterQuality.getById,
+          { id }
+        );
       }
     },
     alerts: {

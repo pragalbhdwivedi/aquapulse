@@ -54,6 +54,12 @@ For backend water-quality adapter diagnostics:
 - `waterQuality.effectiveAdapter` shows what the water-quality module actually selected
 - `waterQuality.cutoverActive = true` means water-quality is actively using the Postgres-backed adapter
 
+For frontend water-quality runtime diagnostics:
+
+- `waterQuality.requestedMode` shows whether the web app asked water-quality to stay `inherit`, use `mock`, or use `http`
+- `waterQuality.effectiveMode = http` means the water-quality-only cutover path is active on the web side
+- `waterQuality.targetLabel = /api/water-quality local bridge` means the pond detail flow is using the local Next bridge
+
 For AI alert explanations:
 
 - `mode = fallback` means AquaPulse is using the deterministic advisory explanation path

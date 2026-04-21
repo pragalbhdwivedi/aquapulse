@@ -75,6 +75,7 @@ export interface BatchesRepository {
 export interface WaterQualityRepository {
   create(input: WaterQualityCreateRequest): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   list(query: WaterQualityListQuery): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
+  getById(id: string): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   listByPond(
     pondId: string,
     query?: Omit<WaterQualityListQuery, "pondId">
@@ -164,6 +165,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       list(query: WaterQualityListQuery) {
         return clients.waterQuality.list(query);
+      },
+      getById(id: string) {
+        return clients.waterQuality.getById(id);
       },
       listByPond(pondId: string, query?: Omit<WaterQualityListQuery, "pondId">) {
         return clients.waterQuality.list({ page: 1, pageSize: 20, ...query, pondId });

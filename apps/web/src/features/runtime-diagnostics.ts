@@ -41,6 +41,17 @@ export interface AlertsEndToEndRuntimeStatus {
   readonly warnings: readonly RuntimeWarning[];
 }
 
+export interface WaterQualityEndToEndRuntimeStatus {
+  readonly requestedMode: FrontendRuntimeDiagnostics["waterQuality"]["requestedMode"];
+  readonly effectiveFrontendMode: FrontendRuntimeDiagnostics["waterQuality"]["effectiveMode"];
+  readonly backendReachability: BackendRuntimeProbeDiagnostics["status"] | "not_requested";
+  readonly backendAdapter: BackendRuntimeDiagnostics["waterQuality"]["effectiveAdapter"] | "unknown";
+  readonly localBridgeActive: boolean;
+  readonly cutoverActive: boolean;
+  readonly statusLabel: string;
+  readonly warnings: readonly RuntimeWarning[];
+}
+
 function parseBooleanFlag(value: string | undefined): boolean {
   const normalizedValue = value?.trim().toLowerCase();
   return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "yes" || normalizedValue === "on";
@@ -165,6 +176,85 @@ export function deriveAlertsEndToEndRuntimeStatus(
       backendAdapter === "in-memory"
         ? "HTTP mode active; backend alerts still use in-memory"
         : "HTTP mode active; backend alerts cutover not fully verified",
+    warnings
+  };
+}
+
+export function deriveWaterQualityEndToEndRuntimeStatus(
+  diagnostics: FrontendRuntimeDiagnostics,
+  backendProbe?: BackendRuntimeProbeDiagnostics
+): WaterQualityEndToEndRuntimeStatus {
+  const warnings: RuntimeWarning[] = [...diagnostics.warnings, ...(backendProbe?.warnings ?? [])];
+  const backendReachability = backendProbe?.status ?? "not_requested";
+  const backendAdapter = backendProbe?.runtime?.waterQuality.effectiveAdapter ?? "unknown";
+  const cutoverActive =
+    diagnostics.waterQuality.effectiveMode === "http" &&
+    (backendProbe?.status === "reachable" || backendProbe?.status === "partial") &&
+    backendProbe?.runtime?.waterQuality.cutoverActive === true;
+
+  if (diagnostics.waterQuality.effectiveMode !== "http") {
+    return {
+      requestedMode: diagnostics.waterQuality.requestedMode,
+      effectiveFrontendMode: diagnostics.waterQuality.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.waterQuality.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "Mock runtime active",
+      warnings
+    };
+  }
+
+  if (!backendProbe || backendProbe.status === "disabled") {
+    return {
+      requestedMode: diagnostics.waterQuality.requestedMode,
+      effectiveFrontendMode: diagnostics.waterQuality.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.waterQuality.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "HTTP mode requested; backend adapter not yet verified",
+      warnings
+    };
+  }
+
+  if (backendProbe.status === "unreachable") {
+    return {
+      requestedMode: diagnostics.waterQuality.requestedMode,
+      effectiveFrontendMode: diagnostics.waterQuality.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.waterQuality.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "HTTP mode active; backend not reached",
+      warnings
+    };
+  }
+
+  if (cutoverActive) {
+    return {
+      requestedMode: diagnostics.waterQuality.requestedMode,
+      effectiveFrontendMode: diagnostics.waterQuality.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.waterQuality.usesLocalProxy,
+      cutoverActive,
+      statusLabel: "HTTP + Postgres water-quality cutover verified",
+      warnings
+    };
+  }
+
+  return {
+    requestedMode: diagnostics.waterQuality.requestedMode,
+    effectiveFrontendMode: diagnostics.waterQuality.effectiveMode,
+    backendReachability,
+    backendAdapter,
+    localBridgeActive: diagnostics.waterQuality.usesLocalProxy,
+    cutoverActive: false,
+    statusLabel:
+      backendAdapter === "in-memory"
+        ? "HTTP mode active; backend water-quality still uses in-memory"
+        : "HTTP mode active; backend water-quality cutover not fully verified",
     warnings
   };
 }
