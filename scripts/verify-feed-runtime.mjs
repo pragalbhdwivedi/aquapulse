@@ -13,6 +13,16 @@ const pondId =
   (process.env.AQUAPULSE_FEED_VERIFY_POND_ID ?? "pond-1").trim() || "pond-1";
 const existingFeedId =
   (process.env.AQUAPULSE_FEED_VERIFY_ENTRY_ID ?? "feed-1").trim() || "feed-1";
+const expectSeededSmoke = parseBoolean(process.env.AQUAPULSE_FEED_VERIFY_EXPECT_SEEDED_SMOKE);
+
+function parseBoolean(value) {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
 
 function normalizeBaseUrl(value) {
   const trimmed = value.trim();
@@ -26,6 +36,42 @@ function normalizeExpectedBackendAdapter(value) {
 
 function logStep(message) {
   process.stdout.write(`${message}\n`);
+}
+
+function verifySeededSmokeExpectations({ list, seededDetail }) {
+  if (!Array.isArray(list.data.items) || list.data.items.length !== 3) {
+    throw new Error(
+      `Seeded smoke verification expected exactly 3 pond-scoped feed entries, received ${list?.data?.items?.length ?? "unknown"}.`
+    );
+  }
+
+  if (list.data.items[0]?.id !== existingFeedId) {
+    throw new Error(
+      `Seeded smoke verification expected the latest pond feed entry ${existingFeedId}, received ${list.data.items[0]?.id}.`
+    );
+  }
+
+  if (seededDetail.data.pondId !== pondId) {
+    throw new Error(
+      `Seeded smoke verification expected detail pond ${pondId}, received ${seededDetail.data.pondId}.`
+    );
+  }
+
+  if (seededDetail.data.id !== existingFeedId) {
+    throw new Error(
+      `Seeded smoke verification expected detail id ${existingFeedId}, received ${seededDetail.data.id}.`
+    );
+  }
+
+  if (
+    seededDetail.data.feedType !== "Grower Feed" ||
+    seededDetail.data.quantityKg !== 92 ||
+    seededDetail.data.batchId !== "batch-pond-1-a"
+  ) {
+    throw new Error("Seeded smoke verification found unexpected latest feed values.");
+  }
+
+  logStep("Seeded smoke dataset assertions passed.");
 }
 
 async function readJsonResponse(url, init = {}) {
@@ -122,6 +168,10 @@ async function main() {
 
   if (updated?.data?.feedType !== "Verifier Feed Updated") {
     throw new Error("Feed update verification did not observe the updated feed type.");
+  }
+
+  if (expectSeededSmoke) {
+    verifySeededSmokeExpectations({ list, seededDetail });
   }
 
   logStep(

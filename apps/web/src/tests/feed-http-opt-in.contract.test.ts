@@ -79,11 +79,11 @@ describe("Feed opt-in HTTP runtime", () => {
           data: {
             ...entry,
             id: "feed-2",
-            feedType: body?.feedType ?? entry.feedType,
-            quantityKg: body?.quantityKg ?? entry.quantityKg,
-            fedAt: body?.fedAt ?? entry.fedAt,
-            createdAt: body?.fedAt ?? entry.createdAt,
-            updatedAt: body?.fedAt ?? entry.updatedAt
+            feedType: (body?.feedType as string | undefined) ?? entry.feedType,
+            quantityKg: (body?.quantityKg as number | undefined) ?? entry.quantityKg,
+            fedAt: (body?.fedAt as string | undefined) ?? entry.fedAt,
+            createdAt: (body?.fedAt as string | undefined) ?? entry.createdAt,
+            updatedAt: (body?.fedAt as string | undefined) ?? entry.updatedAt
           }
         });
       }
