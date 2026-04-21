@@ -94,6 +94,8 @@ describe("Alerts local API proxy", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-aquapulse-auth-forwarded")).toBe("absent");
+    expect(response.headers.get("x-aquapulse-auth-forwarding-source")).toBe("none");
     expect(await response.json()).toEqual({
       ok: true,
       data: { id: "alert-1", status: "acknowledged" }
@@ -263,6 +265,8 @@ describe("Alerts local API proxy", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-aquapulse-auth-forwarded")).toBe("present");
+    expect(response.headers.get("x-aquapulse-auth-forwarding-source")).toBe("env_token");
     expect(await response.json()).toEqual({ ok: true, data: { forwarded: true } });
   });
 
@@ -279,6 +283,8 @@ describe("Alerts local API proxy", () => {
     );
 
     expect(response.status).toBe(502);
+    expect(response.headers.get("x-aquapulse-auth-forwarded")).toBe("absent");
+    expect(response.headers.get("x-aquapulse-auth-forwarding-source")).toBe("none");
     expect(await response.json()).toEqual({
       ok: false,
       error: {

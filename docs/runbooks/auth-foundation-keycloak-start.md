@@ -75,6 +75,7 @@ x-aquapulse-dev-permissions
 - The alerts workbench now reflects bounded operator guarding in the UI:
   lifecycle, triage, bulk, and saved-view mutation actions are disabled when Keycloak mode is active but no forwarded auth session is available, while disabled/local modes continue to use the safe bounded bypass path.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
+- For a bounded local verification pass that also checks current-session and the protected alerts slices together, use `docs/runbooks/auth-local-keycloak-verifier.md` and run `corepack pnpm auth:verify-runtime`.
 
 ## Web-to-API token forwarding
 

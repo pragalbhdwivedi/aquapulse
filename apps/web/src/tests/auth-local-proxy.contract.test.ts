@@ -55,6 +55,8 @@ describe("Auth local API proxy", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("x-aquapulse-auth-forwarded")).toBe("absent");
+    expect(response.headers.get("x-aquapulse-auth-forwarding-source")).toBe("none");
     expect((await response.json()).data.availabilityState).toBe("local_user");
   });
 
@@ -71,6 +73,8 @@ describe("Auth local API proxy", () => {
     );
 
     expect(response.status).toBe(502);
+    expect(response.headers.get("x-aquapulse-auth-forwarded")).toBe("absent");
+    expect(response.headers.get("x-aquapulse-auth-forwarding-source")).toBe("none");
     expect(await response.json()).toEqual({
       ok: false,
       error: {

@@ -106,10 +106,21 @@ export async function proxyLocalApiRequest(
       redirect: "manual"
     });
 
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set(
+      "x-aquapulse-auth-forwarded",
+      authForwardingState.hasForwardableAuth ? "present" : "absent"
+    );
+    responseHeaders.set("x-aquapulse-auth-forwarding-source", authForwardingState.source);
+    responseHeaders.set(
+      "x-aquapulse-local-proxy",
+      options.routePrefixHeaderValue ?? "local"
+    );
+
     return new Response(await response.arrayBuffer(), {
       status: response.status,
       statusText: response.statusText,
-      headers: response.headers
+      headers: responseHeaders
     });
   } catch {
     return Response.json(
@@ -123,7 +134,9 @@ export async function proxyLocalApiRequest(
       {
         status: 502,
         headers: {
-          "x-aquapulse-local-proxy": options.routePrefixHeaderValue ?? "local"
+          "x-aquapulse-local-proxy": options.routePrefixHeaderValue ?? "local",
+          "x-aquapulse-auth-forwarded": authForwardingState.hasForwardableAuth ? "present" : "absent",
+          "x-aquapulse-auth-forwarding-source": authForwardingState.source
         }
       }
     );
