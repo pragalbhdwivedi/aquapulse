@@ -179,6 +179,43 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.activeConnections).toBe(2);
     expect(diagnostics.alertsLiveUpdates?.lastEventAt).toBe("2026-04-22T09:15:00.000Z");
+    expect(diagnostics.alertsLiveUpdates?.warnings.map((warning) => warning.code)).not.toContain(
+      "ALERTS_LIVE_UPDATES_IDLE"
+    );
+
+    setCachedAlertsLiveUpdatesGatewayState(undefined);
+  });
+
+  it("shows pending or idle websocket diagnostics when the live gateway is enabled locally", () => {
+    setCachedAlertsLiveUpdatesGatewayState({
+      gatewayAttached: false,
+      activeConnections: 0
+    });
+
+    const pendingService = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES: "true"
+      }
+    });
+
+    expect(
+      pendingService.getRuntimeDiagnostics().alertsLiveUpdates?.warnings.map((warning) => warning.code)
+    ).toContain("ALERTS_LIVE_UPDATES_GATEWAY_PENDING");
+
+    setCachedAlertsLiveUpdatesGatewayState({
+      gatewayAttached: true,
+      activeConnections: 0
+    });
+
+    const idleService = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES: "true"
+      }
+    });
+
+    expect(
+      idleService.getRuntimeDiagnostics().alertsLiveUpdates?.warnings.map((warning) => warning.code)
+    ).toContain("ALERTS_LIVE_UPDATES_IDLE");
 
     setCachedAlertsLiveUpdatesGatewayState(undefined);
   });

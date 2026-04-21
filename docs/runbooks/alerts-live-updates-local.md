@@ -29,11 +29,25 @@ corepack pnpm --filter @aquapulse/web dev
    - `Live updates: active` after the websocket connects
    - a websocket target ending in `/ws/alerts`
 
+4. Run the bounded live-update verifier:
+
+```bash
+corepack pnpm alerts:verify-live-updates
+```
+
+Expected verifier behavior:
+- it reads backend runtime diagnostics
+- it connects to the alerts websocket target
+- it triggers one bounded alerts review-state mutation through the web bridge
+- it waits for one bounded alerts live-update event
+- it fails clearly if live updates are disabled, unreachable, auth-protected without a forwarded token, or degraded by malformed payload flow
+
 ## What this branch does
 
 - Emits bounded live-update events after alert create/update/lifecycle/bulk mutations.
 - Refreshes the alerts queue and summary surfaces when a live event arrives.
 - Keeps fallback behavior safe: if the websocket gateway is disabled or unreachable, the page stays usable with manual refresh behavior.
+- Keeps websocket verification bounded: the verifier exercises one local connection and one representative alerts mutation, not a full realtime harness.
 
 ## Diagnostics checks
 
@@ -43,9 +57,19 @@ corepack pnpm --filter @aquapulse/web dev
   - backend alerts adapter mode
   - backend alerts live gateway enabled/attached
   - active websocket connection count
+  - frontend live-update state: `disabled`, `idle`, `connecting`, `active`, `degraded`, or `unavailable`
+  - fallback mode remaining `manual refresh`
+
+## Auth/runtime interaction
+
+- Live updates remain alerts-only and opt-in.
+- The websocket verifier can reuse a local forwarded bearer token through `AQUAPULSE_ALERTS_LIVE_VERIFY_BEARER_TOKEN` or `AQUAPULSE_WEB_AUTH_BEARER_TOKEN` when the alerts mutation slices are protected.
+- Disabled/local auth modes remain usable without additional setup.
+- In active Keycloak mode, missing forwarded auth should produce a readable verifier failure on the representative mutation path rather than a silent websocket failure.
 
 ## Notes
 
 - The websocket path defaults to `/ws/alerts`.
 - If you change `AQUAPULSE_ALERTS_LIVE_UPDATES_PATH`, point the web app at the matching websocket URL through `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL`.
+- If the runtime card shows `degraded`, the websocket connected but the live event stream or payload handling is unhealthy; the queue remains usable with manual refresh.
 - Default runtime safety is unchanged when the live-update env vars are not enabled.

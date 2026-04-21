@@ -2,6 +2,7 @@ import type {
   BackendRuntimeProbeDiagnostics,
   FrontendRuntimeDiagnostics
 } from "@aquapulse/types";
+import { describeAlertsLiveUpdatesState } from "@web/features/alerts-live-updates";
 import {
   deriveProtectedOperatorUiGuard,
   deriveProtectedReadUiGuard,
@@ -27,6 +28,10 @@ export function RuntimeDiagnosticsCard({
   const feedEndToEnd = deriveFeedEndToEndRuntimeStatus(diagnostics, backendProbe);
   const tasksEndToEnd = deriveTasksEndToEndRuntimeStatus(diagnostics, backendProbe);
   const waterQualityEndToEnd = deriveWaterQualityEndToEndRuntimeStatus(diagnostics, backendProbe);
+  const alertsLiveUpdatesStatus = describeAlertsLiveUpdatesState(
+    diagnostics.alertsLiveUpdates,
+    diagnostics.alertsLiveUpdates.connectionState
+  );
   const listReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
     sliceLabel: diagnostics.session.protectedReadGuardedSliceLabel,
     enforcedByBackend: diagnostics.session.protectedReadGuardedSliceEnforced
@@ -103,7 +108,7 @@ export function RuntimeDiagnosticsCard({
         <span>Tasks runtime: {diagnostics.tasks.effectiveMode}</span>
         <span>Water-quality runtime: {diagnostics.waterQuality.effectiveMode}</span>
         <span>Alerts transport: {diagnostics.alerts.transport}</span>
-        <span>Alerts live updates: {diagnostics.alertsLiveUpdates.connectionState}</span>
+        <span>Alerts live updates: {alertsLiveUpdatesStatus.label}</span>
         <span>Feed transport: {diagnostics.feed.transport}</span>
         <span>Tasks transport: {diagnostics.tasks.transport}</span>
         <span>Water-quality transport: {diagnostics.waterQuality.transport}</span>
@@ -198,6 +203,8 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
+        <span>Alerts live fallback: {diagnostics.alertsLiveUpdates.fallbackMode.replace("_", " ")}</span>
+        <span>Alerts live status: {alertsLiveUpdatesStatus.helperText}</span>
         <span>Feed scope: {diagnostics.feed.scopeLabel}</span>
         <span>Feed target: {diagnostics.feed.targetLabel}</span>
         <span>Tasks scope: {diagnostics.tasks.scopeLabel}</span>
@@ -311,6 +318,17 @@ export function RuntimeDiagnosticsCard({
         {backendProbe?.runtime?.alertsLiveUpdates ? (
           <span>
             Backend alerts live gateway: {backendProbe.runtime.alertsLiveUpdates.enabled ? "enabled" : "disabled"} / Attached: {backendProbe.runtime.alertsLiveUpdates.gatewayAttached ? "yes" : "no"} / Connections: {backendProbe.runtime.alertsLiveUpdates.activeConnections}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates ? (
+          <span>
+            Backend alerts live state: {!backendProbe.runtime.alertsLiveUpdates.enabled
+              ? "disabled"
+              : !backendProbe.runtime.alertsLiveUpdates.gatewayAttached
+                ? "pending_attach"
+                : backendProbe.runtime.alertsLiveUpdates.activeConnections > 0
+                  ? "active"
+                  : "idle"}
           </span>
         ) : null}
         {backendProbe?.runtime?.alertsLiveUpdates ? (

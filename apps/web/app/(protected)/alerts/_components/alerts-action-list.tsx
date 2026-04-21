@@ -24,7 +24,10 @@ import {
   createAlertLifecycleSubmitter,
   type AlertLifecycleSubmissionResult
 } from "@web/features/alert-lifecycle";
-import { connectAlertsLiveUpdates } from "@web/features/alerts-live-updates";
+import {
+  connectAlertsLiveUpdates,
+  describeAlertsLiveUpdatesState
+} from "@web/features/alerts-live-updates";
 import {
   createAlertSavedViewsRepositoryStore,
   createAlertSavedViewsStore,
@@ -307,6 +310,10 @@ export function AlertsActionList({
   const [feedbackTone, setFeedbackTone] = useState<"success" | "error">("success");
   const [liveUpdatesState, setLiveUpdatesState] = useState(liveUpdatesDiagnostics.connectionState);
   const [lastLiveEventAt, setLastLiveEventAt] = useState<string | null>(null);
+  const liveUpdatesStatus = useMemo(
+    () => describeAlertsLiveUpdatesState(liveUpdatesDiagnostics, liveUpdatesState),
+    [liveUpdatesDiagnostics, liveUpdatesState]
+  );
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
   const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: queuePage, pageSize: queuePageSize, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, queuePage, queuePageSize, reviewStateFilter, sortBy, statusFilter]);
@@ -746,14 +753,19 @@ export function AlertsActionList({
             <span>Alerts runtime: {runtimeIndicator.modeLabel}</span>
             <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
             <span>Target: {runtimeIndicator.targetLabel}</span>
-            <span>Live updates: {liveUpdatesState}</span>
+            <span>Live updates: {liveUpdatesStatus.label}</span>
             <span>Auth mode: {authDiagnostics.effectiveMode}</span>
             <span>Session: {session.bootstrapState}</span>
             <span>Auth forwarding: {authDiagnostics.forwardingMode}</span>
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
           <span style={{ color: "#94a3b8" }}>
-            Live target: {liveUpdatesDiagnostics.targetLabel}. Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}.
+            Live target: {liveUpdatesDiagnostics.targetLabel}. State: {liveUpdatesStatus.helperText}
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}
+            {lastLiveEventAt ? ` / Last live event: ${lastLiveEventAt}` : ""}
+            .
           </span>
           <span style={{ color: "#94a3b8" }}>
             List read slice: {session.protectedReadGuardedSliceLabel ?? authDiagnostics.protectedReadSliceLabel ?? "none"} / Enforced:{" "}

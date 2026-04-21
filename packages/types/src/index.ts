@@ -1213,6 +1213,7 @@ export type AlertsLiveUpdatesConnectionState =
   | "inactive"
   | "connecting"
   | "active"
+  | "degraded"
   | "unavailable";
 export type AlertLiveUpdateEventType =
   | "alert_created"

@@ -1,0 +1,174 @@
+import {
+  createAlertsLiveUpdatesVerifierHeaders,
+  deriveAlertsLiveUpdatesWebSocketUrl,
+  readAlertsLiveUpdatesVerificationConfig
+} from "./lib/alerts-live-updates-runtime-verifier.mjs";
+
+const config = readAlertsLiveUpdatesVerificationConfig(process.env);
+
+function logStep(message) {
+  process.stdout.write(`${message}\n`);
+}
+
+async function readJsonResponse(url, init = {}) {
+  const response = await fetch(url, init);
+  const rawBody = await response.text();
+  const body = rawBody ? JSON.parse(rawBody) : undefined;
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    body
+  };
+}
+
+function ensureJsonPayload(result, label) {
+  if (!result.body || typeof result.body !== "object") {
+    throw new Error(`${label} did not return a JSON payload.`);
+  }
+}
+
+function waitForWebSocketOpen(socket, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(new Error(`Timed out waiting for the alerts websocket to connect after ${timeoutMs}ms.`));
+    }, timeoutMs);
+
+    socket.addEventListener("open", () => {
+      clearTimeout(timeoutId);
+      resolve(undefined);
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeoutId);
+      reject(new Error("The alerts websocket reported a connection error."));
+    });
+  });
+}
+
+function waitForLiveEvent(socket, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(
+        new Error(
+          `Timed out waiting for a live alerts event after ${timeoutMs}ms. The gateway may be idle, unreachable, or the triggering mutation did not emit an event.`
+        )
+      );
+    }, timeoutMs);
+
+    socket.addEventListener("message", (event) => {
+      try {
+        const payload = JSON.parse(typeof event.data === "string" ? event.data : String(event.data));
+        if (payload?.source !== "alerts" || typeof payload?.eventType !== "string") {
+          clearTimeout(timeoutId);
+          reject(new Error("Received a websocket message, but it was not a bounded alerts live-update payload."));
+          return;
+        }
+
+        clearTimeout(timeoutId);
+        resolve(payload);
+      } catch (error) {
+        clearTimeout(timeoutId);
+        reject(
+          new Error(
+            `Received a websocket message, but it could not be parsed as JSON: ${error instanceof Error ? error.message : String(error)}`
+          )
+        );
+      }
+    });
+
+    socket.addEventListener("error", () => {
+      clearTimeout(timeoutId);
+      reject(new Error("The alerts websocket errored while waiting for a live event."));
+    });
+  });
+}
+
+async function verifyBackendRuntime() {
+  logStep(`Verifying backend runtime diagnostics at ${config.backendBaseUrl}`);
+  const result = await readJsonResponse(`${config.backendBaseUrl}/api/diagnostics/runtime`, {
+    method: "GET",
+    headers: createAlertsLiveUpdatesVerifierHeaders(config)
+  });
+  ensureJsonPayload(result, "Backend runtime diagnostics");
+
+  if (!result.ok) {
+    throw new Error(
+      `GET ${config.backendBaseUrl}/api/diagnostics/runtime failed with ${result.status}: ${JSON.stringify(result.body)}`
+    );
+  }
+
+  const runtime = result.body;
+  if (!runtime?.alertsLiveUpdates?.gatewayPath) {
+    throw new Error("Backend runtime diagnostics are missing alerts live-update gateway details.");
+  }
+
+  logStep(`Backend alerts adapter: ${runtime.alerts?.effectiveAdapter ?? "unknown"}`);
+  logStep(
+    `Backend alerts live gateway: ${runtime.alertsLiveUpdates.enabled ? "enabled" : "disabled"} / attached=${runtime.alertsLiveUpdates.gatewayAttached ? "yes" : "no"} / connections=${runtime.alertsLiveUpdates.activeConnections}`
+  );
+
+  if (config.expectEnabled && runtime.alertsLiveUpdates.enabled !== true) {
+    throw new Error(
+      "Alerts live updates are disabled in the running backend. Enable AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES before running this verifier."
+    );
+  }
+
+  return runtime;
+}
+
+async function triggerRepresentativeMutation() {
+  const mutationUrl = `${config.webBaseUrl}/api/alerts/${config.alertId}/${config.mutationPath}`;
+  logStep(`Triggering representative alerts mutation through ${mutationUrl}`);
+  const result = await readJsonResponse(mutationUrl, {
+    method: "POST",
+    headers: createAlertsLiveUpdatesVerifierHeaders(config, {
+      "content-type": "application/json"
+    }),
+    body: JSON.stringify(config.mutationBody)
+  });
+  ensureJsonPayload(result, "Alerts live-update trigger mutation");
+
+  if (!result.ok) {
+    throw new Error(
+      `POST ${mutationUrl} failed with ${result.status}: ${JSON.stringify(result.body)}`
+    );
+  }
+}
+
+async function main() {
+  logStep("Alerts live-update verification started.");
+  logStep(`Web base URL: ${config.webBaseUrl}`);
+  logStep(`Backend base URL: ${config.backendBaseUrl}`);
+  logStep(`Verifier bearer token: ${config.bearerToken ? "provided" : "not provided"}`);
+
+  const runtime = await verifyBackendRuntime();
+  const webSocketUrl = deriveAlertsLiveUpdatesWebSocketUrl({
+    backendBaseUrl: config.backendBaseUrl,
+    gatewayPath: runtime.alertsLiveUpdates.gatewayPath,
+    explicitWebSocketUrl: config.webSocketUrl
+  });
+
+  logStep(`Connecting to websocket target: ${webSocketUrl}`);
+  const socket = new WebSocket(webSocketUrl);
+
+  try {
+    await waitForWebSocketOpen(socket, config.timeoutMs);
+    logStep("Alerts websocket connection: active");
+
+    const eventPromise = waitForLiveEvent(socket, config.timeoutMs);
+    await triggerRepresentativeMutation();
+    const event = await eventPromise;
+
+    logStep(`Received alerts live event: ${event.eventType}`);
+    logStep(`Live event timestamp: ${event.timestamp}`);
+    logStep("Alerts live-update verification completed successfully.");
+  } finally {
+    socket.close();
+  }
+}
+
+main().catch((error) => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
+});

@@ -119,7 +119,38 @@ describe("Alerts live updates connector", () => {
 
     socket?.emit("message", { data: "{not-json" });
 
+    expect(states).toContain("degraded");
+
+    connection.disconnect();
+  });
+
+  it("keeps connection failures distinct from degraded payload handling", () => {
+    const states: string[] = [];
+    let socket: FakeWebSocket | undefined;
+
+    const connection = connectAlertsLiveUpdates({
+      config: parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: "direct",
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: "http://localhost:4000",
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true"
+      }),
+      onEvent: vi.fn(),
+      onStateChange: (state) => {
+        states.push(state);
+      },
+      webSocketFactory: (url) => {
+        socket = new FakeWebSocket(url);
+        return socket;
+      }
+    });
+
+    socket?.emit("error");
+    socket?.emit("close");
+
     expect(states).toContain("unavailable");
+    expect(states.at(-1)).toBe("unavailable");
 
     connection.disconnect();
   });

@@ -7,6 +7,7 @@
     "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck",
     "test:contracts": "corepack pnpm exec vitest run",
     "alerts:verify-runtime": "node ./scripts/verify-alerts-runtime.mjs",
+    "alerts:verify-live-updates": "node ./scripts/verify-alerts-live-updates-runtime.mjs",
     "auth:verify-runtime": "node ./scripts/verify-auth-runtime.mjs",
     "water-quality:verify-runtime": "node ./scripts/verify-water-quality-runtime.mjs",
     "feed:verify-runtime": "node ./scripts/verify-feed-runtime.mjs",

@@ -419,7 +419,28 @@ export class RuntimeDiagnosticsService {
         activeConnections: cachedAlertsLiveUpdatesState?.activeConnections ?? 0,
         lastEventAt: cachedAlertsLiveUpdatesState?.lastEventAt,
         warnings: alertsLiveUpdatesRuntime.enabled
-          ? [...alertsLiveUpdatesRuntime.warnings]
+          ? [
+              ...alertsLiveUpdatesRuntime.warnings,
+              ...(!(cachedAlertsLiveUpdatesState?.gatewayAttached ?? false)
+                ? [
+                    {
+                      code: "ALERTS_LIVE_UPDATES_GATEWAY_PENDING",
+                      message:
+                        "Alerts live updates are enabled, but the websocket gateway has not attached to the current API server yet."
+                    }
+                  ]
+                : []),
+              ...(cachedAlertsLiveUpdatesState?.gatewayAttached &&
+              (cachedAlertsLiveUpdatesState?.activeConnections ?? 0) === 0
+                ? [
+                    {
+                      code: "ALERTS_LIVE_UPDATES_IDLE",
+                      message:
+                        "Alerts live updates are enabled and the websocket gateway is attached, but no active browser connections are using it yet."
+                    }
+                  ]
+                : [])
+            ]
           : [
               ...alertsLiveUpdatesRuntime.warnings,
               {
