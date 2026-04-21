@@ -640,16 +640,26 @@ export function mapUpdateBatchInputToRowPatch(id: string, _input: { readonly id?
 
 export function mapCreateFeedInputToRowWrite(input: FeedCreateRequest): FeedRowWrite {
   const base = createPlaceholderFeedRow();
+  const timestamp = input.fedAt || base.fed_at;
+  const rawValue = [
+    "feed",
+    input.pondId,
+    input.batchId ?? "no-batch",
+    input.feedType,
+    input.quantityKg,
+    timestamp
+  ].join("-");
+  const id = rawValue.replace(/[^a-zA-Z0-9_-]/g, "-");
 
   return {
-    id: `feed-row-${input.pondId}`,
+    id,
     pond_id: input.pondId,
     batch_id: input.batchId,
     feed_type: input.feedType,
     quantity_kg: input.quantityKg,
     fed_at: input.fedAt,
-    created_at: base.created_at,
-    updated_at: base.updated_at
+    created_at: timestamp,
+    updated_at: timestamp
   };
 }
 

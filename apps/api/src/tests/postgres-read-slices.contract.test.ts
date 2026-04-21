@@ -1,6 +1,7 @@
 import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
+  createPlaceholderFeedRow,
   createPlaceholderPondRow,
   createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
@@ -26,6 +27,12 @@ import {
 } from "../modules/ponds/adapters/postgres-ponds.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
+import {
+  buildFeedByIdQueryPlan,
+  buildFeedListQueryPlan,
+  PostgresFeedRepository
+} from "../modules/feed/adapters/postgres-feed.repository";
+import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
 import {
   buildWaterQualityByIdQueryPlan,
   buildWaterQualityListByPondQueryPlan,
@@ -365,5 +372,87 @@ describe("Postgres read adapter slices", () => {
       metric: "ph"
     });
     expect(buildWaterQualityListByPondQueryPlan("pond-42").filters).toEqual({ pondId: "pond-42" });
+  });
+
+  it("feed adapter keeps the repository contract and translates read inputs consistently", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: FeedRepositoryPort = PostgresFeedRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement) {
+          if (statement.includes("count(*) over()::int as total_count")) {
+            return [
+              {
+                ...createPlaceholderFeedRow({
+                  id: "feed-42",
+                  pond_id: "pond-42",
+                  batch_id: "batch-42",
+                  feed_type: "Grower Feed",
+                  quantity_kg: 42,
+                  fed_at: "2026-04-15T06:00:00.000Z"
+                }),
+                total_count: 1
+              }
+            ] as never[];
+          }
+
+          return [
+            createPlaceholderFeedRow({
+              id: "feed-42",
+              pond_id: "pond-42",
+              batch_id: "batch-42",
+              feed_type: "Grower Feed",
+              quantity_kg: 42,
+              fed_at: "2026-04-15T06:00:00.000Z"
+            })
+          ] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const item = await repository.getById("feed-42");
+    const list = await repository.list({
+      page: 1,
+      pageSize: 10,
+      pondId: "pond-42",
+      batchId: "batch-42",
+      feedType: "Grower Feed",
+      search: "grower"
+    });
+
+    expect(item.id).toBe("feed-42");
+    expect(item.pondId).toBe("pond-42");
+    expect(item.batchId).toBe("batch-42");
+    expect(list.items[0]?.feedType).toBe("Grower Feed");
+    expect(list.page.totalItems).toBe(1);
+    expect(recordedQueries[0]?.statement).toContain("from feed_entries");
+    expect(recordedQueries[0]?.statement).toContain("where id = $1");
+    expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("lower(feed_type) like");
+    expect(recordedQueries[1]?.statement).toContain("order by fed_at desc, id desc");
+    expect(recordedQueries[1]?.params).toEqual([
+      "pond-42",
+      "batch-42",
+      "Grower Feed",
+      "%grower%",
+      10,
+      0
+    ]);
+    expect(buildFeedByIdQueryPlan("feed-42").filters).toEqual({ id: "feed-42" });
+    expect(
+      buildFeedListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        pondId: "pond-42",
+        batchId: "batch-42",
+        feedType: "Grower Feed",
+        search: "grower"
+      }).filters
+    ).toEqual({
+      pondId: "pond-42",
+      batchId: "batch-42",
+      feedType: "Grower Feed",
+      search: "grower"
+    });
   });
 });

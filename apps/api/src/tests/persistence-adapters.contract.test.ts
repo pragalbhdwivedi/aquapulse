@@ -1,6 +1,7 @@
 import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
+  createPlaceholderFeedRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig
 } from "@aquapulse/database";
@@ -64,7 +65,12 @@ describe("Persistence adapter skeletons", () => {
     });
     const attachmentsRepository: AttachmentsRepositoryPort = new PostgresAttachmentsRepository();
     const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
-    const feedRepository: FeedRepositoryPort = new PostgresFeedRepository();
+    const feedRepository: FeedRepositoryPort = PostgresFeedRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: [createPlaceholderFeedRow({ id: "feed-1" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const tasksRepository: TasksRepositoryPort = new PostgresTasksRepository();
     const waterQualityRepository: WaterQualityRepositoryPort = PostgresWaterQualityRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory([], {

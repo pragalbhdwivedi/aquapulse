@@ -2,6 +2,7 @@ import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
+  createPlaceholderFeedRow,
   createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
@@ -9,12 +10,19 @@ import {
   type AlertActionHistoryRow,
   type AlertRow,
   type AlertSavedViewRow,
+  type FeedRow,
   type WaterQualityRow,
   type RecordedDatabasePlan
 } from "@aquapulse/database";
 import { describe, expect, it } from "vitest";
 import { PostgresAlertsRepository } from "../modules/alerts/adapters/postgres-alerts.repository";
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
+import {
+  buildCreateFeedQueryPlan,
+  buildUpdateFeedQueryPlan,
+  PostgresFeedRepository
+} from "../modules/feed/adapters/postgres-feed.repository";
+import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
 import {
   buildCreateWaterQualityQueryPlan,
   buildUpdateWaterQualityQueryPlan,
@@ -752,6 +760,119 @@ describe("Postgres write adapter slices", () => {
       recordedAt: "2026-04-16T07:00:00.000Z"
     });
     expect(buildUpdateWaterQualityQueryPlan(created.id, {}).filters).toEqual({
+      id: created.id
+    });
+  });
+
+  it("feed create and update use the real Postgres path and return stable row-mapped results", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const entries = new Map<string, FeedRow>([
+      [
+        "feed-7",
+        createPlaceholderFeedRow({
+          id: "feed-7",
+          pond_id: "pond-7",
+          batch_id: "batch-7",
+          feed_type: "Starter Feed",
+          quantity_kg: 18,
+          fed_at: "2026-04-16T06:00:00.000Z"
+        })
+      ]
+    ]);
+
+    const repository: FeedRepositoryPort = PostgresFeedRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement, params) {
+          if (statement.startsWith("insert into feed_entries")) {
+            const row: FeedRow = {
+              id: params[0] as string,
+              pond_id: params[1] as string,
+              batch_id: (params[2] as string | null) ?? undefined,
+              feed_type: params[3] as string,
+              quantity_kg: params[4] as number,
+              fed_at: params[5] as string,
+              created_at: params[6] as string,
+              updated_at: params[7] as string
+            };
+            entries.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.startsWith("update feed_entries")) {
+            const current =
+              entries.get(params[0] as string) ??
+              createPlaceholderFeedRow({ id: params[0] as string });
+            const row: FeedRow = {
+              ...current,
+              batch_id: (params[1] as string | null) ?? current.batch_id,
+              feed_type: (params[2] as string | null) ?? current.feed_type,
+              quantity_kg: (params[3] as number | null) ?? current.quantity_kg,
+              fed_at: (params[4] as string | null) ?? current.fed_at,
+              updated_at: params[5] as string
+            };
+            entries.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.includes("from feed_entries") && statement.includes("where id = $1")) {
+            const row = entries.get(params[0] as string);
+            return row ? ([row] as never[]) : ([] as never[]);
+          }
+
+          return [] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const created = await repository.create({
+      pondId: "pond-9",
+      batchId: "batch-9",
+      feedType: "Grower Feed",
+      quantityKg: 42,
+      fedAt: "2026-04-16T07:00:00.000Z"
+    });
+    const updated = await repository.update(created.id, {
+      feedType: "Finisher Feed",
+      quantityKg: 46
+    });
+    const detail = await repository.getById(created.id);
+
+    expect(created.pondId).toBe("pond-9");
+    expect(created.batchId).toBe("batch-9");
+    expect(created.feedType).toBe("Grower Feed");
+    expect(created.id).toContain("feed-pond-9-batch-9-Grower-Feed-42");
+    expect(updated.id).toBe(created.id);
+    expect(updated.feedType).toBe("Finisher Feed");
+    expect(updated.quantityKg).toBe(46);
+    expect(detail.id).toBe(created.id);
+    expect(recordedQueries[0]?.statement).toContain("insert into feed_entries");
+    expect(recordedQueries[0]?.params).toEqual([
+      created.id,
+      "pond-9",
+      "batch-9",
+      "Grower Feed",
+      42,
+      "2026-04-16T07:00:00.000Z",
+      "2026-04-16T07:00:00.000Z",
+      "2026-04-16T07:00:00.000Z"
+    ]);
+    expect(recordedQueries[1]?.statement).toContain("update feed_entries");
+    expect(
+      buildCreateFeedQueryPlan({
+        pondId: "pond-9",
+        batchId: "batch-9",
+        feedType: "Grower Feed",
+        quantityKg: 42,
+        fedAt: "2026-04-16T07:00:00.000Z"
+      }).filters
+    ).toEqual({
+      pondId: "pond-9",
+      batchId: "batch-9",
+      feedType: "Grower Feed",
+      fedAt: "2026-04-16T07:00:00.000Z"
+    });
+    expect(buildUpdateFeedQueryPlan(created.id, {}).filters).toEqual({
       id: created.id
     });
   });
