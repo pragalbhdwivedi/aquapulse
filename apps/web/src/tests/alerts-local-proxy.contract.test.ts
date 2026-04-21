@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET as alertsGet } from "../../app/api/alerts/route";
 import { POST as alertsCatchAllPost } from "../../app/api/alerts/[...segments]/route";
+import { POST as aiExplainPost } from "../../app/api/ai/alerts/explain/route";
+import { POST as aiExplainFeedbackPost } from "../../app/api/ai/alerts/explain/[...segments]/route";
 import {
   buildAlertsProxyTargetUrl,
+  proxyAiAlertsApiRequest,
   proxyAlertsApiRequest,
   readAlertsLocalProxyConfig
 } from "../server/alerts-local-proxy";
@@ -96,6 +99,92 @@ describe("Alerts local API proxy", () => {
     });
   });
 
+  it("proxies AI explanation requests through the local bridge", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("http://localhost:4000/api/ai/alerts/explain");
+      expect(init?.method).toBe("POST");
+      return jsonResponse({
+        ok: true,
+        data: {
+          summary: "Bridge explanation",
+          explanation: "Bridge explanation body",
+          recommendations: [],
+          likelyCauses: [],
+          recommendedChecks: [],
+          suggestedActions: [],
+          confidenceNote: "placeholder",
+          advisoryDisclaimer: "Advisory only",
+          metadata: {
+            mode: "fallback",
+            advisoryOnly: true,
+            generatedAt: "2026-04-16T09:00:00.000Z",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "proxy_test",
+            usedLiveOpenAi: false
+          },
+          cache: {
+            status: "fresh",
+            cachedAt: "2026-04-16T09:00:00.000Z",
+            freshness: "fresh",
+            explanationVersion: "v1",
+            generation: "fresh_fallback"
+          }
+        }
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await aiExplainPost(
+      new Request("http://localhost:3000/api/ai/alerts/explain", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ alertId: "alert-1" })
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+  });
+
+  it("preserves AI explanation feedback validation errors through the local bridge", async () => {
+    const fetchMock = vi.fn(async () =>
+      jsonResponse(
+        {
+          ok: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "value is required",
+            fieldErrors: { value: "Required" }
+          }
+        },
+        422
+      )
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await aiExplainFeedbackPost(
+      new Request("http://localhost:3000/api/ai/alerts/explain/feedback", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({ alertId: "alert-1" })
+      })
+    );
+
+    expect(response.status).toBe(422);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "value is required",
+        fieldErrors: { value: "Required" }
+      }
+    });
+  });
+
   it("preserves backend validation errors without flattening the payload", async () => {
     const fetchMock = vi.fn(async () =>
       jsonResponse(
@@ -166,6 +255,31 @@ describe("Alerts local API proxy", () => {
         code: "ALERTS_LOCAL_PROXY_UNAVAILABLE",
         message:
           "Alerts local proxy could not reach http://localhost:4000. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL."
+      }
+    });
+  });
+
+  it("returns a developer-friendly 502 response when the AI alerts backend is unavailable", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("connect ECONNREFUSED");
+    }));
+
+    const response = await proxyAiAlertsApiRequest(
+      new Request("http://localhost:3000/api/ai/alerts/explain", {
+        method: "POST"
+      }),
+      {
+        backendBaseUrl: "http://localhost:4000"
+      }
+    );
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      ok: false,
+      error: {
+        code: "AI_ALERTS_LOCAL_PROXY_UNAVAILABLE",
+        message:
+          "AI alerts local proxy could not reach http://localhost:4000. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL."
       }
     });
   });

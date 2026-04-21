@@ -36,6 +36,15 @@ For alerts diagnostics:
 - `effectiveMode = http` means the alerts-only cutover path is active
 - `transport = proxy` means alerts go through the local `/api/alerts` bridge
 - `transport = direct` means alerts point at a backend URL directly
+- `requestedMode` shows what the web config asked alerts to do
+
+For backend alerts adapter diagnostics:
+
+- `alerts.requestedAdapter` shows whether the API was asked to use `in-memory` or `postgres`
+- `alerts.effectiveAdapter` shows what the alerts module actually selected
+- `alerts.cutoverActive = true` means the alerts module is actively using the Postgres-backed adapter
+- `alerts.localBridgeExpectedPath = /api/alerts` is the queue/workbench bridge path
+- `alerts.localAiExplainBridgeExpectedPath = /api/ai/alerts` is the advisory explanation bridge path
 
 For AI alert explanations:
 

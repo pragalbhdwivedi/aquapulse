@@ -39,7 +39,14 @@ export class RuntimeDiagnosticsService {
       allowRuntimeSwitch: false,
       postgresEnabled: runtime.persistence.postgresEnabled
     });
+    const alertsSelection = resolvePersistenceSelection({
+      defaultAdapter: "in-memory",
+      requestedAdapter: runtime.persistence.requestedAdapter,
+      allowRuntimeSwitch: true,
+      postgresEnabled: runtime.persistence.postgresEnabled
+    });
     const warnings: RuntimeWarning[] = [];
+    const alertWarnings: RuntimeWarning[] = [];
     const configured =
       Boolean(this.env.DATABASE_HOST) ||
       Boolean(this.env.DATABASE_NAME) ||
@@ -59,6 +66,30 @@ export class RuntimeDiagnosticsService {
         code: "RUNTIME_SWITCH_BLOCKED",
         message:
           "A Postgres adapter was requested, but runtime switching is still blocked by default in this stage."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
+      alertWarnings.push({
+        code: "ALERTS_POSTGRES_DISABLED",
+        message:
+          "Alerts Postgres cutover was requested, but AQUAPULSE_ENABLE_POSTGRES_ADAPTERS is not enabled. Alerts remain on the safe in-memory adapter."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && alertsSelection.adapter !== "postgres") {
+      alertWarnings.push({
+        code: "ALERTS_POSTGRES_BLOCKED",
+        message:
+          "Alerts requested the Postgres adapter, but the effective alerts adapter is still in-memory."
+      });
+    }
+
+    if (alertsSelection.adapter === "postgres" && !configured) {
+      alertWarnings.push({
+        code: "ALERTS_POSTGRES_CONFIG_MISSING",
+        message:
+          "Alerts Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
       });
     }
 
@@ -113,7 +144,15 @@ export class RuntimeDiagnosticsService {
         workbenchCutoverAvailable: true,
         postgresReadCutoverAvailable: true,
         postgresWriteCutoverAvailable: true,
-        localBridgeExpectedPath: "/api/alerts"
+        requestedAdapter: runtime.persistence.requestedAdapter,
+        effectiveAdapter: alertsSelection.adapter,
+        runtimeSwitchEnabled: true,
+        cutoverActive: alertsSelection.adapter === "postgres",
+        databaseConfigured: configured,
+        connectivityStatus: configured ? "configured_only" : "not_attempted",
+        localBridgeExpectedPath: "/api/alerts",
+        localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+        warnings: alertWarnings
       },
       warnings
     };

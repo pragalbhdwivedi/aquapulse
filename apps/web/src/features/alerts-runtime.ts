@@ -31,7 +31,10 @@ export function deriveAlertsRuntimeIndicator(
   return {
     modeLabel,
     targetLabel: diagnostics.targetLabel,
-    helperText,
+    helperText:
+      diagnostics.effectiveMode === "http" && diagnostics.usesLocalProxy
+        ? `${helperText} Use /runtime to confirm whether the backend alerts adapter is still in-memory or has switched to Postgres.`
+        : helperText,
     warnings: diagnostics.warnings
   };
 }

@@ -28,7 +28,34 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiExplanations.mode).toBe("fallback");
     expect(diagnostics.aiExplanations.configured).toBe(false);
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
+    expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
+    expect(diagnostics.alerts.requestedAdapter).toBe("postgres");
+    expect(diagnostics.alerts.effectiveAdapter).toBe("in-memory");
+    expect(diagnostics.alerts.cutoverActive).toBe(false);
+    expect(diagnostics.alerts.connectivityStatus).toBe("configured_only");
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain("POSTGRES_DISABLED");
+    expect(diagnostics.alerts.warnings.map((warning) => warning.code)).toContain(
+      "ALERTS_POSTGRES_DISABLED"
+    );
+  });
+
+  it("shows alerts cutover as active when Postgres adapters are enabled for the alerts module", () => {
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        DATABASE_HOST: "db.internal",
+        DATABASE_NAME: "aquapulse_api",
+        AQUAPULSE_PERSISTENCE_MODE: "postgres",
+        AQUAPULSE_ENABLE_POSTGRES_ADAPTERS: "true"
+      }
+    });
+
+    const diagnostics = service.getRuntimeDiagnostics();
+
+    expect(diagnostics.mode.effectiveMode).toBe("in-memory");
+    expect(diagnostics.alerts.effectiveAdapter).toBe("postgres");
+    expect(diagnostics.alerts.cutoverActive).toBe(true);
+    expect(diagnostics.alerts.databaseConfigured).toBe(true);
+    expect(diagnostics.alerts.runtimeSwitchEnabled).toBe(true);
   });
 
   it("keeps health and runtime endpoints aligned through the shared diagnostics service", () => {

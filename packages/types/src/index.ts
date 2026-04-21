@@ -1266,6 +1266,21 @@ export interface BackendRuntimeProbeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface BackendAlertsRuntimeDiagnostics {
+  readonly workbenchCutoverAvailable: boolean;
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly localBridgeExpectedPath: string;
+  readonly localAiExplainBridgeExpectedPath: string;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
@@ -1280,12 +1295,7 @@ export interface BackendRuntimeDiagnostics {
     readonly feedbackEnabled: boolean;
     readonly warnings: RuntimeWarning[];
   };
-  readonly alerts: {
-    readonly workbenchCutoverAvailable: boolean;
-    readonly postgresReadCutoverAvailable: boolean;
-    readonly postgresWriteCutoverAvailable: boolean;
-    readonly localBridgeExpectedPath: string;
-  };
+  readonly alerts: BackendAlertsRuntimeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }
 

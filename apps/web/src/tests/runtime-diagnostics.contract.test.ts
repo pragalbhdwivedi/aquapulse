@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveAlertsEndToEndRuntimeStatus,
   probeBackendRuntimeDiagnostics,
   readFrontendRuntimeDiagnostics,
   readRuntimeProbeConfig
@@ -28,6 +29,123 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.alerts.targetLabel).toBe("/api/alerts local bridge");
     expect(diagnostics.localBridge.backendTargetLabel).toBe("http://localhost:4001");
     expect(diagnostics.localBridge.configured).toBe(true);
+  });
+
+  it("derives a verified Postgres alerts cutover status only when frontend and backend agree", () => {
+    const diagnostics = readFrontendRuntimeDiagnostics({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    const status = deriveAlertsEndToEndRuntimeStatus(diagnostics, {
+      enabled: true,
+      status: "reachable",
+      targetLabel: "http://localhost:4000",
+      health: {
+        ok: true,
+        status: "ok",
+        service: "api",
+        version: "0.1.0",
+        timestamp: "2026-04-16T00:00:00.000Z",
+        runtime: {
+          service: "api",
+          mode: {
+            defaultMode: "in-memory",
+            requestedMode: "postgres",
+            effectiveMode: "in-memory",
+            safeFallbackActive: true
+          },
+          database: {
+            configured: true,
+            selectedAdapter: "in-memory",
+            requestedAdapter: "postgres",
+            postgresAdaptersEnabled: true,
+            runtimeSwitchEnabled: false,
+            healthcheckOnBoot: false,
+            connectivity: {
+              status: "configured_only",
+              message: "Config present."
+            }
+          },
+          alerts: {
+            workbenchCutoverAvailable: true,
+            postgresReadCutoverAvailable: true,
+            postgresWriteCutoverAvailable: true,
+            requestedAdapter: "postgres",
+            effectiveAdapter: "postgres",
+            runtimeSwitchEnabled: true,
+            cutoverActive: true,
+            databaseConfigured: true,
+            connectivityStatus: "configured_only",
+            localBridgeExpectedPath: "/api/alerts",
+            localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+            warnings: []
+          },
+          aiExplanations: {
+            advisoryOnly: true,
+            mode: "fallback",
+            configured: false,
+            modelLabel: "gpt-5-nano",
+            cacheEnabled: true,
+            attachmentAvailable: true,
+            feedbackEnabled: true,
+            warnings: []
+          },
+          warnings: []
+        }
+      },
+      runtime: {
+        service: "api",
+        mode: {
+          defaultMode: "in-memory",
+          requestedMode: "postgres",
+          effectiveMode: "in-memory",
+          safeFallbackActive: true
+        },
+        database: {
+          configured: true,
+          selectedAdapter: "in-memory",
+          requestedAdapter: "postgres",
+          postgresAdaptersEnabled: true,
+          runtimeSwitchEnabled: false,
+          healthcheckOnBoot: false,
+          connectivity: {
+            status: "configured_only",
+            message: "Config present."
+          }
+        },
+        alerts: {
+          workbenchCutoverAvailable: true,
+          postgresReadCutoverAvailable: true,
+          postgresWriteCutoverAvailable: true,
+          requestedAdapter: "postgres",
+          effectiveAdapter: "postgres",
+          runtimeSwitchEnabled: true,
+          cutoverActive: true,
+          databaseConfigured: true,
+          connectivityStatus: "configured_only",
+          localBridgeExpectedPath: "/api/alerts",
+          localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+          warnings: []
+        },
+        aiExplanations: {
+          advisoryOnly: true,
+          mode: "fallback",
+          configured: false,
+          modelLabel: "gpt-5-nano",
+          cacheEnabled: true,
+          attachmentAvailable: true,
+          feedbackEnabled: true,
+          warnings: []
+        },
+        warnings: []
+      },
+      warnings: []
+    });
+
+    expect(status.cutoverActive).toBe(true);
+    expect(status.backendAdapter).toBe("postgres");
+    expect(status.statusLabel).toBe("HTTP + Postgres alerts cutover verified");
   });
 
   it("keeps backend probing disabled by default", () => {
@@ -75,7 +193,15 @@ describe("Frontend runtime diagnostics", () => {
                   workbenchCutoverAvailable: true,
                   postgresReadCutoverAvailable: true,
                   postgresWriteCutoverAvailable: true,
-                  localBridgeExpectedPath: "/api/alerts"
+                  requestedAdapter: "in-memory",
+                  effectiveAdapter: "in-memory",
+                  runtimeSwitchEnabled: true,
+                  cutoverActive: false,
+                  databaseConfigured: false,
+                  connectivityStatus: "not_attempted",
+                  localBridgeExpectedPath: "/api/alerts",
+                  localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+                  warnings: []
                 },
                 warnings: []
               }
@@ -107,7 +233,15 @@ describe("Frontend runtime diagnostics", () => {
               workbenchCutoverAvailable: true,
               postgresReadCutoverAvailable: true,
               postgresWriteCutoverAvailable: true,
-              localBridgeExpectedPath: "/api/alerts"
+              requestedAdapter: "in-memory",
+              effectiveAdapter: "in-memory",
+              runtimeSwitchEnabled: true,
+              cutoverActive: false,
+              databaseConfigured: false,
+              connectivityStatus: "not_attempted",
+              localBridgeExpectedPath: "/api/alerts",
+              localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+              warnings: []
             },
             warnings: []
           }),

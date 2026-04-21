@@ -9,6 +9,12 @@ export interface AlertsLocalProxyEnv {
   readonly [key: string]: string | undefined;
 }
 
+export interface LocalApiProxyOptions {
+  readonly unavailableCode: string;
+  readonly unavailableMessage: (backendBaseUrl: string) => string;
+  readonly routePrefixHeaderValue?: string;
+}
+
 function normalizeBackendBaseUrl(value: string | undefined): string | undefined {
   const trimmedValue = value?.trim();
   if (!trimmedValue) {
@@ -58,9 +64,10 @@ function createForwardHeaders(request: Request): Headers {
   return headers;
 }
 
-export async function proxyAlertsApiRequest(
+async function proxyLocalApiRequest(
   request: Request,
-  config: AlertsLocalProxyConfig = readAlertsLocalProxyConfig()
+  config: AlertsLocalProxyConfig,
+  options: LocalApiProxyOptions
 ): Promise<Response> {
   const targetUrl = buildAlertsProxyTargetUrl(request, config);
   try {
@@ -81,16 +88,40 @@ export async function proxyAlertsApiRequest(
       {
         ok: false,
         error: {
-          code: "ALERTS_LOCAL_PROXY_UNAVAILABLE",
-          message: `Alerts local proxy could not reach ${config.backendBaseUrl}. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL.`
+          code: options.unavailableCode,
+          message: options.unavailableMessage(config.backendBaseUrl)
         }
       },
       {
         status: 502,
         headers: {
-          "x-aquapulse-alerts-proxy": "local"
+          "x-aquapulse-alerts-proxy": options.routePrefixHeaderValue ?? "local"
         }
       }
     );
   }
+}
+
+export async function proxyAlertsApiRequest(
+  request: Request,
+  config: AlertsLocalProxyConfig = readAlertsLocalProxyConfig()
+): Promise<Response> {
+  return proxyLocalApiRequest(request, config, {
+    unavailableCode: "ALERTS_LOCAL_PROXY_UNAVAILABLE",
+    unavailableMessage: (backendBaseUrl) =>
+      `Alerts local proxy could not reach ${backendBaseUrl}. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL.`,
+    routePrefixHeaderValue: "local"
+  });
+}
+
+export async function proxyAiAlertsApiRequest(
+  request: Request,
+  config: AlertsLocalProxyConfig = readAlertsLocalProxyConfig()
+): Promise<Response> {
+  return proxyLocalApiRequest(request, config, {
+    unavailableCode: "AI_ALERTS_LOCAL_PROXY_UNAVAILABLE",
+    unavailableMessage: (backendBaseUrl) =>
+      `AI alerts local proxy could not reach ${backendBaseUrl}. Start the API server or update AQUAPULSE_WEB_LOCAL_API_BACKEND_URL.`,
+    routePrefixHeaderValue: "local-ai"
+  });
 }

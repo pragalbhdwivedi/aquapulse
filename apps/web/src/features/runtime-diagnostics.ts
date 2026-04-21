@@ -30,6 +30,17 @@ export interface RuntimeProbeConfig {
   readonly warnings: readonly RuntimeWarning[];
 }
 
+export interface AlertsEndToEndRuntimeStatus {
+  readonly requestedMode: FrontendRuntimeDiagnostics["alerts"]["requestedMode"];
+  readonly effectiveFrontendMode: FrontendRuntimeDiagnostics["alerts"]["effectiveMode"];
+  readonly backendReachability: BackendRuntimeProbeDiagnostics["status"] | "not_requested";
+  readonly backendAdapter: BackendRuntimeDiagnostics["alerts"]["effectiveAdapter"] | "unknown";
+  readonly localBridgeActive: boolean;
+  readonly cutoverActive: boolean;
+  readonly statusLabel: string;
+  readonly warnings: readonly RuntimeWarning[];
+}
+
 function parseBooleanFlag(value: string | undefined): boolean {
   const normalizedValue = value?.trim().toLowerCase();
   return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "yes" || normalizedValue === "on";
@@ -75,6 +86,85 @@ export function readRuntimeProbeConfig(
     enabled,
     timeoutMs,
     targetBaseUrl: localBridgeConfig.backendBaseUrl,
+    warnings
+  };
+}
+
+export function deriveAlertsEndToEndRuntimeStatus(
+  diagnostics: FrontendRuntimeDiagnostics,
+  backendProbe?: BackendRuntimeProbeDiagnostics
+): AlertsEndToEndRuntimeStatus {
+  const warnings: RuntimeWarning[] = [...diagnostics.warnings, ...(backendProbe?.warnings ?? [])];
+  const backendReachability = backendProbe?.status ?? "not_requested";
+  const backendAdapter = backendProbe?.runtime?.alerts.effectiveAdapter ?? "unknown";
+  const cutoverActive =
+    diagnostics.alerts.effectiveMode === "http" &&
+    (backendProbe?.status === "reachable" || backendProbe?.status === "partial") &&
+    backendProbe?.runtime?.alerts.cutoverActive === true;
+
+  if (diagnostics.alerts.effectiveMode !== "http") {
+    return {
+      requestedMode: diagnostics.alerts.requestedMode,
+      effectiveFrontendMode: diagnostics.alerts.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.alerts.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "Mock runtime active",
+      warnings
+    };
+  }
+
+  if (!backendProbe || backendProbe.status === "disabled") {
+    return {
+      requestedMode: diagnostics.alerts.requestedMode,
+      effectiveFrontendMode: diagnostics.alerts.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.alerts.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "HTTP mode requested; backend adapter not yet verified",
+      warnings
+    };
+  }
+
+  if (backendProbe.status === "unreachable") {
+    return {
+      requestedMode: diagnostics.alerts.requestedMode,
+      effectiveFrontendMode: diagnostics.alerts.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.alerts.usesLocalProxy,
+      cutoverActive: false,
+      statusLabel: "HTTP mode active; backend not reached",
+      warnings
+    };
+  }
+
+  if (cutoverActive) {
+    return {
+      requestedMode: diagnostics.alerts.requestedMode,
+      effectiveFrontendMode: diagnostics.alerts.effectiveMode,
+      backendReachability,
+      backendAdapter,
+      localBridgeActive: diagnostics.alerts.usesLocalProxy,
+      cutoverActive,
+      statusLabel: "HTTP + Postgres alerts cutover verified",
+      warnings
+    };
+  }
+
+  return {
+    requestedMode: diagnostics.alerts.requestedMode,
+    effectiveFrontendMode: diagnostics.alerts.effectiveMode,
+    backendReachability,
+    backendAdapter,
+    localBridgeActive: diagnostics.alerts.usesLocalProxy,
+    cutoverActive: false,
+    statusLabel:
+      backendAdapter === "in-memory"
+        ? "HTTP mode active; backend alerts still use in-memory"
+        : "HTTP mode active; backend alerts cutover not fully verified",
     warnings
   };
 }

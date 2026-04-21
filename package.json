@@ -6,6 +6,7 @@
   "scripts": {
     "typecheck": "corepack pnpm --filter @aquapulse/types typecheck && corepack pnpm --filter @aquapulse/validation typecheck && corepack pnpm --filter @aquapulse/api typecheck && corepack pnpm --filter @aquapulse/web typecheck",
     "test:contracts": "corepack pnpm exec vitest run",
+    "alerts:verify-runtime": "node ./scripts/verify-alerts-runtime.mjs",
     "db:migrations:list": "corepack pnpm --filter @aquapulse/database db:migrations:list",
     "db:migrations:verify": "corepack pnpm --filter @aquapulse/database db:migrations:verify",
     "db:migrations:show": "corepack pnpm --filter @aquapulse/database db:migrations:show"

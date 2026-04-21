@@ -2,6 +2,7 @@ import type {
   BackendRuntimeProbeDiagnostics,
   FrontendRuntimeDiagnostics
 } from "@aquapulse/types";
+import { deriveAlertsEndToEndRuntimeStatus } from "@web/features/runtime-diagnostics";
 
 export function RuntimeDiagnosticsCard({
   diagnostics,
@@ -12,6 +13,8 @@ export function RuntimeDiagnosticsCard({
   backendProbe?: BackendRuntimeProbeDiagnostics;
   title?: string;
 }) {
+  const alertsEndToEnd = deriveAlertsEndToEndRuntimeStatus(diagnostics, backendProbe);
+
   return (
     <section
       style={{
@@ -33,6 +36,7 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Local bridge target: {diagnostics.localBridge.backendTargetLabel}</span>
+        <span>Alerts cutover status: {alertsEndToEnd.statusLabel}</span>
       </div>
       <div style={{ display: "grid", gap: "0.25rem", color: "#cbd5e1" }}>
         <span>
@@ -61,6 +65,16 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime ? (
           <span>
+            Backend alerts adapter: {backendProbe.runtime.alerts.effectiveAdapter} / Requested: {backendProbe.runtime.alerts.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.alerts.cutoverActive ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime ? (
+          <span>
+            Local bridges: {backendProbe.runtime.alerts.localBridgeExpectedPath} and {backendProbe.runtime.alerts.localAiExplainBridgeExpectedPath}
+          </span>
+        ) : null}
+        {backendProbe?.runtime ? (
+          <span>
             AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"}
           </span>
         ) : null}
@@ -82,6 +96,13 @@ export function RuntimeDiagnosticsCard({
       ) : (
         <span style={{ color: "#86efac" }}>Runtime config is using safe defaults with no active warnings.</span>
       )}
+      {backendProbe?.runtime?.alerts.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.alerts.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
       {backendProbe?.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.warnings.map((warning) => (
