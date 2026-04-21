@@ -488,8 +488,9 @@ export function AlertsActionList({
           </span>
           <span style={{ color: "#94a3b8" }}>
             Session bootstrap enabled: {session.bootstrapEnabled ? "yes" : "no"}. UI state:{" "}
-            {session.protectedOperatorUiState}. Secondary guarded slice:{" "}
-            {session.secondaryGuardedSliceLabel ?? "none"}.
+            {session.protectedOperatorUiState}. Secondary slice:{" "}
+            {session.secondaryGuardedSliceLabel ?? authDiagnostics.secondaryProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {session.secondaryGuardedSliceEnforced || authDiagnostics.secondaryProtectedSliceEnforced ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
             Session source: {session.sourceOfTruth}. Endpoint: {session.currentSessionEndpointStatus}. Current user:{" "}

@@ -20,6 +20,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.bypassActive).toBe(true);
     expect(diagnostics.auth.firstProtectedSliceLabel).toBe("runtime_diagnostics_api");
     expect(diagnostics.auth.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
+    expect(diagnostics.auth.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
@@ -65,6 +66,7 @@ describe("Frontend runtime diagnostics", () => {
 
     expect(diagnostics.auth.effectiveMode).toBe("keycloak");
     expect(diagnostics.auth.protectedOperatorSliceEnforced).toBe(true);
+    expect(diagnostics.auth.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
@@ -648,6 +650,8 @@ describe("Frontend runtime diagnostics", () => {
                   firstProtectedSliceEnforced: false,
                   protectedOperatorSliceLabel: "alerts_lifecycle_actions",
                   protectedOperatorSliceEnforced: false,
+                  secondaryProtectedSliceLabel: "alerts_triage_actions",
+                  secondaryProtectedSliceEnforced: false,
                   forwardingMode: "bypassed",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
@@ -723,6 +727,8 @@ describe("Frontend runtime diagnostics", () => {
               firstProtectedSliceEnforced: false,
               protectedOperatorSliceLabel: "alerts_lifecycle_actions",
               protectedOperatorSliceEnforced: false,
+              secondaryProtectedSliceLabel: "alerts_triage_actions",
+              secondaryProtectedSliceEnforced: false,
               forwardingMode: "bypassed",
               forwardingActive: false,
               forwardedAuthPresent: false,
@@ -842,6 +848,8 @@ describe("Frontend runtime diagnostics", () => {
                   firstProtectedSliceEnforced: true,
                   protectedOperatorSliceLabel: "alerts_lifecycle_actions",
                   protectedOperatorSliceEnforced: true,
+                  secondaryProtectedSliceLabel: "alerts_triage_actions",
+                  secondaryProtectedSliceEnforced: true,
                   forwardingMode: "unavailable",
                   forwardingActive: false,
                   forwardedAuthPresent: false,

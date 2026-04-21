@@ -172,6 +172,8 @@ describe("HTTP route-handler parity", () => {
         sessionPresent: false,
         protectedOperatorSliceLabel: "alerts_lifecycle_actions",
         protectedOperatorSliceEnforced: false,
+        secondaryProtectedSliceLabel: "alerts_triage_actions",
+        secondaryProtectedSliceEnforced: false,
         verificationState: "disabled",
         warnings: []
       })

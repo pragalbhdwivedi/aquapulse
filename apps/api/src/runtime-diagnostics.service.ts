@@ -289,6 +289,8 @@ export class RuntimeDiagnosticsService {
       firstProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       protectedOperatorSliceLabel: "alerts_lifecycle_actions",
       protectedOperatorSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      secondaryProtectedSliceLabel: "alerts_triage_actions",
+      secondaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -311,6 +313,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_OPERATOR_SLICE_ACTIVE",
         message:
           "Alerts lifecycle actions now require verified auth in Keycloak mode. Local and disabled modes still keep the operator flow usable for bounded development."
+      });
+      authWarnings.push({
+        code: "AUTH_TRIAGE_SLICE_ACTIVE",
+        message:
+          "Alerts triage actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded triage flow usable for development."
       });
     }
 

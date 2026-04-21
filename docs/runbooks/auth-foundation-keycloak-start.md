@@ -66,8 +66,10 @@ x-aquapulse-dev-permissions
 - The first bounded protected slice is `GET /diagnostics/runtime`.
 - The first protected operator action slice is `alerts lifecycle actions`:
   `POST /alerts/:id/acknowledge` and `POST /alerts/:id/resolve`.
+- The second protected operator slice is `alerts triage actions`:
+  `POST /alerts/:id/assign`, `POST /alerts/:id/unassign`, and `POST /alerts/:id/review-state`.
 - The alerts workbench now reflects bounded operator guarding in the UI:
-  lifecycle actions are disabled when Keycloak mode is active but no forwarded auth session is available, and adjacent triage controls follow the same bounded UI guard for clarity.
+  lifecycle and triage actions are disabled when Keycloak mode is active but no forwarded auth session is available, while disabled/local modes continue to use the safe bounded bypass path.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
 
 ## Web-to-API token forwarding
@@ -109,6 +111,7 @@ Safe payload scope:
 - current user id/display name/username/email when available
 - active roles and permissions
 - protected operator slice label/enforcement
+- secondary protected operator slice label/enforcement
 - safe warnings
 
 What is intentionally not exposed:
@@ -119,6 +122,7 @@ What is intentionally not exposed:
 - login/logout flows
 
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
+Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state.
 
 ## Intentionally deferred in this branch
 

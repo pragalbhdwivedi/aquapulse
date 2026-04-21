@@ -239,6 +239,8 @@ export class AlertsController {
   }
 
   @Post(":id/assign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async assign(
     @Param("id") id: string,
     @Body() input: AssignAlertDto
@@ -253,6 +255,8 @@ export class AlertsController {
   }
 
   @Post(":id/unassign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async unassign(
     @Param("id") id: string,
     @Body() input: UnassignAlertDto
@@ -267,6 +271,8 @@ export class AlertsController {
   }
 
   @Post(":id/review-state")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async setReviewState(
     @Param("id") id: string,
     @Body() input: SetAlertReviewStateDto

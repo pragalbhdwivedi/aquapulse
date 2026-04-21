@@ -29,6 +29,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.verificationStatus).toBe("disabled");
     expect(diagnostics.auth?.protectedOperatorSliceLabel).toBe("alerts_lifecycle_actions");
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
+    expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(false);
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -96,7 +98,11 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_OPERATOR_SLICE_ACTIVE"
     );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_TRIAGE_SLICE_ACTIVE"
+    );
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(true);
+    expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(true);
   });
 
   it("shows alerts cutover as active when Postgres adapters are enabled for the alerts module", () => {

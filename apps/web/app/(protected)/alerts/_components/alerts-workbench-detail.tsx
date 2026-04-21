@@ -79,8 +79,7 @@ export function AlertsWorkbenchDetail({
 }: AlertsWorkbenchDetailProps) {
   const lifecycleGuard = deriveProtectedOperatorUiGuard(session);
   const triageGuard = deriveProtectedOperatorUiGuard(session, {
-    sliceLabel: session.secondaryGuardedSliceLabel,
-    enforcedByBackend: false
+    sliceLabel: session.secondaryGuardedSliceLabel
   });
 
   return (
