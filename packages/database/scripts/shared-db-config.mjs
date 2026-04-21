@@ -13,6 +13,7 @@ function parseNumber(value, fallback) {
 
 export function readSmokeDatabaseConfig(env = process.env) {
   const sslMode =
+    env.AQUAPULSE_TASKS_SMOKE_DB_SSL_MODE ??
     env.AQUAPULSE_FEED_SMOKE_DB_SSL_MODE ??
     env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_SSL_MODE ??
     env.AQUAPULSE_ALERTS_SMOKE_DB_SSL_MODE ??
@@ -21,31 +22,36 @@ export function readSmokeDatabaseConfig(env = process.env) {
 
   return {
     host:
+      env.AQUAPULSE_TASKS_SMOKE_DB_HOST ??
       env.AQUAPULSE_FEED_SMOKE_DB_HOST ??
       env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_HOST ??
       env.AQUAPULSE_ALERTS_SMOKE_DB_HOST ??
       env.DATABASE_HOST ??
       "localhost",
     port: parseNumber(
-      env.AQUAPULSE_FEED_SMOKE_DB_PORT ??
+      env.AQUAPULSE_TASKS_SMOKE_DB_PORT ??
+        env.AQUAPULSE_FEED_SMOKE_DB_PORT ??
         env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_PORT ??
         env.AQUAPULSE_ALERTS_SMOKE_DB_PORT ??
         env.DATABASE_PORT,
       54329
     ),
     database:
+      env.AQUAPULSE_TASKS_SMOKE_DB_NAME ??
       env.AQUAPULSE_FEED_SMOKE_DB_NAME ??
       env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_NAME ??
       env.AQUAPULSE_ALERTS_SMOKE_DB_NAME ??
       env.DATABASE_NAME ??
       "aquapulse",
     user:
+      env.AQUAPULSE_TASKS_SMOKE_DB_USER ??
       env.AQUAPULSE_FEED_SMOKE_DB_USER ??
       env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_USER ??
       env.AQUAPULSE_ALERTS_SMOKE_DB_USER ??
       env.DATABASE_USER ??
       "aquapulse",
     password:
+      env.AQUAPULSE_TASKS_SMOKE_DB_PASSWORD ??
       env.AQUAPULSE_FEED_SMOKE_DB_PASSWORD ??
       env.AQUAPULSE_WATER_QUALITY_SMOKE_DB_PASSWORD ??
       env.AQUAPULSE_ALERTS_SMOKE_DB_PASSWORD ??

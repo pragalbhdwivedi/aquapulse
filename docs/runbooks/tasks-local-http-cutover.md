@@ -2,6 +2,9 @@
 
 This runbook explains the tasks-only opt-in HTTP path. AquaPulse still defaults to mock and in-memory runtime unless you explicitly enable the tasks cutover.
 
+For a known-good local Postgres dataset, use
+`docs/runbooks/tasks-local-postgres-smoke-stack.md` alongside this runbook.
+
 ## Default behavior
 
 - The web app stays mock-backed by default.
@@ -54,6 +57,7 @@ AQUAPULSE_TASKS_VERIFY_API_BASE_URL=http://localhost:4000
 AQUAPULSE_TASKS_VERIFY_EXPECT_BACKEND_ADAPTER=postgres
 AQUAPULSE_TASKS_VERIFY_TASK_ID=task-1
 AQUAPULSE_TASKS_VERIFY_POND_ID=pond-1
+AQUAPULSE_TASKS_VERIFY_EXPECT_SEEDED_SMOKE=false
 ```
 
 The verifier checks:

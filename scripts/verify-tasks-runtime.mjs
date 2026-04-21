@@ -13,6 +13,18 @@ const pondId =
   (process.env.AQUAPULSE_TASKS_VERIFY_POND_ID ?? "pond-1").trim() || "pond-1";
 const existingTaskId =
   (process.env.AQUAPULSE_TASKS_VERIFY_TASK_ID ?? "task-1").trim() || "task-1";
+const expectSeededSmoke = parseBoolean(
+  process.env.AQUAPULSE_TASKS_VERIFY_EXPECT_SEEDED_SMOKE
+);
+
+function parseBoolean(value) {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
 
 function normalizeBaseUrl(value) {
   const trimmed = value.trim();
@@ -47,6 +59,38 @@ async function readJsonResponse(url, init = {}) {
   }
 
   return body;
+}
+
+function verifySeededSmokeExpectations({ list, seededDetail }) {
+  if (!Array.isArray(list.data.items) || list.data.items.length !== 3) {
+    throw new Error(
+      `Seeded smoke verification expected exactly 3 pond-scoped tasks, received ${list?.data?.items?.length ?? "unknown"}.`
+    );
+  }
+
+  if (list.data.items[0]?.id !== existingTaskId) {
+    throw new Error(
+      `Seeded smoke verification expected the latest pond task ${existingTaskId}, received ${list.data.items[0]?.id}.`
+    );
+  }
+
+  if (seededDetail.data.pondId !== pondId) {
+    throw new Error(
+      `Seeded smoke verification expected detail pond ${pondId}, received ${seededDetail.data.pondId}.`
+    );
+  }
+
+  if (seededDetail.data.id !== existingTaskId) {
+    throw new Error(
+      `Seeded smoke verification expected detail id ${existingTaskId}, received ${seededDetail.data.id}.`
+    );
+  }
+
+  if (seededDetail.data.status !== "todo" || seededDetail.data.assigneeId !== "user-1") {
+    throw new Error("Seeded smoke verification found unexpected latest task values.");
+  }
+
+  logStep("Seeded smoke dataset assertions passed.");
 }
 
 async function main() {
@@ -126,6 +170,10 @@ async function main() {
 
   if (detail?.data?.id !== created?.data?.id) {
     throw new Error("Tasks detail verification did not return the created task.");
+  }
+
+  if (expectSeededSmoke) {
+    verifySeededSmokeExpectations({ list, seededDetail });
   }
 
   logStep(

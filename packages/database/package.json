@@ -14,7 +14,9 @@
     "db:seed:water-quality-smoke": "node ./scripts/seed-water-quality-smoke.mjs",
     "db:prepare:water-quality-smoke": "node ./scripts/prepare-water-quality-smoke.mjs",
     "db:seed:feed-smoke": "node ./scripts/seed-feed-smoke.mjs",
-    "db:prepare:feed-smoke": "node ./scripts/prepare-feed-smoke.mjs"
+    "db:prepare:feed-smoke": "node ./scripts/prepare-feed-smoke.mjs",
+    "db:seed:tasks-smoke": "node ./scripts/seed-tasks-smoke.mjs",
+    "db:prepare:tasks-smoke": "node ./scripts/prepare-tasks-smoke.mjs"
   },
   "dependencies": {
     "@aquapulse/types": "workspace:*",

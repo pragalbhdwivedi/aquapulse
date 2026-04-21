@@ -16,6 +16,8 @@
     "water-quality:smoke:db:down": "docker compose -f ./infra/local/alerts-smoke.compose.yaml down",
     "feed:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",
     "feed:smoke:db:down": "docker compose -f ./infra/local/alerts-smoke.compose.yaml down",
+    "tasks:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",
+    "tasks:smoke:db:down": "docker compose -f ./infra/local/alerts-smoke.compose.yaml down",
     "alerts:smoke:db:migrate": "corepack pnpm --filter @aquapulse/database db:migrations:apply",
     "alerts:smoke:db:seed": "corepack pnpm --filter @aquapulse/database db:seed:alerts-smoke",
     "alerts:smoke:db:prepare": "corepack pnpm --filter @aquapulse/database db:prepare:alerts-smoke",
@@ -23,6 +25,8 @@
     "water-quality:smoke:db:prepare": "corepack pnpm --filter @aquapulse/database db:prepare:water-quality-smoke",
     "feed:smoke:db:seed": "corepack pnpm --filter @aquapulse/database db:seed:feed-smoke",
     "feed:smoke:db:prepare": "corepack pnpm --filter @aquapulse/database db:prepare:feed-smoke",
+    "tasks:smoke:db:seed": "corepack pnpm --filter @aquapulse/database db:seed:tasks-smoke",
+    "tasks:smoke:db:prepare": "corepack pnpm --filter @aquapulse/database db:prepare:tasks-smoke",
     "db:migrations:list": "corepack pnpm --filter @aquapulse/database db:migrations:list",
     "db:migrations:verify": "corepack pnpm --filter @aquapulse/database db:migrations:verify",
     "db:migrations:show": "corepack pnpm --filter @aquapulse/database db:migrations:show"
