@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { FeedEntry } from "@aquapulse/types";
+import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import { createRepositoriesFromConfig } from "@web/repositories";
+import {
+  deriveFeedRuntimeIndicator,
+  formatFeedRuntimeError
+} from "@web/features/feed-runtime";
 import {
   cancelInlineEdit,
   completeInlineEdit,
@@ -11,7 +17,10 @@ import {
   startInlineEdit
 } from "@web/features/inline-edit";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
-import { submitFeedUpdate } from "@web/features/feed-update";
+import {
+  createFeedUpdateSubmitter,
+  type FeedUpdateSubmissionResult
+} from "@web/features/feed-update";
 
 interface FeedUpdateFormProps {
   readonly feedEntry: FeedEntry;
@@ -26,8 +35,35 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
       batchId: feedEntry.batchId ?? ""
     })
   );
-  const [result, setResult] = useState<Awaited<ReturnType<typeof submitFeedUpdate>> | null>(null);
+  const [result, setResult] = useState<FeedUpdateSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const runtimeConfig = useMemo(
+    () =>
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT
+      }),
+    []
+  );
+  const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
+  const submitFeed = useMemo(
+    () => createFeedUpdateSubmitter(repositories)(feedEntry.id),
+    [repositories, feedEntry.id]
+  );
+  const runtimeIndicator = useMemo(
+    () => deriveFeedRuntimeIndicator(runtimeConfig),
+    [runtimeConfig]
+  );
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
 
@@ -36,30 +72,35 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
       onSubmit={async (event) => {
         event.preventDefault();
         setIsSubmitting(true);
+        setRuntimeError(null);
 
-        const submission = await submitFeedUpdate(feedEntry.id, {
-          feedType: draft.feedType,
-          quantityKg: draft.quantityKg ? Number(draft.quantityKg) : 0,
-          fedAt: draft.fedAt,
-          batchId: draft.batchId || undefined
-        });
+        try {
+          const submission = await submitFeed({
+            feedType: draft.feedType,
+            quantityKg: draft.quantityKg ? Number(draft.quantityKg) : 0,
+            fedAt: draft.fedAt,
+            batchId: draft.batchId || undefined
+          });
 
-        setResult(submission);
-        if (submission.status === "success") {
-          setInlineEdit((state) =>
-            completeInlineEdit(
-              state,
-              {
-                feedType: submission.data.feedType,
-                quantityKg: String(submission.data.quantityKg),
-                fedAt: submission.data.fedAt,
-                batchId: submission.data.batchId ?? ""
-              },
-              "Feed entry updated."
-            )
-          );
-        } else if (submission.status === "validation_error") {
-          setInlineEdit((state) => failInlineEdit(state, "Please review the feed entry details."));
+          setResult(submission);
+          if (submission.status === "success") {
+            setInlineEdit((state) =>
+              completeInlineEdit(
+                state,
+                {
+                  feedType: submission.data.feedType,
+                  quantityKg: String(submission.data.quantityKg),
+                  fedAt: submission.data.fedAt,
+                  batchId: submission.data.batchId ?? ""
+                },
+                "Feed entry updated."
+              )
+            );
+          } else if (submission.status === "validation_error") {
+            setInlineEdit((state) => failInlineEdit(state, "Please review the feed entry details."));
+          }
+        } catch (error) {
+          setRuntimeError(formatFeedRuntimeError(error, runtimeConfig));
         }
         setIsSubmitting(false);
       }}
@@ -74,6 +115,26 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Update latest feed entry</h2>
+      <div
+        style={{
+          display: "grid",
+          gap: "0.25rem",
+          padding: "0.65rem 0.8rem",
+          borderRadius: "0.65rem",
+          background: "rgba(30, 41, 59, 0.45)",
+          color: "#cbd5e1"
+        }}
+      >
+        <span>
+          Feed runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
+        </span>
+        <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        {runtimeIndicator.warnings.map((warning) => (
+          <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
+            {warning.message}
+          </span>
+        ))}
+      </div>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
@@ -164,6 +225,7 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           Updated feed: {pageState.data?.feedType}. Refreshed entries: {pageState.refreshedList?.items.length ?? 0}. Synced detail: {pageState.refreshedDetail?.id ?? "n/a"}.
         </p>
       ) : null}
+      {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
     </form>
   );
 }

@@ -1239,6 +1239,16 @@ export interface AlertsRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface FeedRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface WaterQualityRuntimeDiagnostics {
   readonly requestedMode: "mock" | "http" | "inherit";
   readonly effectiveMode: "mock" | "http";
@@ -1261,6 +1271,7 @@ export interface FrontendRuntimeDiagnostics {
   readonly service: "web";
   readonly mode: RuntimeModeSummary;
   readonly alerts: AlertsRuntimeDiagnostics;
+  readonly feed: FeedRuntimeDiagnostics;
   readonly waterQuality: WaterQualityRuntimeDiagnostics;
   readonly localBridge: LocalBridgeDiagnostics;
   readonly warnings: RuntimeWarning[];
@@ -1304,6 +1315,19 @@ export interface BackendWaterQualityRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface BackendFeedRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly localBridgeExpectedPath: string;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
@@ -1319,6 +1343,7 @@ export interface BackendRuntimeDiagnostics {
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;
+  readonly feed?: BackendFeedRuntimeDiagnostics;
   readonly waterQuality: BackendWaterQualityRuntimeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }

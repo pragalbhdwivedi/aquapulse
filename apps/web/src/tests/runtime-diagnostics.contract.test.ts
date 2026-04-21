@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   deriveAlertsEndToEndRuntimeStatus,
+  deriveFeedEndToEndRuntimeStatus,
   deriveWaterQualityEndToEndRuntimeStatus,
   probeBackendRuntimeDiagnostics,
   readFrontendRuntimeDiagnostics,
@@ -15,6 +16,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.mode.effectiveMode).toBe("mock");
     expect(diagnostics.mode.safeFallbackActive).toBe(true);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
+    expect(diagnostics.feed.effectiveMode).toBe("mock");
     expect(diagnostics.waterQuality.effectiveMode).toBe("mock");
     expect(diagnostics.localBridge.backendTargetLabel).toBe("http://localhost:4000");
   });
@@ -31,6 +33,21 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.alerts.targetLabel).toBe("/api/alerts local bridge");
     expect(diagnostics.waterQuality.effectiveMode).toBe("mock");
     expect(diagnostics.localBridge.backendTargetLabel).toBe("http://localhost:4001");
+    expect(diagnostics.localBridge.configured).toBe(true);
+  });
+
+  it("represents feed-only HTTP proxy mode and bridge assumptions consistently", () => {
+    const diagnostics = readFrontendRuntimeDiagnostics({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: "http://localhost:4003"
+    });
+
+    expect(diagnostics.alerts.effectiveMode).toBe("mock");
+    expect(diagnostics.feed.effectiveMode).toBe("http");
+    expect(diagnostics.feed.transport).toBe("proxy");
+    expect(diagnostics.feed.targetLabel).toBe("/api/feed local bridge");
+    expect(diagnostics.localBridge.backendTargetLabel).toBe("http://localhost:4003");
     expect(diagnostics.localBridge.configured).toBe(true);
   });
 
@@ -325,6 +342,93 @@ describe("Frontend runtime diagnostics", () => {
     expect(status.cutoverActive).toBe(true);
     expect(status.backendAdapter).toBe("postgres");
     expect(status.statusLabel).toBe("HTTP + Postgres water-quality cutover verified");
+  });
+
+  it("derives a verified Postgres feed cutover status only when frontend and backend agree", () => {
+    const diagnostics = readFrontendRuntimeDiagnostics({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    const status = deriveFeedEndToEndRuntimeStatus(diagnostics, {
+      enabled: true,
+      status: "reachable",
+      targetLabel: "http://localhost:4000",
+      runtime: {
+        service: "api",
+        mode: {
+          defaultMode: "in-memory",
+          requestedMode: "postgres",
+          effectiveMode: "in-memory",
+          safeFallbackActive: true
+        },
+        database: {
+          configured: true,
+          selectedAdapter: "in-memory",
+          requestedAdapter: "postgres",
+          postgresAdaptersEnabled: true,
+          runtimeSwitchEnabled: false,
+          healthcheckOnBoot: false,
+          connectivity: {
+            status: "configured_only",
+            message: "Config present."
+          }
+        },
+        alerts: {
+          workbenchCutoverAvailable: true,
+          postgresReadCutoverAvailable: true,
+          postgresWriteCutoverAvailable: true,
+          requestedAdapter: "postgres",
+          effectiveAdapter: "in-memory",
+          runtimeSwitchEnabled: true,
+          cutoverActive: false,
+          databaseConfigured: true,
+          connectivityStatus: "configured_only",
+          localBridgeExpectedPath: "/api/alerts",
+          localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+          warnings: []
+        },
+        feed: {
+          postgresReadCutoverAvailable: true,
+          postgresWriteCutoverAvailable: true,
+          requestedAdapter: "postgres",
+          effectiveAdapter: "postgres",
+          runtimeSwitchEnabled: true,
+          cutoverActive: true,
+          databaseConfigured: true,
+          connectivityStatus: "configured_only",
+          localBridgeExpectedPath: "/api/feed",
+          warnings: []
+        },
+        waterQuality: {
+          postgresReadCutoverAvailable: true,
+          postgresWriteCutoverAvailable: true,
+          requestedAdapter: "postgres",
+          effectiveAdapter: "in-memory",
+          runtimeSwitchEnabled: true,
+          cutoverActive: false,
+          databaseConfigured: true,
+          connectivityStatus: "configured_only",
+          warnings: []
+        },
+        aiExplanations: {
+          advisoryOnly: true,
+          mode: "fallback",
+          configured: false,
+          modelLabel: "gpt-5-nano",
+          cacheEnabled: true,
+          attachmentAvailable: true,
+          feedbackEnabled: true,
+          warnings: []
+        },
+        warnings: []
+      },
+      warnings: []
+    });
+
+    expect(status.cutoverActive).toBe(true);
+    expect(status.backendAdapter).toBe("postgres");
+    expect(status.statusLabel).toBe("HTTP + Postgres feed cutover verified");
   });
 
   it("keeps backend probing disabled by default", () => {

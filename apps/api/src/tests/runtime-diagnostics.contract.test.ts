@@ -34,12 +34,19 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alerts.effectiveAdapter).toBe("in-memory");
     expect(diagnostics.alerts.cutoverActive).toBe(false);
     expect(diagnostics.alerts.connectivityStatus).toBe("configured_only");
+    expect(diagnostics.feed?.requestedAdapter).toBe("postgres");
+    expect(diagnostics.feed?.effectiveAdapter).toBe("in-memory");
+    expect(diagnostics.feed?.cutoverActive).toBe(false);
+    expect(diagnostics.feed?.localBridgeExpectedPath).toBe("/api/feed");
     expect(diagnostics.waterQuality.requestedAdapter).toBe("postgres");
     expect(diagnostics.waterQuality.effectiveAdapter).toBe("in-memory");
     expect(diagnostics.waterQuality.cutoverActive).toBe(false);
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain("POSTGRES_DISABLED");
     expect(diagnostics.alerts.warnings.map((warning) => warning.code)).toContain(
       "ALERTS_POSTGRES_DISABLED"
+    );
+    expect(diagnostics.feed?.warnings.map((warning) => warning.code)).toContain(
+      "FEED_POSTGRES_DISABLED"
     );
     expect(diagnostics.waterQuality.warnings.map((warning) => warning.code)).toContain(
       "WATER_QUALITY_POSTGRES_DISABLED"
@@ -61,6 +68,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.mode.effectiveMode).toBe("in-memory");
     expect(diagnostics.alerts.effectiveAdapter).toBe("postgres");
     expect(diagnostics.alerts.cutoverActive).toBe(true);
+    expect(diagnostics.feed?.effectiveAdapter).toBe("postgres");
+    expect(diagnostics.feed?.cutoverActive).toBe(true);
     expect(diagnostics.waterQuality.effectiveAdapter).toBe("postgres");
     expect(diagnostics.waterQuality.cutoverActive).toBe(true);
     expect(diagnostics.alerts.databaseConfigured).toBe(true);
@@ -106,6 +115,7 @@ describe("API runtime diagnostics", () => {
 
     expect(diagnostics.database.connectivity.status).toBe("reachable");
     expect(diagnostics.alerts.connectivityStatus).toBe("reachable");
+    expect(diagnostics.feed?.connectivityStatus).toBe("reachable");
     expect(diagnostics.waterQuality.connectivityStatus).toBe("reachable");
 
     setCachedDatabaseConnectionStatus(undefined);

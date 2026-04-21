@@ -7,10 +7,12 @@ import {
 } from "../clients/invocation-registry";
 import {
   getAlertsRuntimeDiagnostics,
+  getFeedRuntimeDiagnostics,
   getDefaultClientRuntimeConfig,
   getWaterQualityRuntimeDiagnostics,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
+  resolveFeedHttpBaseUrl,
   resolveWaterQualityHttpBaseUrl
 } from "../clients/runtime-config";
 
@@ -73,6 +75,19 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.waterQualityHttpBaseUrl).toBe("http://water-quality-backend.local");
   });
 
+  it("allows feed-only HTTP override without changing the default global mode", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL: "http://feed-backend.local"
+    });
+
+    expect(config.mode).toBe("mock");
+    expect(config.feedMode).toBe("http");
+    expect(config.enableFetchHttp).toBe(true);
+    expect(config.feedHttpBaseUrl).toBe("http://feed-backend.local");
+  });
+
   it("defaults alerts-only fetch HTTP mode to the local proxy path", () => {
     const config = parseClientRuntimeConfig({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
@@ -89,6 +104,15 @@ describe("Client runtime config and invocation registry", () => {
     });
 
     expect(resolveWaterQualityHttpBaseUrl(config)).toBe("");
+  });
+
+  it("defaults feed-only fetch HTTP mode to the local proxy path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    expect(resolveFeedHttpBaseUrl(config)).toBe("");
   });
 
   it("keeps malformed alerts HTTP settings safe and visible through diagnostics", () => {
@@ -137,6 +161,29 @@ describe("Client runtime config and invocation registry", () => {
     });
   });
 
+  it("keeps malformed feed HTTP settings safe and visible through diagnostics", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "false",
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL: "bad-target"
+    });
+    const diagnostics = getFeedRuntimeDiagnostics(config);
+
+    expect(config.mode).toBe("mock");
+    expect(config.feedHttpBaseUrl).toBeUndefined();
+    expect(diagnostics.effectiveMode).toBe("mock");
+    expect(diagnostics.warnings).toContainEqual({
+      code: "INVALID_HTTP_URL",
+      message:
+        "NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
+    });
+    expect(diagnostics.warnings).toContainEqual({
+      code: "FEED_HTTP_DISABLED",
+      message:
+        "Feed HTTP mode was requested, but no HTTP executor is enabled. Feed will remain mock-backed."
+    });
+  });
+
   it("supports direct alerts HTTP transport when explicitly configured", () => {
     const config = parseClientRuntimeConfig({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
@@ -165,6 +212,21 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.effectiveMode).toBe("http");
     expect(diagnostics.usesLocalProxy).toBe(false);
     expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/water-quality");
+  });
+
+  it("supports direct feed HTTP transport when explicitly configured", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL: "http://localhost:4000"
+    });
+    const diagnostics = getFeedRuntimeDiagnostics(config);
+
+    expect(resolveFeedHttpBaseUrl(config)).toBe("http://localhost:4000");
+    expect(diagnostics.effectiveMode).toBe("http");
+    expect(diagnostics.usesLocalProxy).toBe(false);
+    expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/feed");
   });
 
   it("keeps the invocation registry aligned with the endpoint catalog", () => {

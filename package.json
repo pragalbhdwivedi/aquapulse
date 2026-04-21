@@ -8,6 +8,7 @@
     "test:contracts": "corepack pnpm exec vitest run",
     "alerts:verify-runtime": "node ./scripts/verify-alerts-runtime.mjs",
     "water-quality:verify-runtime": "node ./scripts/verify-water-quality-runtime.mjs",
+    "feed:verify-runtime": "node ./scripts/verify-feed-runtime.mjs",
     "alerts:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",
     "alerts:smoke:db:down": "docker compose -f ./infra/local/alerts-smoke.compose.yaml down",
     "water-quality:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",

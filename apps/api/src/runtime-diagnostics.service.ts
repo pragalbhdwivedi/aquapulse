@@ -47,6 +47,12 @@ export class RuntimeDiagnosticsService {
       allowRuntimeSwitch: true,
       postgresEnabled: runtime.persistence.postgresEnabled
     });
+    const feedSelection = resolvePersistenceSelection({
+      defaultAdapter: "in-memory",
+      requestedAdapter: runtime.persistence.requestedAdapter,
+      allowRuntimeSwitch: true,
+      postgresEnabled: runtime.persistence.postgresEnabled
+    });
     const waterQualitySelection = resolvePersistenceSelection({
       defaultAdapter: "in-memory",
       requestedAdapter: runtime.persistence.requestedAdapter,
@@ -55,6 +61,7 @@ export class RuntimeDiagnosticsService {
     });
     const warnings: RuntimeWarning[] = [];
     const alertWarnings: RuntimeWarning[] = [];
+    const feedWarnings: RuntimeWarning[] = [];
     const waterQualityWarnings: RuntimeWarning[] = [];
     const cachedConnectionStatus = getCachedDatabaseConnectionStatus();
     const configured =
@@ -120,6 +127,30 @@ export class RuntimeDiagnosticsService {
         code: "ALERTS_POSTGRES_CONFIG_MISSING",
         message:
           "Alerts Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
+      feedWarnings.push({
+        code: "FEED_POSTGRES_DISABLED",
+        message:
+          "Feed Postgres cutover was requested, but AQUAPULSE_ENABLE_POSTGRES_ADAPTERS is not enabled. Feed remains on the safe in-memory adapter."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && feedSelection.adapter !== "postgres") {
+      feedWarnings.push({
+        code: "FEED_POSTGRES_BLOCKED",
+        message:
+          "Feed requested the Postgres adapter, but the effective feed adapter is still in-memory."
+      });
+    }
+
+    if (feedSelection.adapter === "postgres" && !configured) {
+      feedWarnings.push({
+        code: "FEED_POSTGRES_CONFIG_MISSING",
+        message:
+          "Feed Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
       });
     }
 
@@ -205,6 +236,18 @@ export class RuntimeDiagnosticsService {
         localBridgeExpectedPath: "/api/alerts",
         localAiExplainBridgeExpectedPath: "/api/ai/alerts",
         warnings: alertWarnings
+      },
+      feed: {
+        postgresReadCutoverAvailable: true,
+        postgresWriteCutoverAvailable: true,
+        requestedAdapter: runtime.persistence.requestedAdapter,
+        effectiveAdapter: feedSelection.adapter,
+        runtimeSwitchEnabled: true,
+        cutoverActive: feedSelection.adapter === "postgres",
+        databaseConfigured: configured,
+        connectivityStatus: connectivity.status,
+        localBridgeExpectedPath: "/api/feed",
+        warnings: feedWarnings
       },
       waterQuality: {
         postgresReadCutoverAvailable: true,
