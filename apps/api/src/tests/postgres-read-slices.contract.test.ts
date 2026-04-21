@@ -3,6 +3,7 @@ import {
   createPlaceholderAlertRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
+  createPlaceholderTaskRow,
   createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
@@ -33,6 +34,12 @@ import {
   PostgresFeedRepository
 } from "../modules/feed/adapters/postgres-feed.repository";
 import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
+import {
+  buildTaskByIdQueryPlan,
+  buildTasksListQueryPlan,
+  PostgresTasksRepository
+} from "../modules/tasks/adapters/postgres-tasks.repository";
+import type { TasksRepositoryPort } from "../modules/tasks/ports/tasks-repository.port";
 import {
   buildWaterQualityByIdQueryPlan,
   buildWaterQualityListByPondQueryPlan,
@@ -453,6 +460,87 @@ describe("Postgres read adapter slices", () => {
       batchId: "batch-42",
       feedType: "Grower Feed",
       search: "grower"
+    });
+  });
+
+  it("tasks adapter keeps the repository contract and translates read inputs consistently", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: TasksRepositoryPort = PostgresTasksRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement) {
+          if (statement.includes("count(*) over()::int as total_count")) {
+            return [
+              {
+                ...createPlaceholderTaskRow({
+                  id: "task-42",
+                  pond_id: "pond-42",
+                  assignee_id: "user-42",
+                  title: "Inspect intake grating",
+                  status: "in_progress"
+                }),
+                total_count: 1
+              }
+            ] as never[];
+          }
+
+          return [
+            createPlaceholderTaskRow({
+              id: "task-42",
+              pond_id: "pond-42",
+              assignee_id: "user-42",
+              title: "Inspect intake grating",
+              status: "in_progress"
+            })
+          ] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const item = await repository.getById("task-42");
+    const list = await repository.list({
+      page: 2,
+      pageSize: 10,
+      assigneeId: "user-42",
+      pondId: "pond-42",
+      status: "in_progress",
+      search: "intake"
+    });
+
+    expect(item.id).toBe("task-42");
+    expect(item.assigneeId).toBe("user-42");
+    expect(item.status).toBe("in_progress");
+    expect(list.items[0]?.pondId).toBe("pond-42");
+    expect(list.page.totalItems).toBe(1);
+    expect(recordedQueries[0]?.statement).toContain("from tasks");
+    expect(recordedQueries[0]?.statement).toContain("where id = $1");
+    expect(recordedQueries[0]?.params).toEqual(["task-42"]);
+    expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("lower(title) like");
+    expect(recordedQueries[1]?.statement).toContain("order by updated_at desc, id desc");
+    expect(recordedQueries[1]?.params).toEqual([
+      "user-42",
+      "pond-42",
+      "in_progress",
+      "%intake%",
+      10,
+      10
+    ]);
+    expect(buildTaskByIdQueryPlan("task-42").filters).toEqual({ id: "task-42" });
+    expect(
+      buildTasksListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        assigneeId: "user-42",
+        pondId: "pond-42",
+        status: "in_progress",
+        search: "intake"
+      }).filters
+    ).toEqual({
+      assigneeId: "user-42",
+      pondId: "pond-42",
+      status: "in_progress",
+      search: "intake"
     });
   });
 });

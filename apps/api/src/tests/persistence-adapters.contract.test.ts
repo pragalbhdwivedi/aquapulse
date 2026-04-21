@@ -2,6 +2,7 @@ import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
   createPlaceholderFeedRow,
+  createPlaceholderTaskRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig
 } from "@aquapulse/database";
@@ -71,7 +72,12 @@ describe("Persistence adapter skeletons", () => {
       }),
       databaseConfig: createTestDatabaseConfig()
     });
-    const tasksRepository: TasksRepositoryPort = new PostgresTasksRepository();
+    const tasksRepository: TasksRepositoryPort = PostgresTasksRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: [createPlaceholderTaskRow({ id: "task-1" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const waterQualityRepository: WaterQualityRepositoryPort = PostgresWaterQualityRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory([], {
         rows: []

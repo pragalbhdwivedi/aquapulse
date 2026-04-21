@@ -53,6 +53,12 @@ export class RuntimeDiagnosticsService {
       allowRuntimeSwitch: true,
       postgresEnabled: runtime.persistence.postgresEnabled
     });
+    const tasksSelection = resolvePersistenceSelection({
+      defaultAdapter: "in-memory",
+      requestedAdapter: runtime.persistence.requestedAdapter,
+      allowRuntimeSwitch: true,
+      postgresEnabled: runtime.persistence.postgresEnabled
+    });
     const waterQualitySelection = resolvePersistenceSelection({
       defaultAdapter: "in-memory",
       requestedAdapter: runtime.persistence.requestedAdapter,
@@ -62,6 +68,7 @@ export class RuntimeDiagnosticsService {
     const warnings: RuntimeWarning[] = [];
     const alertWarnings: RuntimeWarning[] = [];
     const feedWarnings: RuntimeWarning[] = [];
+    const tasksWarnings: RuntimeWarning[] = [];
     const waterQualityWarnings: RuntimeWarning[] = [];
     const cachedConnectionStatus = getCachedDatabaseConnectionStatus();
     const configured =
@@ -151,6 +158,30 @@ export class RuntimeDiagnosticsService {
         code: "FEED_POSTGRES_CONFIG_MISSING",
         message:
           "Feed Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
+      tasksWarnings.push({
+        code: "TASKS_POSTGRES_DISABLED",
+        message:
+          "Tasks Postgres cutover was requested, but AQUAPULSE_ENABLE_POSTGRES_ADAPTERS is not enabled. Tasks remain on the safe in-memory adapter."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && tasksSelection.adapter !== "postgres") {
+      tasksWarnings.push({
+        code: "TASKS_POSTGRES_BLOCKED",
+        message:
+          "Tasks requested the Postgres adapter, but the effective tasks adapter is still in-memory."
+      });
+    }
+
+    if (tasksSelection.adapter === "postgres" && !configured) {
+      tasksWarnings.push({
+        code: "TASKS_POSTGRES_CONFIG_MISSING",
+        message:
+          "Tasks Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
       });
     }
 
@@ -248,6 +279,17 @@ export class RuntimeDiagnosticsService {
         connectivityStatus: connectivity.status,
         localBridgeExpectedPath: "/api/feed",
         warnings: feedWarnings
+      },
+      tasks: {
+        postgresReadCutoverAvailable: true,
+        postgresWriteCutoverAvailable: true,
+        requestedAdapter: runtime.persistence.requestedAdapter,
+        effectiveAdapter: tasksSelection.adapter,
+        runtimeSwitchEnabled: true,
+        cutoverActive: tasksSelection.adapter === "postgres",
+        databaseConfigured: configured,
+        connectivityStatus: connectivity.status,
+        warnings: tasksWarnings
       },
       waterQuality: {
         postgresReadCutoverAvailable: true,

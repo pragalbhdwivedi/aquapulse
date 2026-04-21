@@ -1328,6 +1328,18 @@ export interface BackendFeedRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface BackendTasksRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
@@ -1344,6 +1356,7 @@ export interface BackendRuntimeDiagnostics {
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;
   readonly feed?: BackendFeedRuntimeDiagnostics;
+  readonly tasks?: BackendTasksRuntimeDiagnostics;
   readonly waterQuality: BackendWaterQualityRuntimeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }

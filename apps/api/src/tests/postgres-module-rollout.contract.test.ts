@@ -79,18 +79,25 @@ describe("Postgres module rollout adapters", () => {
     expect(attachmentList.items[0]?.resourceId).toBe("alert-42");
     expect(createdAttachment.id).toBe("attachment-42");
     expect(updatedAttachment.id).toBe("attachment-42");
-    expect(buildTaskByIdQueryPlan("task-42").key).toBe("tasks.getById");
+    expect(buildTaskByIdQueryPlan("task-42").filters).toEqual({ id: "task-42" });
     expect(buildTasksListQueryPlan({ page: 1, pageSize: 20, status: "todo" }).filters).toEqual({
       assigneeId: undefined,
       pondId: undefined,
       status: "todo",
       search: undefined
     });
-    expect(buildCreateTaskQueryPlan(createPlaceholderTaskRow({ id: "task-write-1" })).key).toBe("tasks.create");
-    expect(buildUpdateTaskQueryPlan("task-write-2", { id: "task-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
-      "task-write-2",
-      { id: "task-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
-    ]);
+    expect(buildCreateTaskQueryPlan(createPlaceholderTaskRow({ id: "task-write-1" })).filters).toEqual({
+      title: "Inspect aeration equipment",
+      status: "todo",
+      assigneeId: "user-1",
+      pondId: "pond-1"
+    });
+    expect(
+      buildUpdateTaskQueryPlan("task-write-2", {
+        id: "task-write-2",
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).params
+    ).toEqual(["task-write-2", null, null, null, null, "2026-04-13T00:00:00.000Z"]);
     expect(buildAttachmentByIdQueryPlan("attachment-42").key).toBe("attachments.getById");
     expect(buildAttachmentsListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null]);
     expect(buildAttachmentsByResourceQueryPlan("alert", "alert-42").filters).toEqual({
@@ -110,6 +117,10 @@ describe("Postgres module rollout adapters", () => {
       { id: "attachment-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
     expect(taskPlans.length).toBe(4);
+    expect(taskPlans[0]?.statement).toContain("from tasks");
+    expect(taskPlans[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(taskPlans[2]?.statement).toContain("insert into tasks");
+    expect(taskPlans[3]?.statement).toContain("update tasks");
     expect(attachmentPlans.length).toBe(4);
   });
 

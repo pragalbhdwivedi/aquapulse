@@ -1,10 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import {
-  PlaceholderDatabaseConnectionFactory,
+  AQUAPULSE_SCHEMA_TABLES,
+  PostgresDatabaseConnectionFactory,
   PostgresRowGateway,
-  createListQueryPlan,
+  createCompiledQueryPlan,
   createLookupQueryPlan,
-  createMutationQueryPlan,
   createPlaceholderTaskRow,
   mapCreateTaskInputToRowWrite,
   mapUpdateTaskInputToRowPatch,
@@ -26,22 +26,74 @@ export interface PostgresTasksRepositoryDependencies {
   readonly databaseConfig?: DatabaseConfig;
 }
 
+interface TaskListRow extends TaskRow {
+  readonly total_count: number;
+}
+
+const TASK_SELECT_COLUMNS = `
+  id,
+  title,
+  status,
+  assignee_id,
+  pond_id,
+  created_at,
+  updated_at
+`.trim();
+
 export function buildTaskByIdQueryPlan(id: string): CompiledQueryPlan {
-  return createLookupQueryPlan("tasks.getById", id);
+  return createLookupQueryPlan("tasks.getById", id, {
+    statement: `
+      select
+        ${TASK_SELECT_COLUMNS}
+      from ${AQUAPULSE_SCHEMA_TABLES.tasks}
+      where id = $1
+      limit 1
+    `.trim()
+  });
 }
 
 export function buildTasksListQueryPlan(query: TasksListQueryContract): CompiledQueryPlan {
-  return createListQueryPlan({
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+
+  function addCondition(sql: string, value: unknown) {
+    params.push(value);
+    conditions.push(sql.replace("?", `$${params.length}`));
+  }
+
+  if (query.assigneeId) {
+    addCondition("assignee_id = ?", query.assigneeId);
+  }
+
+  if (query.pondId) {
+    addCondition("pond_id = ?", query.pondId);
+  }
+
+  if (query.status) {
+    addCondition("status = ?", query.status);
+  }
+
+  if (query.search?.trim()) {
+    addCondition("lower(title) like ?", `%${query.search.trim().toLowerCase()}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `where ${conditions.join(" and ")}` : "";
+  const limitParam = params.length + 1;
+  const offsetParam = params.length + 2;
+
+  return createCompiledQueryPlan({
     key: "tasks.list",
-    query,
-    params: [
-      query.page,
-      query.pageSize,
-      query.assigneeId ?? null,
-      query.pondId ?? null,
-      query.status ?? null,
-      query.search ?? null
-    ],
+    statement: `
+      select
+        ${TASK_SELECT_COLUMNS},
+        count(*) over()::int as total_count
+      from ${AQUAPULSE_SCHEMA_TABLES.tasks}
+      ${whereClause}
+      order by updated_at desc, id desc
+      limit $${limitParam}
+      offset $${offsetParam}
+    `.trim(),
+    params: [...params, query.pageSize, (query.page - 1) * query.pageSize],
     filters: {
       assigneeId: query.assigneeId,
       pondId: query.pondId,
@@ -52,19 +104,68 @@ export function buildTasksListQueryPlan(query: TasksListQueryContract): Compiled
 }
 
 export function buildCreateTaskQueryPlan(row: TaskRowWrite): CompiledQueryPlan {
-  return createMutationQueryPlan("tasks.create", row);
+  return createCompiledQueryPlan({
+    key: "tasks.create",
+    statement: `
+      insert into ${AQUAPULSE_SCHEMA_TABLES.tasks} (
+        id,
+        title,
+        status,
+        assignee_id,
+        pond_id,
+        created_at,
+        updated_at
+      )
+      values ($1, $2, $3, $4, $5, $6, $7)
+      returning ${TASK_SELECT_COLUMNS}
+    `.trim(),
+    params: [
+      row.id,
+      row.title,
+      row.status,
+      row.assignee_id ?? null,
+      row.pond_id ?? null,
+      row.created_at,
+      row.updated_at
+    ],
+    filters: {
+      title: row.title,
+      status: row.status,
+      assigneeId: row.assignee_id,
+      pondId: row.pond_id
+    }
+  });
 }
 
 export function buildUpdateTaskQueryPlan(id: string, patch: TaskRowPatch): CompiledQueryPlan {
-  return createMutationQueryPlan("tasks.update", patch, {
-    params: [id, patch],
+  return createCompiledQueryPlan({
+    key: "tasks.update",
+    statement: `
+      update ${AQUAPULSE_SCHEMA_TABLES.tasks}
+      set
+        title = coalesce($2, title),
+        status = coalesce($3, status),
+        assignee_id = coalesce($4, assignee_id),
+        pond_id = coalesce($5, pond_id),
+        updated_at = $6
+      where id = $1
+      returning ${TASK_SELECT_COLUMNS}
+    `.trim(),
+    params: [
+      id,
+      patch.title ?? null,
+      patch.status ?? null,
+      patch.assignee_id ?? null,
+      patch.pond_id ?? null,
+      patch.updated_at
+    ],
     filters: { id }
   });
 }
 
 @Injectable()
 export class PostgresTasksRepository implements TasksRepositoryPort {
-  private connectionFactory: DatabaseConnectionFactory = new PlaceholderDatabaseConnectionFactory();
+  private connectionFactory: DatabaseConnectionFactory = new PostgresDatabaseConnectionFactory();
   private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
 
   static forTesting(
@@ -81,7 +182,7 @@ export class PostgresTasksRepository implements TasksRepositoryPort {
     return this.gateway.executeMappedMutation(
       buildCreateTaskQueryPlan(row),
       taskRowMapper,
-      createPlaceholderTaskRow({ id: row.id })
+      createPlaceholderTaskRow(row)
     );
   }
 
@@ -103,11 +204,31 @@ export class PostgresTasksRepository implements TasksRepositoryPort {
   }
 
   async list(query: TasksListQueryContract): Promise<ListResponse<TaskSummary>> {
-    return this.gateway.executeMappedList(buildTasksListQueryPlan(query), taskRowMapper, {
-      page: query.page,
-      pageSize: query.pageSize,
-      fallbackRows: [createPlaceholderTaskRow()]
-    });
+    const rows = await this.gateway.executeRows<TaskListRow>(buildTasksListQueryPlan(query));
+
+    if (rows.length === 0) {
+      return {
+        items: [],
+        page: {
+          page: query.page,
+          pageSize: query.pageSize,
+          totalItems: 0,
+          totalPages: 1
+        }
+      };
+    }
+
+    const totalItems = rows[0]?.total_count ?? rows.length;
+
+    return {
+      items: rows.map((row) => taskRowMapper.toDomain(row)),
+      page: {
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / query.pageSize))
+      }
+    };
   }
 
   private get gateway(): PostgresRowGateway {
@@ -123,7 +244,7 @@ export const POSTGRES_TASKS_IMPLEMENTATION_PLAN = {
   writeMethods: ["create", "update"],
   rowSource: "tasks",
   queryNotes: [
-    "filter by assignee/pond/status via the shared list query plan builder",
+    "filter by assignee, pond, status, and title search with stable updated_at desc ordering",
     "keep read and write execution on the shared Postgres row gateway"
   ],
   mappingNotes: [

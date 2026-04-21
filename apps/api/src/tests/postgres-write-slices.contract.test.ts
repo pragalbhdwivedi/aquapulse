@@ -3,6 +3,7 @@ import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
   createPlaceholderFeedRow,
+  createPlaceholderTaskRow,
   createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
@@ -11,6 +12,7 @@ import {
   type AlertRow,
   type AlertSavedViewRow,
   type FeedRow,
+  type TaskRow,
   type WaterQualityRow,
   type RecordedDatabasePlan
 } from "@aquapulse/database";
@@ -23,6 +25,12 @@ import {
   PostgresFeedRepository
 } from "../modules/feed/adapters/postgres-feed.repository";
 import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
+import {
+  buildCreateTaskQueryPlan,
+  buildUpdateTaskQueryPlan,
+  PostgresTasksRepository
+} from "../modules/tasks/adapters/postgres-tasks.repository";
+import type { TasksRepositoryPort } from "../modules/tasks/ports/tasks-repository.port";
 import {
   buildCreateWaterQualityQueryPlan,
   buildUpdateWaterQualityQueryPlan,
@@ -873,6 +881,121 @@ describe("Postgres write adapter slices", () => {
       fedAt: "2026-04-16T07:00:00.000Z"
     });
     expect(buildUpdateFeedQueryPlan(created.id, {}).filters).toEqual({
+      id: created.id
+    });
+  });
+
+  it("tasks create and update use the real Postgres path and return stable row-mapped results", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const tasks = new Map<string, TaskRow>([
+      [
+        "task-7",
+        createPlaceholderTaskRow({
+          id: "task-7",
+          pond_id: "pond-7",
+          assignee_id: "user-7",
+          title: "Inspect outlet pipe",
+          status: "todo"
+        })
+      ]
+    ]);
+
+    const repository: TasksRepositoryPort = PostgresTasksRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement, params) {
+          if (statement.startsWith("insert into tasks")) {
+            const row: TaskRow = {
+              id: params[0] as string,
+              title: params[1] as string,
+              status: params[2] as TaskRow["status"],
+              assignee_id: (params[3] as string | null) ?? undefined,
+              pond_id: (params[4] as string | null) ?? undefined,
+              created_at: params[5] as string,
+              updated_at: params[6] as string
+            };
+            tasks.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.startsWith("update tasks")) {
+            const current =
+              tasks.get(params[0] as string) ??
+              createPlaceholderTaskRow({ id: params[0] as string });
+            const row: TaskRow = {
+              ...current,
+              title: (params[1] as string | null) ?? current.title,
+              status: (params[2] as TaskRow["status"] | null) ?? current.status,
+              assignee_id: (params[3] as string | null) ?? current.assignee_id,
+              pond_id: (params[4] as string | null) ?? current.pond_id,
+              updated_at: params[5] as string
+            };
+            tasks.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.includes("from tasks") && statement.includes("where id = $1")) {
+            const row = tasks.get(params[0] as string);
+            return row ? ([row] as never[]) : ([] as never[]);
+          }
+
+          return [] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const created = await repository.create({
+      title: "Inspect aeration intake",
+      assigneeId: "operator-9",
+      pondId: "pond-9"
+    });
+    const updated = await repository.update(created.id, {
+      status: "done",
+      title: "Inspect aeration intake - completed"
+    });
+    const detail = await repository.getById(created.id);
+
+    expect(created.title).toBe("Inspect aeration intake");
+    expect(created.assigneeId).toBe("operator-9");
+    expect(created.pondId).toBe("pond-9");
+    expect(created.id).toBe("task-row-pond-9");
+    expect(updated.id).toBe(created.id);
+    expect(updated.status).toBe("done");
+    expect(updated.title).toBe("Inspect aeration intake - completed");
+    expect(detail.id).toBe(created.id);
+    expect(recordedQueries[0]?.statement).toContain("insert into tasks");
+    expect(recordedQueries[0]?.params).toEqual([
+      "task-row-pond-9",
+      "Inspect aeration intake",
+      "todo",
+      "operator-9",
+      "pond-9",
+      "2026-04-13T00:00:00.000Z",
+      "2026-04-13T00:00:00.000Z"
+    ]);
+    expect(recordedQueries[1]?.statement).toContain("update tasks");
+    expect(
+      buildCreateTaskQueryPlan({
+        id: "task-row-pond-9",
+        title: "Inspect aeration intake",
+        status: "todo",
+        assignee_id: "operator-9",
+        pond_id: "pond-9",
+        created_at: "2026-04-13T00:00:00.000Z",
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).filters
+    ).toEqual({
+      title: "Inspect aeration intake",
+      status: "todo",
+      assigneeId: "operator-9",
+      pondId: "pond-9"
+    });
+    expect(
+      buildUpdateTaskQueryPlan(created.id, {
+        id: created.id,
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).filters
+    ).toEqual({
       id: created.id
     });
   });

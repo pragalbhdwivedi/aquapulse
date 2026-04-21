@@ -89,6 +89,11 @@ export function RuntimeDiagnosticsCard({
             Backend feed adapter: {backendProbe.runtime.feed?.effectiveAdapter ?? "unknown"} / Requested: {backendProbe.runtime.feed?.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.feed?.cutoverActive ? "yes" : "no"}
           </span>
         ) : null}
+        {backendProbe?.runtime?.tasks ? (
+          <span>
+            Backend tasks adapter: {backendProbe.runtime.tasks.effectiveAdapter} / Requested: {backendProbe.runtime.tasks.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.tasks.cutoverActive ? "yes" : "no"}
+          </span>
+        ) : null}
         {backendProbe?.runtime ? (
           <span>
             Backend water-quality adapter: {backendProbe.runtime.waterQuality.effectiveAdapter} / Requested: {backendProbe.runtime.waterQuality.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.waterQuality.cutoverActive ? "yes" : "no"}
@@ -132,6 +137,13 @@ export function RuntimeDiagnosticsCard({
       {backendProbe?.runtime?.feed?.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.runtime.feed.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {backendProbe?.runtime?.tasks?.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.tasks.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
           ))}
         </div>
