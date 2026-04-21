@@ -11,6 +11,7 @@ import type {
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary,
+  WaterQualityCreateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type { RowMapper } from "./row-mapper.js";
@@ -208,6 +209,14 @@ export interface FeedRowPatch {
 }
 
 export interface WaterQualityRowWrite extends WaterQualityRow {}
+export interface WaterQualityRowPatch {
+  readonly id: string;
+  readonly updated_at: string;
+  readonly pond_id?: string;
+  readonly recorded_at?: string;
+  readonly temperature_c?: number;
+  readonly ph?: number;
+}
 export interface AlertActionHistoryRowWrite extends AlertActionHistoryRow {}
 export interface AlertSavedViewRowWrite extends AlertSavedViewRow {}
 
@@ -652,5 +661,53 @@ export function mapUpdateFeedInputToRowPatch(id: string, input: FeedUpdateReques
     feed_type: input.feedType,
     quantity_kg: input.quantityKg,
     fed_at: input.fedAt
+  };
+}
+
+function buildWaterQualityRowId(input: WaterQualityCreateRequest): string {
+  const rawValue = [
+    "wq",
+    input.pondId,
+    input.recordedAt,
+    input.temperatureC ?? "na",
+    input.ph ?? "na"
+  ].join("-");
+
+  return rawValue.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+export function mapCreateWaterQualityInputToRowWrite(
+  input: WaterQualityCreateRequest
+): WaterQualityRowWrite {
+  const base = createPlaceholderWaterQualityRow();
+  const timestamp = input.recordedAt || base.recorded_at;
+
+  return {
+    id: buildWaterQualityRowId(input),
+    pond_id: input.pondId,
+    recorded_at: input.recordedAt,
+    temperature_c: input.temperatureC,
+    ph: input.ph,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+}
+
+export function mapUpdateWaterQualityInputToRowPatch(
+  id: string,
+  input: {
+    readonly pondId?: string;
+    readonly recordedAt?: string;
+    readonly temperatureC?: number;
+    readonly ph?: number;
+  }
+): WaterQualityRowPatch {
+  return {
+    id,
+    updated_at: createPlaceholderWaterQualityRow({ id }).updated_at,
+    pond_id: input.pondId,
+    recorded_at: input.recordedAt,
+    temperature_c: input.temperatureC,
+    ph: input.ph
   };
 }

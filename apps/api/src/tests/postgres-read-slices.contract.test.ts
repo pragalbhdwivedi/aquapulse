@@ -2,6 +2,7 @@ import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
   createPlaceholderPondRow,
+  createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
   type RecordedDatabasePlan
@@ -25,6 +26,13 @@ import {
 } from "../modules/ponds/adapters/postgres-ponds.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
+import {
+  buildWaterQualityByIdQueryPlan,
+  buildWaterQualityListByPondQueryPlan,
+  buildWaterQualityListQueryPlan,
+  PostgresWaterQualityRepository
+} from "../modules/water-quality/adapters/postgres-water-quality.repository";
+import type { WaterQualityRepositoryPort } from "../modules/water-quality/ports/water-quality-repository.port";
 
 interface RecordedQuery {
   readonly statement: string;
@@ -293,5 +301,69 @@ describe("Postgres read adapter slices", () => {
       "alert-write-2",
       { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, latest_note: undefined, updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
+  });
+
+  it("water-quality adapter keeps the repository contract and translates read inputs consistently", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: WaterQualityRepositoryPort = PostgresWaterQualityRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement) {
+          if (statement.includes("count(*) over()::int as total_count")) {
+            return [
+              {
+                ...createPlaceholderWaterQualityRow({
+                  id: "wq-42",
+                  pond_id: "pond-42",
+                  recorded_at: "2026-04-15T06:00:00.000Z",
+                  temperature_c: 29.4
+                }),
+                total_count: 1
+              }
+            ] as never[];
+          }
+
+          return [
+            createPlaceholderWaterQualityRow({
+              id: "wq-42",
+              pond_id: "pond-42",
+              recorded_at: "2026-04-15T06:00:00.000Z",
+              temperature_c: 29.4
+            })
+          ] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const item = await repository.getById("wq-42");
+    const list = await repository.list({
+      page: 1,
+      pageSize: 10,
+      pondId: "pond-42",
+      metric: "temperatureC"
+    });
+    const byPond = await repository.listByPond("pond-42");
+
+    expect(item.id).toBe("wq-42");
+    expect(item.pondId).toBe("pond-42");
+    expect(list.items[0]?.temperatureC).toBe(29.4);
+    expect(list.page.totalItems).toBe(1);
+    expect(byPond.items[0]?.pondId).toBe("pond-42");
+    expect(recordedQueries[0]?.statement).toContain("from water_quality");
+    expect(recordedQueries[0]?.statement).toContain("where id = $1");
+    expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("temperature_c is not null");
+    expect(recordedQueries[1]?.params).toEqual(["pond-42", 10, 0]);
+    expect(recordedQueries[2]?.statement).toContain("where pond_id = $1");
+    expect(recordedQueries[2]?.params).toEqual(["pond-42", 20, 0]);
+    expect(buildWaterQualityByIdQueryPlan("wq-42").filters).toEqual({ id: "wq-42" });
+    expect(
+      buildWaterQualityListQueryPlan({ page: 1, pageSize: 20, pondId: "pond-42", metric: "ph" })
+        .filters
+    ).toEqual({
+      pondId: "pond-42",
+      metric: "ph"
+    });
+    expect(buildWaterQualityListByPondQueryPlan("pond-42").filters).toEqual({ pondId: "pond-42" });
   });
 });

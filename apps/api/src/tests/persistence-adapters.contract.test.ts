@@ -34,10 +34,18 @@ import { PostgresPondsRepository } from "../modules/ponds/adapters/postgres-pond
 import type { TasksRepositoryPort } from "../modules/tasks/ports/tasks-repository.port";
 import { TASKS_ACTIVE_REPOSITORY, TASKS_ADAPTERS, TASKS_PERSISTENCE_PROVIDER } from "../modules/tasks/tasks.module";
 import { PostgresTasksRepository } from "../modules/tasks/adapters/postgres-tasks.repository";
+import type { WaterQualityRepositoryPort } from "../modules/water-quality/ports/water-quality-repository.port";
+import {
+  WATER_QUALITY_ACTIVE_REPOSITORY,
+  WATER_QUALITY_ADAPTERS,
+  WATER_QUALITY_PERSISTENCE_PROVIDER
+} from "../modules/water-quality/water-quality.module";
+import { PostgresWaterQualityRepository } from "../modules/water-quality/adapters/postgres-water-quality.repository";
 import type { AiResponseLogQueryContract } from "../modules/ai/query-contracts/ai-query.contract";
 import type { AlertsListQueryContract } from "../modules/alerts/query-contracts/alerts-query.contract";
 import type { PondListQueryContract } from "../modules/ponds/query-contracts/ponds-query.contract";
 import type { TasksListQueryContract } from "../modules/tasks/query-contracts/tasks-query.contract";
+import type { WaterQualityListQueryContract } from "../modules/water-quality/query-contracts/water-quality-query.contract";
 
 describe("Persistence adapter skeletons", () => {
   it("postgres adapter skeletons satisfy the repository ports", async () => {
@@ -58,9 +66,15 @@ describe("Persistence adapter skeletons", () => {
     const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
     const feedRepository: FeedRepositoryPort = new PostgresFeedRepository();
     const tasksRepository: TasksRepositoryPort = new PostgresTasksRepository();
+    const waterQualityRepository: WaterQualityRepositoryPort = PostgresWaterQualityRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: []
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const aiRepository: AiRepositoryPort = new PostgresAiRepository();
 
-    const [ponds, alerts, alertSavedViews, attachments, batches, feed, tasks, ai] = await Promise.all([
+    const [ponds, alerts, alertSavedViews, attachments, batches, feed, tasks, waterQuality, ai] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.listSavedViews(),
@@ -68,6 +82,7 @@ describe("Persistence adapter skeletons", () => {
       batchesRepository.list({ page: 1, pageSize: 20 }),
       feedRepository.list({ page: 1, pageSize: 20 }),
       tasksRepository.list({ page: 1, pageSize: 20 }),
+      waterQualityRepository.list({ page: 1, pageSize: 20 }),
       aiRepository.list({ page: 1, pageSize: 20 })
     ]);
 
@@ -78,6 +93,7 @@ describe("Persistence adapter skeletons", () => {
     expect(batches.items[0]?.id).toBe("batch-1");
     expect(feed.items[0]?.id).toBe("feed-1");
     expect(tasks.items[0]?.id).toBe("task-1");
+    expect(Array.isArray(waterQuality.items)).toBe(true);
     expect(ai.items[0]?.id).toBe("ai-response-1");
   });
 
@@ -88,6 +104,7 @@ describe("Persistence adapter skeletons", () => {
     expect(BATCHES_ACTIVE_REPOSITORY.name).toBe("InMemoryBatchesRepository");
     expect(FEED_ACTIVE_REPOSITORY.name).toBe("InMemoryFeedRepository");
     expect(TASKS_ACTIVE_REPOSITORY.name).toBe("InMemoryTasksRepository");
+    expect(WATER_QUALITY_ACTIVE_REPOSITORY.name).toBe("InMemoryWaterQualityRepository");
     expect(AI_ACTIVE_REPOSITORY.name).toBe("InMemoryAiRepository");
 
     expect(PONDS_ADAPTERS).toContain(PostgresPondsRepository);
@@ -96,6 +113,7 @@ describe("Persistence adapter skeletons", () => {
     expect(BATCHES_ADAPTERS).toContain(PostgresBatchesRepository);
     expect(FEED_ADAPTERS).toContain(PostgresFeedRepository);
     expect(TASKS_ADAPTERS).toContain(PostgresTasksRepository);
+    expect(WATER_QUALITY_ADAPTERS).toContain(PostgresWaterQualityRepository);
     expect(AI_ADAPTERS).toContain(PostgresAiRepository);
 
     expect(PONDS_PERSISTENCE_PROVIDER.useExisting).toBe(PONDS_ACTIVE_REPOSITORY);
@@ -104,6 +122,7 @@ describe("Persistence adapter skeletons", () => {
     expect(BATCHES_PERSISTENCE_PROVIDER.useExisting).toBe(BATCHES_ACTIVE_REPOSITORY);
     expect(FEED_PERSISTENCE_PROVIDER.useExisting).toBe(FEED_ACTIVE_REPOSITORY);
     expect(TASKS_PERSISTENCE_PROVIDER.useExisting).toBe(TASKS_ACTIVE_REPOSITORY);
+    expect(WATER_QUALITY_PERSISTENCE_PROVIDER.useExisting).toBe(WATER_QUALITY_ACTIVE_REPOSITORY);
     expect(AI_PERSISTENCE_PROVIDER.useExisting).toBe(AI_ACTIVE_REPOSITORY);
 
     expect(
@@ -122,6 +141,9 @@ describe("Persistence adapter skeletons", () => {
     expectTypeOf<BatchesListQueryContract>().toMatchTypeOf<Parameters<BatchesRepositoryPort["list"]>[0]>();
     expectTypeOf<FeedListQueryContract>().toMatchTypeOf<Parameters<FeedRepositoryPort["list"]>[0]>();
     expectTypeOf<TasksListQueryContract>().toMatchTypeOf<Parameters<TasksRepositoryPort["list"]>[0]>();
+    expectTypeOf<WaterQualityListQueryContract>().toMatchTypeOf<
+      Parameters<WaterQualityRepositoryPort["list"]>[0]
+    >();
     expectTypeOf<AiResponseLogQueryContract>().toMatchTypeOf<Parameters<AiRepositoryPort["list"]>[0]>();
   });
 });

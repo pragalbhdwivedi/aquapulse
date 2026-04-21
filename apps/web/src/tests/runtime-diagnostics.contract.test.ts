@@ -81,6 +81,17 @@ describe("Frontend runtime diagnostics", () => {
             localAiExplainBridgeExpectedPath: "/api/ai/alerts",
             warnings: []
           },
+          waterQuality: {
+            postgresReadCutoverAvailable: true,
+            postgresWriteCutoverAvailable: true,
+            requestedAdapter: "postgres",
+            effectiveAdapter: "postgres",
+            runtimeSwitchEnabled: true,
+            cutoverActive: true,
+            databaseConfigured: true,
+            connectivityStatus: "configured_only",
+            warnings: []
+          },
           aiExplanations: {
             advisoryOnly: true,
             mode: "fallback",
@@ -126,6 +137,17 @@ describe("Frontend runtime diagnostics", () => {
           connectivityStatus: "configured_only",
           localBridgeExpectedPath: "/api/alerts",
           localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+          warnings: []
+        },
+        waterQuality: {
+          postgresReadCutoverAvailable: true,
+          postgresWriteCutoverAvailable: true,
+          requestedAdapter: "postgres",
+          effectiveAdapter: "postgres",
+          runtimeSwitchEnabled: true,
+          cutoverActive: true,
+          databaseConfigured: true,
+          connectivityStatus: "configured_only",
           warnings: []
         },
         aiExplanations: {
@@ -203,6 +225,17 @@ describe("Frontend runtime diagnostics", () => {
                   localAiExplainBridgeExpectedPath: "/api/ai/alerts",
                   warnings: []
                 },
+                waterQuality: {
+                  postgresReadCutoverAvailable: true,
+                  postgresWriteCutoverAvailable: true,
+                  requestedAdapter: "in-memory",
+                  effectiveAdapter: "in-memory",
+                  runtimeSwitchEnabled: true,
+                  cutoverActive: false,
+                  databaseConfigured: false,
+                  connectivityStatus: "not_attempted",
+                  warnings: []
+                },
                 warnings: []
               }
             }),
@@ -241,6 +274,17 @@ describe("Frontend runtime diagnostics", () => {
               connectivityStatus: "not_attempted",
               localBridgeExpectedPath: "/api/alerts",
               localAiExplainBridgeExpectedPath: "/api/ai/alerts",
+              warnings: []
+            },
+            waterQuality: {
+              postgresReadCutoverAvailable: true,
+              postgresWriteCutoverAvailable: true,
+              requestedAdapter: "in-memory",
+              effectiveAdapter: "in-memory",
+              runtimeSwitchEnabled: true,
+              cutoverActive: false,
+              databaseConfigured: false,
+              connectivityStatus: "not_attempted",
               warnings: []
             },
             warnings: []

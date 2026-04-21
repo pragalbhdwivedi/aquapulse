@@ -48,6 +48,12 @@ For backend alerts adapter diagnostics:
 - `alerts.localBridgeExpectedPath = /api/alerts` is the queue/workbench bridge path
 - `alerts.localAiExplainBridgeExpectedPath = /api/ai/alerts` is the advisory explanation bridge path
 
+For backend water-quality adapter diagnostics:
+
+- `waterQuality.requestedAdapter` shows whether water-quality was asked to use `in-memory` or `postgres`
+- `waterQuality.effectiveAdapter` shows what the water-quality module actually selected
+- `waterQuality.cutoverActive = true` means water-quality is actively using the Postgres-backed adapter
+
 For AI alert explanations:
 
 - `mode = fallback` means AquaPulse is using the deterministic advisory explanation path

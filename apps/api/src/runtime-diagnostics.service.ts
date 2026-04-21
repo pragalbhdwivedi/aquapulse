@@ -47,8 +47,15 @@ export class RuntimeDiagnosticsService {
       allowRuntimeSwitch: true,
       postgresEnabled: runtime.persistence.postgresEnabled
     });
+    const waterQualitySelection = resolvePersistenceSelection({
+      defaultAdapter: "in-memory",
+      requestedAdapter: runtime.persistence.requestedAdapter,
+      allowRuntimeSwitch: true,
+      postgresEnabled: runtime.persistence.postgresEnabled
+    });
     const warnings: RuntimeWarning[] = [];
     const alertWarnings: RuntimeWarning[] = [];
+    const waterQualityWarnings: RuntimeWarning[] = [];
     const cachedConnectionStatus = getCachedDatabaseConnectionStatus();
     const configured =
       Boolean(this.env.DATABASE_HOST) ||
@@ -116,6 +123,33 @@ export class RuntimeDiagnosticsService {
       });
     }
 
+    if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
+      waterQualityWarnings.push({
+        code: "WATER_QUALITY_POSTGRES_DISABLED",
+        message:
+          "Water-quality Postgres cutover was requested, but AQUAPULSE_ENABLE_POSTGRES_ADAPTERS is not enabled. Water-quality remains on the safe in-memory adapter."
+      });
+    }
+
+    if (
+      runtime.persistence.requestedAdapter === "postgres" &&
+      waterQualitySelection.adapter !== "postgres"
+    ) {
+      waterQualityWarnings.push({
+        code: "WATER_QUALITY_POSTGRES_BLOCKED",
+        message:
+          "Water-quality requested the Postgres adapter, but the effective water-quality adapter is still in-memory."
+      });
+    }
+
+    if (waterQualitySelection.adapter === "postgres" && !configured) {
+      waterQualityWarnings.push({
+        code: "WATER_QUALITY_POSTGRES_CONFIG_MISSING",
+        message:
+          "Water-quality Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
+      });
+    }
+
     if (!configured) {
       warnings.push({
         code: "DATABASE_CONFIG_DEFAULTS",
@@ -171,6 +205,17 @@ export class RuntimeDiagnosticsService {
         localBridgeExpectedPath: "/api/alerts",
         localAiExplainBridgeExpectedPath: "/api/ai/alerts",
         warnings: alertWarnings
+      },
+      waterQuality: {
+        postgresReadCutoverAvailable: true,
+        postgresWriteCutoverAvailable: true,
+        requestedAdapter: runtime.persistence.requestedAdapter,
+        effectiveAdapter: waterQualitySelection.adapter,
+        runtimeSwitchEnabled: true,
+        cutoverActive: waterQualitySelection.adapter === "postgres",
+        databaseConfigured: configured,
+        connectivityStatus: connectivity.status,
+        warnings: waterQualityWarnings
       },
       warnings
     };

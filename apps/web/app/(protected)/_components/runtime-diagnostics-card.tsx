@@ -70,6 +70,11 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime ? (
           <span>
+            Backend water-quality adapter: {backendProbe.runtime.waterQuality.effectiveAdapter} / Requested: {backendProbe.runtime.waterQuality.requestedAdapter ?? "default"} / Cutover active: {backendProbe.runtime.waterQuality.cutoverActive ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime ? (
+          <span>
             Local bridges: {backendProbe.runtime.alerts.localBridgeExpectedPath} and {backendProbe.runtime.alerts.localAiExplainBridgeExpectedPath}
           </span>
         ) : null}
@@ -99,6 +104,13 @@ export function RuntimeDiagnosticsCard({
       {backendProbe?.runtime?.alerts.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.runtime.alerts.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {backendProbe?.runtime?.waterQuality.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.waterQuality.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
           ))}
         </div>

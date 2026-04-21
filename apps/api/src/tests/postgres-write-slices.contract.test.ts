@@ -2,17 +2,25 @@ import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
+  createPlaceholderWaterQualityRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig,
   type DatabaseConnectionFactory,
   type AlertActionHistoryRow,
   type AlertRow,
   type AlertSavedViewRow,
+  type WaterQualityRow,
   type RecordedDatabasePlan
 } from "@aquapulse/database";
 import { describe, expect, it } from "vitest";
 import { PostgresAlertsRepository } from "../modules/alerts/adapters/postgres-alerts.repository";
 import type { AlertsRepositoryPort } from "../modules/alerts/ports/alerts-repository.port";
+import {
+  buildCreateWaterQualityQueryPlan,
+  buildUpdateWaterQualityQueryPlan,
+  PostgresWaterQualityRepository
+} from "../modules/water-quality/adapters/postgres-water-quality.repository";
+import type { WaterQualityRepositoryPort } from "../modules/water-quality/ports/water-quality-repository.port";
 
 describe("Postgres write adapter slices", () => {
   function createQueryResult<TRow>(rows: readonly TRow[]) {
@@ -650,5 +658,101 @@ describe("Postgres write adapter slices", () => {
     expect(recordedQueries.some((query) => query.statement.startsWith("insert into saved_alert_views"))).toBe(true);
     expect(recordedQueries.some((query) => query.statement.startsWith("delete from saved_alert_views"))).toBe(true);
     expect(recordedQueries.filter((query) => query.statement.includes("from saved_alert_views")).length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("water-quality create and update use the real Postgres path and return stable row-mapped results", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const readings = new Map<string, WaterQualityRow>([
+      [
+        "wq-7",
+        createPlaceholderWaterQualityRow({
+          id: "wq-7",
+          pond_id: "pond-7",
+          recorded_at: "2026-04-16T06:00:00.000Z",
+          temperature_c: 28.5,
+          ph: 7.5
+        })
+      ]
+    ]);
+
+    const repository: WaterQualityRepositoryPort = PostgresWaterQualityRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        resolveRows(statement, params) {
+          if (statement.startsWith("insert into water_quality")) {
+            const row: WaterQualityRow = {
+              id: params[0] as string,
+              pond_id: params[1] as string,
+              recorded_at: params[2] as string,
+              temperature_c: (params[3] as number | null) ?? undefined,
+              ph: (params[4] as number | null) ?? undefined,
+              created_at: params[5] as string,
+              updated_at: params[6] as string
+            };
+            readings.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.startsWith("update water_quality")) {
+            const current = readings.get(params[0] as string) ?? createPlaceholderWaterQualityRow({ id: params[0] as string });
+            const row: WaterQualityRow = {
+              ...current,
+              pond_id: (params[1] as string | null) ?? current.pond_id,
+              recorded_at: (params[2] as string | null) ?? current.recorded_at,
+              temperature_c: (params[3] as number | null) ?? current.temperature_c,
+              ph: (params[4] as number | null) ?? current.ph,
+              updated_at: params[5] as string
+            };
+            readings.set(row.id, row);
+            return [row] as never[];
+          }
+
+          if (statement.includes("from water_quality") && statement.includes("where id = $1")) {
+            const row = readings.get(params[0] as string);
+            return row ? ([row] as never[]) : ([] as never[]);
+          }
+
+          return [] as never[];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const created = await repository.create({
+      pondId: "pond-9",
+      recordedAt: "2026-04-16T07:00:00.000Z",
+      temperatureC: 30.2,
+      ph: 7.1
+    });
+    const updated = await repository.update(created.id, {});
+    const detail = await repository.getById(created.id);
+
+    expect(created.pondId).toBe("pond-9");
+    expect(created.temperatureC).toBe(30.2);
+    expect(created.id).toContain("wq-pond-9");
+    expect(updated.id).toBe(created.id);
+    expect(detail.id).toBe(created.id);
+    expect(recordedQueries[0]?.statement).toContain("insert into water_quality");
+    expect(recordedQueries[0]?.params).toEqual([
+      created.id,
+      "pond-9",
+      "2026-04-16T07:00:00.000Z",
+      30.2,
+      7.1,
+      "2026-04-16T07:00:00.000Z",
+      "2026-04-16T07:00:00.000Z"
+    ]);
+    expect(recordedQueries[1]?.statement).toContain("update water_quality");
+    expect(buildCreateWaterQualityQueryPlan({
+      pondId: "pond-9",
+      recordedAt: "2026-04-16T07:00:00.000Z",
+      temperatureC: 30.2,
+      ph: 7.1
+    }).filters).toEqual({
+      pondId: "pond-9",
+      recordedAt: "2026-04-16T07:00:00.000Z"
+    });
+    expect(buildUpdateWaterQualityQueryPlan(created.id, {}).filters).toEqual({
+      id: created.id
+    });
   });
 });
