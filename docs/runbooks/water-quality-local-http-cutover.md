@@ -2,6 +2,9 @@
 
 This runbook explains the water-quality-only opt-in HTTP mode for AquaPulse.
 
+If you want the smallest practical local Postgres-backed water-quality stack, use
+`docs/runbooks/water-quality-local-postgres-smoke-stack.md` alongside this runbook.
+
 ## What It Is
 
 - By default, the web app stays mock-backed and the API stays on the in-memory path.

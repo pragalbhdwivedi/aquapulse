@@ -12,7 +12,8 @@ const expectedBackendAdapter = normalizeExpectedBackendAdapter(
 const pondId =
   (process.env.AQUAPULSE_WATER_QUALITY_VERIFY_POND_ID ?? "pond-1").trim() || "pond-1";
 const existingReadingId =
-  (process.env.AQUAPULSE_WATER_QUALITY_VERIFY_READING_ID ?? "wq-1").trim() || "wq-1";
+  (process.env.AQUAPULSE_WATER_QUALITY_VERIFY_READING_ID ?? "wq-smoke-pond-1-latest").trim() ||
+  "wq-smoke-pond-1-latest";
 const expectSeededSmoke = parseBoolean(
   process.env.AQUAPULSE_WATER_QUALITY_VERIFY_EXPECT_SEEDED_SMOKE
 );
@@ -61,15 +62,33 @@ async function readJsonResponse(url, init = {}) {
   return body;
 }
 
-function verifySeededSmokeExpectations({ list, detail }) {
-  if (!Array.isArray(list.data.items) || list.data.items.length === 0) {
-    throw new Error("Seeded smoke verification expected at least one water-quality reading.");
+function verifySeededSmokeExpectations({ list, seededDetail }) {
+  if (!Array.isArray(list.data.items) || list.data.items.length !== 3) {
+    throw new Error(
+      `Seeded smoke verification expected exactly 3 pond-scoped readings, received ${list?.data?.items?.length ?? "unknown"}.`
+    );
   }
 
-  if (detail.data.pondId !== pondId) {
+  if (list.data.items[0]?.id !== existingReadingId) {
     throw new Error(
-      `Seeded smoke verification expected detail pond ${pondId}, received ${detail.data.pondId}.`
+      `Seeded smoke verification expected the latest pond reading ${existingReadingId}, received ${list.data.items[0]?.id}.`
     );
+  }
+
+  if (seededDetail.data.pondId !== pondId) {
+    throw new Error(
+      `Seeded smoke verification expected detail pond ${pondId}, received ${seededDetail.data.pondId}.`
+    );
+  }
+
+  if (seededDetail.data.id !== existingReadingId) {
+    throw new Error(
+      `Seeded smoke verification expected detail id ${existingReadingId}, received ${seededDetail.data.id}.`
+    );
+  }
+
+  if (seededDetail.data.temperatureC !== 28.4 || seededDetail.data.ph !== 7.6) {
+    throw new Error("Seeded smoke verification found unexpected latest water-quality values.");
   }
 
   logStep("Seeded smoke dataset assertions passed.");
@@ -99,6 +118,9 @@ async function main() {
   logStep(`Verifying water-quality reads and create through ${webBaseUrl}`);
   const list = await readJsonResponse(
     `${webBaseUrl}/api/water-quality?page=1&pageSize=20&pondId=${encodeURIComponent(pondId)}`
+  );
+  const seededDetail = await readJsonResponse(
+    `${webBaseUrl}/api/water-quality/${encodeURIComponent(existingReadingId)}`
   );
   const createdAt = new Date().toISOString();
   const created = await readJsonResponse(`${webBaseUrl}/api/water-quality`, {
@@ -132,7 +154,7 @@ async function main() {
   }
 
   if (expectSeededSmoke) {
-    verifySeededSmokeExpectations({ list, detail });
+    verifySeededSmokeExpectations({ list, seededDetail });
   }
 
   logStep(

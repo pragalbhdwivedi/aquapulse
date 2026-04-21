@@ -10,7 +10,9 @@
     "db:migrations:show": "node ./scripts/show-migration-sql.mjs",
     "db:migrations:apply": "node ./scripts/apply-migrations.mjs",
     "db:seed:alerts-smoke": "node ./scripts/seed-alerts-smoke.mjs",
-    "db:prepare:alerts-smoke": "node ./scripts/prepare-alerts-smoke.mjs"
+    "db:prepare:alerts-smoke": "node ./scripts/prepare-alerts-smoke.mjs",
+    "db:seed:water-quality-smoke": "node ./scripts/seed-water-quality-smoke.mjs",
+    "db:prepare:water-quality-smoke": "node ./scripts/prepare-water-quality-smoke.mjs"
   },
   "dependencies": {
     "@aquapulse/types": "workspace:*",
