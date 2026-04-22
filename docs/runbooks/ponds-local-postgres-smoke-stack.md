@@ -2,6 +2,9 @@
 
 This is the smallest local Postgres smoke path for the ponds domain. It reuses the shared local smoke Postgres container and keeps default AquaPulse runtime behavior unchanged unless you explicitly enable the ponds cutover.
 
+For a shared cross-domain compatibility pass anchored on ponds, also see
+`docs/runbooks/pond-linked-cross-domain-smoke.md`.
+
 ## What stays default
 
 - web runtime stays mock-backed by default
@@ -75,6 +78,17 @@ The verifier checks:
 - ponds list through the local bridge
 - seeded detail read for `pond-1`
 - deterministic seeded smoke expectations for the bounded dataset
+
+## Optional cross-domain parity pass
+
+If you want to validate pond-linked compatibility across ponds, water-quality, feed, tasks, and alerts together:
+
+```bash
+corepack pnpm ponds:smoke:db:prepare:linked
+AQUAPULSE_POND_LINKED_VERIFY_EXPECT_BACKEND_ADAPTER=postgres
+AQUAPULSE_POND_LINKED_VERIFY_EXPECT_SEEDED_SMOKE=true
+corepack pnpm ponds:verify-linked-smoke
+```
 
 ## Shut down the local smoke Postgres
 

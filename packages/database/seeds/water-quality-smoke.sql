@@ -12,9 +12,9 @@ INSERT INTO ponds (
   created_at,
   updated_at
 ) VALUES
-  ('pond-1', 'North Pond 1', 'NP-01', 'farm-1', 'pond', 'active', '2026-04-13T00:00:00.000Z', '2026-04-13T00:00:00.000Z'),
-  ('pond-2', 'South Pond 2', 'SP-02', 'farm-1', 'pond', 'active', '2026-04-13T00:00:00.000Z', '2026-04-13T00:00:00.000Z'),
-  ('pond-3', 'West Pond 3', 'WP-03', 'farm-1', 'pond', 'maintenance', '2026-04-13T00:00:00.000Z', '2026-04-13T00:00:00.000Z');
+  ('pond-1', 'North Nursery', 'NN-01', 'farm-1', 'pond', 'active', '2026-04-13T00:00:00.000Z', '2026-04-20T07:15:00.000Z'),
+  ('pond-2', 'South Growout', 'SG-02', 'farm-1', 'tank', 'maintenance', '2026-04-13T00:00:00.000Z', '2026-04-19T05:30:00.000Z'),
+  ('pond-3', 'East Reserve', 'ER-03', 'farm-2', 'cage', 'inactive', '2026-04-13T00:00:00.000Z', '2026-04-18T09:45:00.000Z');
 
 INSERT INTO water_quality (
   id,
