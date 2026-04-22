@@ -124,10 +124,21 @@ export function deriveFrontendSessionBootstrap(
       currentSession?.quaternaryProtectedSliceLabel ?? auth.quaternaryProtectedSliceLabel,
     quaternaryGuardedSliceEnforced:
       currentSession?.quaternaryProtectedSliceEnforced ?? auth.quaternaryProtectedSliceEnforced,
+    nonAlertsOperatorAccessSummaryLabel:
+      currentSession?.nonAlertsOperatorAccessSummaryLabel ?? auth.nonAlertsOperatorAccessSummaryLabel,
+    nonAlertsOperatorAccessSummaryEnforced:
+      currentSession?.nonAlertsOperatorAccessSummaryEnforced ??
+      auth.nonAlertsOperatorAccessSummaryEnforced,
     nonAlertsGuardedSliceLabel:
       currentSession?.nonAlertsProtectedSliceLabel ?? auth.nonAlertsProtectedSliceLabel,
     nonAlertsGuardedSliceEnforced:
       currentSession?.nonAlertsProtectedSliceEnforced ?? auth.nonAlertsProtectedSliceEnforced,
+    secondaryNonAlertsGuardedSliceLabel:
+      currentSession?.secondaryNonAlertsProtectedSliceLabel ??
+      auth.secondaryNonAlertsProtectedSliceLabel,
+    secondaryNonAlertsGuardedSliceEnforced:
+      currentSession?.secondaryNonAlertsProtectedSliceEnforced ??
+      auth.secondaryNonAlertsProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -146,6 +157,7 @@ export function deriveProtectedOperatorUiGuard(
   const isTertiarySlice = sliceLabel === session.tertiaryGuardedSliceLabel;
   const isQuaternarySlice = sliceLabel === session.quaternaryGuardedSliceLabel;
   const isNonAlertsSlice = sliceLabel === session.nonAlertsGuardedSliceLabel;
+  const isSecondaryNonAlertsSlice = sliceLabel === session.secondaryNonAlertsGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -158,6 +170,8 @@ export function deriveProtectedOperatorUiGuard(
             ? session.quaternaryGuardedSliceEnforced
             : isNonAlertsSlice
               ? session.nonAlertsGuardedSliceEnforced
+              : isSecondaryNonAlertsSlice
+                ? session.secondaryNonAlertsGuardedSliceEnforced
               : false);
   const state =
     isPrimarySlice
@@ -181,6 +195,12 @@ export function deriveProtectedOperatorUiGuard(
             ? "bypassed"
             : "disabled"
       : isNonAlertsSlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isSecondaryNonAlertsSlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"

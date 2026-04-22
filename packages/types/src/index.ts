@@ -1305,8 +1305,12 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly tertiaryProtectedSliceEnforced: boolean;
   readonly quaternaryProtectedSliceLabel?: string;
   readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
   readonly forwardingMode:
     | "bypassed"
     | "proxy_env_token"
@@ -1372,8 +1376,12 @@ export interface CurrentSessionPayload {
   readonly tertiaryProtectedSliceEnforced: boolean;
   readonly quaternaryProtectedSliceLabel?: string;
   readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
   readonly verificationState:
     | "disabled"
     | "local_bypass"
@@ -1420,8 +1428,12 @@ export interface FrontendSessionBootstrapStatus {
   readonly tertiaryGuardedSliceEnforced: boolean;
   readonly quaternaryGuardedSliceLabel?: string;
   readonly quaternaryGuardedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
   readonly nonAlertsGuardedSliceLabel?: string;
   readonly nonAlertsGuardedSliceEnforced: boolean;
+  readonly secondaryNonAlertsGuardedSliceLabel?: string;
+  readonly secondaryNonAlertsGuardedSliceEnforced: boolean;
   readonly currentUser?: CurrentSessionUserSummary;
   readonly warnings: RuntimeWarning[];
 }
@@ -1471,8 +1483,12 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly tertiaryProtectedSliceEnforced: boolean;
   readonly quaternaryProtectedSliceLabel?: string;
   readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

@@ -93,8 +93,12 @@ export function createMockApiClients(): AquaPulseApiClients {
             tertiaryProtectedSliceEnforced: false,
             quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
             quaternaryProtectedSliceEnforced: false,
+            nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+            nonAlertsOperatorAccessSummaryEnforced: false,
             nonAlertsProtectedSliceLabel: "tasks_update",
             nonAlertsProtectedSliceEnforced: false,
+            secondaryNonAlertsProtectedSliceLabel: "feed_update",
+            secondaryNonAlertsProtectedSliceEnforced: false,
             verificationState: "disabled",
             warnings: []
           }

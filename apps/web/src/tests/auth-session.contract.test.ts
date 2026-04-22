@@ -31,8 +31,12 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.tertiaryGuardedSliceEnforced).toBe(false);
     expect(session.quaternaryGuardedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(session.quaternaryGuardedSliceEnforced).toBe(false);
+    expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_access");
+    expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
+    expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
+    expect(session.secondaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(lifecycleGuard.enabled).toBe(true);
     expect(lifecycleGuard.enforcedByBackend).toBe(true);
   });
@@ -74,6 +78,9 @@ describe("Frontend auth session bootstrap", () => {
     const tasksUpdateGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.nonAlertsGuardedSliceLabel
     });
+    const feedUpdateGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.secondaryNonAlertsGuardedSliceLabel
+    });
 
     expect(session.bootstrapState).toBe("active");
     expect(session.sourceOfTruth).toBe("runtime_derived");
@@ -94,6 +101,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(savedViewGuard.state).toBe("enabled");
     expect(tasksUpdateGuard.enforcedByBackend).toBe(true);
     expect(tasksUpdateGuard.state).toBe("enabled");
+    expect(feedUpdateGuard.enforcedByBackend).toBe(true);
+    expect(feedUpdateGuard.state).toBe("enabled");
   });
 
   it("degrades safely when keycloak mode is requested but config is incomplete", () => {

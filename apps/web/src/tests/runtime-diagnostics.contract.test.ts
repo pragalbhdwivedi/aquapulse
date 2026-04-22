@@ -27,7 +27,9 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.secondaryProtectedSliceLabel).toBe("alerts_triage_actions");
     expect(diagnostics.auth.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
     expect(diagnostics.auth.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
+    expect(diagnostics.auth.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_access");
     expect(diagnostics.auth.nonAlertsProtectedSliceLabel).toBe("tasks_update");
+    expect(diagnostics.auth.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
@@ -35,8 +37,12 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.session.currentSessionEndpointStatus).toBe("not_requested");
     expect(diagnostics.session.sessionPresent).toBe(true);
     expect(diagnostics.session.protectedOperatorUiState).toBe("bypassed");
+    expect(diagnostics.session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_access");
+    expect(diagnostics.session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
     expect(diagnostics.session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(false);
+    expect(diagnostics.session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
+    expect(diagnostics.session.secondaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -83,14 +89,18 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.quaternaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
     expect(diagnostics.session.bootstrapState).toBe("active");
     expect(diagnostics.session.sourceOfTruth).toBe("runtime_derived");
     expect(diagnostics.session.protectedOperatorUiState).toBe("enabled");
+    expect(diagnostics.session.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(true);
+    expect(diagnostics.session.secondaryNonAlertsGuardedSliceEnforced).toBe(true);
   });
 
   it("represents alerts-only HTTP proxy mode and bridge assumptions consistently", () => {
@@ -806,8 +816,12 @@ describe("Frontend runtime diagnostics", () => {
                   tertiaryProtectedSliceEnforced: false,
                   quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
                   quaternaryProtectedSliceEnforced: false,
+                  nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+                  nonAlertsOperatorAccessSummaryEnforced: false,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: false,
+                  secondaryNonAlertsProtectedSliceLabel: "feed_update",
+                  secondaryNonAlertsProtectedSliceEnforced: false,
                   forwardingMode: "bypassed",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
@@ -895,8 +909,12 @@ describe("Frontend runtime diagnostics", () => {
               tertiaryProtectedSliceEnforced: false,
               quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
               quaternaryProtectedSliceEnforced: false,
+              nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+              nonAlertsOperatorAccessSummaryEnforced: false,
               nonAlertsProtectedSliceLabel: "tasks_update",
               nonAlertsProtectedSliceEnforced: false,
+              secondaryNonAlertsProtectedSliceLabel: "feed_update",
+              secondaryNonAlertsProtectedSliceEnforced: false,
               forwardingMode: "bypassed",
               forwardingActive: false,
               forwardedAuthPresent: false,
@@ -1028,8 +1046,12 @@ describe("Frontend runtime diagnostics", () => {
                   tertiaryProtectedSliceEnforced: true,
                   quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
                   quaternaryProtectedSliceEnforced: true,
+                  nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+                  nonAlertsOperatorAccessSummaryEnforced: true,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: true,
+                  secondaryNonAlertsProtectedSliceLabel: "feed_update",
+                  secondaryNonAlertsProtectedSliceEnforced: true,
                   forwardingMode: "unavailable",
                   forwardingActive: false,
                   forwardedAuthPresent: false,

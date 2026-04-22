@@ -141,6 +141,7 @@ What is intentionally not exposed:
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
 Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary and alerts access level when available. The alerts workbench also uses that current-session surface to explain whether list/detail/summary reads and saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
 The tasks page now reuses the same current-session/runtime model to explain whether the bounded `tasks_update` slice is active, bypassed, or blocked because forwarded auth/session state is missing.
+The feed page now reuses that same bounded non-alert operator model to explain whether `feed_update` is active, bypassed, or blocked because forwarded auth/current-session state is missing, while still keeping the update form readable in disabled and local modes.
 The runtime page and alerts workbench now also distinguish surface exposure explicitly:
 
 - `alerts_list_read`: `backend_protected`
@@ -148,7 +149,10 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - `alerts_summary_read`: `backend_protected`
 - alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
   forwarding/session state is insufficient
-- `tasks_update`: bounded non-alert `ui_guarded` + backend-enforced operator slice
+- `non_alert_operator_access`: shared bounded non-alert operator access summary used by
+  `tasks_update` and `feed_update`
+- `tasks_update`: first bounded non-alert `ui_guarded` + backend-enforced operator slice
+- `feed_update`: second bounded non-alert `ui_guarded` + backend-enforced operator slice
 
 ## Intentionally deferred in this branch
 

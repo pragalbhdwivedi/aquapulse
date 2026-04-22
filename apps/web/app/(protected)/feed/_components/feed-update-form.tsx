@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { FeedEntry } from "@aquapulse/types";
+import type { FeedEntry, FrontendSessionBootstrapStatus } from "@aquapulse/types";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 import { createRepositoriesFromConfig } from "@web/repositories";
 import {
   deriveFeedRuntimeIndicator,
@@ -24,9 +25,10 @@ import {
 
 interface FeedUpdateFormProps {
   readonly feedEntry: FeedEntry;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
-export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
+export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
   const [inlineEdit, setInlineEdit] = useState(() =>
     createInlineEditState({
       feedType: feedEntry.feedType,
@@ -64,13 +66,25 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
     () => deriveFeedRuntimeIndicator(runtimeConfig),
     [runtimeConfig]
   );
+  const feedUpdateGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.secondaryNonAlertsGuardedSliceLabel ?? "feed_update",
+        enforcedByBackend: session.secondaryNonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
+  const updateDisabled = !feedUpdateGuard.enabled;
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
+        if (updateDisabled) {
+          return;
+        }
         setIsSubmitting(true);
         setRuntimeError(null);
 
@@ -129,6 +143,12 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           Feed runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
         </span>
         <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Feed update auth: {feedUpdateGuard.sliceLabel} / {feedUpdateGuard.state}
+        </span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {feedUpdateGuard.message}
+        </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
             {warning.message}
@@ -139,6 +159,7 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
         <button
           type="button"
           onClick={() => setInlineEdit((state) => startInlineEdit(state))}
+          disabled={updateDisabled}
           style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         >
           Edit
@@ -159,7 +180,7 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { feedType: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -170,7 +191,7 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { quantityKg: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -181,7 +202,7 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { fedAt: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -192,13 +213,13 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { batchId: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <button
         type="submit"
-        disabled={pageState.isSubmitting || !inlineEdit.isEditing}
+        disabled={pageState.isSubmitting || !inlineEdit.isEditing || updateDisabled}
         style={{
           padding: "0.7rem 0.9rem",
           borderRadius: "0.5rem",
@@ -226,6 +247,12 @@ export function FeedUpdateForm({ feedEntry }: FeedUpdateFormProps) {
         </p>
       ) : null}
       {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {updateDisabled ? (
+        <p style={{ margin: 0, color: "#fca5a5" }}>
+          Feed update is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded non-alert operator action can run.
+        </p>
+      ) : null}
     </form>
   );
 }
