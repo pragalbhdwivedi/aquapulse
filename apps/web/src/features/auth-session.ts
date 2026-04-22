@@ -124,6 +124,10 @@ export function deriveFrontendSessionBootstrap(
       currentSession?.quaternaryProtectedSliceLabel ?? auth.quaternaryProtectedSliceLabel,
     quaternaryGuardedSliceEnforced:
       currentSession?.quaternaryProtectedSliceEnforced ?? auth.quaternaryProtectedSliceEnforced,
+    nonAlertsGuardedSliceLabel:
+      currentSession?.nonAlertsProtectedSliceLabel ?? auth.nonAlertsProtectedSliceLabel,
+    nonAlertsGuardedSliceEnforced:
+      currentSession?.nonAlertsProtectedSliceEnforced ?? auth.nonAlertsProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -141,6 +145,7 @@ export function deriveProtectedOperatorUiGuard(
   const isSecondarySlice = sliceLabel === session.secondaryGuardedSliceLabel;
   const isTertiarySlice = sliceLabel === session.tertiaryGuardedSliceLabel;
   const isQuaternarySlice = sliceLabel === session.quaternaryGuardedSliceLabel;
+  const isNonAlertsSlice = sliceLabel === session.nonAlertsGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -151,7 +156,9 @@ export function deriveProtectedOperatorUiGuard(
           ? session.tertiaryGuardedSliceEnforced
           : isQuaternarySlice
             ? session.quaternaryGuardedSliceEnforced
-          : false);
+            : isNonAlertsSlice
+              ? session.nonAlertsGuardedSliceEnforced
+              : false);
   const state =
     isPrimarySlice
       ? session.protectedOperatorUiState
@@ -168,6 +175,12 @@ export function deriveProtectedOperatorUiGuard(
             ? "bypassed"
             : "disabled"
       : isQuaternarySlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isNonAlertsSlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"

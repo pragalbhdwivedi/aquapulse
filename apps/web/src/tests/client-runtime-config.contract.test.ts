@@ -167,6 +167,8 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.tertiaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(diagnostics.quaternaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.nonAlertsProtectedSliceLabel).toBe("tasks_update");
+    expect(diagnostics.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.forwardingActive).toBe(true);
     expect(diagnostics.forwardedAuthPresent).toBe(true);

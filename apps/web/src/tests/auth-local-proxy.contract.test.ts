@@ -49,6 +49,8 @@ describe("Auth local API proxy", () => {
           tertiaryProtectedSliceEnforced: false,
           quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
           quaternaryProtectedSliceEnforced: false,
+          nonAlertsProtectedSliceLabel: "tasks_update",
+          nonAlertsProtectedSliceEnforced: false,
           verificationState: "local_bypass",
           warnings: []
         }

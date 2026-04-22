@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { TaskStatus, TaskSummary } from "@aquapulse/types";
+import type { FrontendSessionBootstrapStatus, TaskStatus, TaskSummary } from "@aquapulse/types";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
 import { createRepositoriesFromConfig } from "@web/repositories";
 import {
   cancelInlineEdit,
@@ -24,9 +25,10 @@ import { toMutationSyncPageState } from "@web/features/mutation-refresh";
 
 interface TaskUpdateFormProps {
   readonly task: TaskSummary;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
-export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
+export function TaskUpdateForm({ task, session }: TaskUpdateFormProps) {
   const [inlineEdit, setInlineEdit] = useState(() =>
     createInlineEditState({
       title: task.title,
@@ -63,13 +65,25 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
     () => deriveTasksRuntimeIndicator(runtimeConfig),
     [runtimeConfig]
   );
+  const taskUpdateGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.nonAlertsGuardedSliceLabel ?? "tasks_update",
+        enforcedByBackend: session.nonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
+  const updateDisabled = !taskUpdateGuard.enabled;
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
+        if (updateDisabled) {
+          return;
+        }
         setIsSubmitting(true);
         setRuntimeError(null);
 
@@ -127,6 +141,12 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           Tasks runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
         </span>
         <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Tasks update auth: {taskUpdateGuard.sliceLabel} / {taskUpdateGuard.state}
+        </span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {taskUpdateGuard.message}
+        </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
             {warning.message}
@@ -137,6 +157,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
         <button
           type="button"
           onClick={() => setInlineEdit((state) => startInlineEdit(state))}
+          disabled={updateDisabled}
           style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         >
           Edit
@@ -157,7 +178,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { title: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -170,7 +191,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
               patchInlineEditDraft(state, { status: event.target.value as TaskStatus })
             )
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         >
           <option value="todo">Todo</option>
@@ -186,13 +207,13 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { assigneeId: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <button
         type="submit"
-        disabled={pageState.isSubmitting || !inlineEdit.isEditing}
+        disabled={pageState.isSubmitting || !inlineEdit.isEditing || updateDisabled}
         style={{
           padding: "0.7rem 0.9rem",
           borderRadius: "0.5rem",
@@ -220,6 +241,12 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
         </p>
       ) : null}
       {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {updateDisabled ? (
+        <p style={{ margin: 0, color: "#fca5a5" }}>
+          Tasks update is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded non-alert operator action can run.
+        </p>
+      ) : null}
     </form>
   );
 }

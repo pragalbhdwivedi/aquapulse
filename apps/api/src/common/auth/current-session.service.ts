@@ -105,6 +105,8 @@ export class CurrentSessionService {
       tertiaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
       quaternaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
+      nonAlertsProtectedSliceLabel: "tasks_update",
+      nonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       verificationState:
         runtime.effectiveMode === "disabled"
           ? "disabled"

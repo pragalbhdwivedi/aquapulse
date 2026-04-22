@@ -75,8 +75,12 @@ x-aquapulse-dev-permissions
   `POST /alerts/bulk/acknowledge`, `POST /alerts/bulk/resolve`, `POST /alerts/bulk/assign`, and `POST /alerts/bulk/review-state`.
 - The fourth protected operator slice is `alerts saved-view mutation actions`:
   `POST /alerts/views` and `POST /alerts/views/:id/remove`.
+- The first bounded non-alert protected operator slice is `tasks update`:
+  `PATCH /tasks/:id`.
 - The alerts workbench now reflects bounded operator guarding in the UI:
   lifecycle, triage, bulk, and saved-view mutation actions are disabled when Keycloak mode is active but no forwarded auth session is available, while disabled/local modes continue to use the safe bounded bypass path.
+- The tasks page now reflects the same bounded protection model for the first task update form:
+  in Keycloak mode the update action is disabled until forwarded auth/current-session is available, while disabled/local modes continue to use the safe bounded bypass path.
 - In Keycloak mode, `/api/health` can still be reachable while `/api/diagnostics/runtime` returns an auth-required partial probe state until a verified bearer token is supplied.
 - For a bounded local verification pass that also checks current-session and the protected alerts slices together, use `docs/runbooks/auth-local-keycloak-verifier.md` and run `corepack pnpm auth:verify-runtime`.
 
@@ -124,6 +128,7 @@ Safe payload scope:
 - secondary protected operator slice label/enforcement
 - tertiary protected operator slice label/enforcement
 - quaternary protected operator slice label/enforcement
+- bounded non-alert protected operator slice label/enforcement
 - safe warnings
 
 What is intentionally not exposed:
@@ -135,6 +140,7 @@ What is intentionally not exposed:
 
 When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try to use the backend current-session endpoint as a more grounded source of truth. If it is unavailable, the frontend falls back to runtime-derived auth state and reports that fallback in diagnostics.
 Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary and alerts access level when available. The alerts workbench also uses that current-session surface to explain whether list/detail/summary reads and saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
+The tasks page now reuses the same current-session/runtime model to explain whether the bounded `tasks_update` slice is active, bypassed, or blocked because forwarded auth/session state is missing.
 The runtime page and alerts workbench now also distinguish surface exposure explicitly:
 
 - `alerts_list_read`: `backend_protected`
@@ -142,6 +148,7 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - `alerts_summary_read`: `backend_protected`
 - alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
   forwarding/session state is insufficient
+- `tasks_update`: bounded non-alert `ui_guarded` + backend-enforced operator slice
 
 ## Intentionally deferred in this branch
 

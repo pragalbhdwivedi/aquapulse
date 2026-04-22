@@ -217,6 +217,8 @@ describe("Alerts live updates connector", () => {
         tertiaryProtectedSliceEnforced: true,
         quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
         quaternaryProtectedSliceEnforced: true,
+        nonAlertsProtectedSliceLabel: "tasks_update",
+        nonAlertsProtectedSliceEnforced: true,
         verificationState: "verified",
         warnings: []
       },

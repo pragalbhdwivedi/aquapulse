@@ -41,6 +41,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.tertiaryProtectedSliceEnforced).toBe(false);
     expect(diagnostics.auth?.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(diagnostics.auth?.quaternaryProtectedSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.nonAlertsProtectedSliceLabel).toBe("tasks_update");
+    expect(diagnostics.auth?.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -137,10 +139,14 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_SAVED_VIEW_MUTATION_SLICE_ACTIVE"
     );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_TASKS_UPDATE_SLICE_ACTIVE"
+    );
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quaternaryProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth?.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
   });
 

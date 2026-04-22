@@ -1039,6 +1039,8 @@ export function getAuthRuntimeDiagnostics(
     tertiaryProtectedSliceEnforced: effectiveMode === "keycloak",
     quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
     quaternaryProtectedSliceEnforced: effectiveMode === "keycloak",
+    nonAlertsProtectedSliceLabel: "tasks_update",
+    nonAlertsProtectedSliceEnforced: effectiveMode === "keycloak",
     forwardingMode,
     forwardingActive: effectiveMode === "keycloak" && forwardedAuthPresent,
     forwardedAuthPresent,
