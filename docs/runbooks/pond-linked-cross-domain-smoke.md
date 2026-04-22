@@ -30,6 +30,14 @@ This writes one deterministic dataset containing:
 - pond-linked tasks for `pond-1` and `pond-2`
 - alert references for `pond-1` and `pond-2`
 
+Expected bounded parity shape:
+
+- ponds: `pond-1`, `pond-2`, `pond-3`, `pond-4`
+- water-quality references: `pond-1`, `pond-2`, `pond-3`
+- feed references: `pond-1`, `pond-2`
+- tasks references: `pond-1`, `pond-2`
+- alerts references: `pond-1`, `pond-2`
+
 ## Run the API and web app
 
 Run the API in Postgres mode and the web app with the domain-specific HTTP modes you want to verify. For a full cross-domain pass, enable:
@@ -59,6 +67,8 @@ The verifier checks:
 - feed rows pointing to known seeded ponds
 - tasks pointing to known seeded ponds
 - alert references staying structurally aligned with seeded ponds
+- each linked domain’s pond-id set matches the expected bounded seeded shape
+- no linked domain points at a pond id that is missing from the seeded ponds dataset
 
 ## Single-domain verifiers you can still run
 
@@ -69,6 +79,20 @@ After loading the same linked smoke dataset, these remain useful:
 - `corepack pnpm feed:verify-runtime`
 - `corepack pnpm tasks:verify-runtime`
 - `corepack pnpm alerts:verify-runtime`
+
+Suggested order when you want quick failure isolation:
+
+1. `corepack pnpm ponds:verify-linked-smoke`
+2. `corepack pnpm ponds:verify-runtime`
+3. `corepack pnpm water-quality:verify-runtime`
+4. `corepack pnpm feed:verify-runtime`
+5. `corepack pnpm tasks:verify-runtime`
+6. `corepack pnpm alerts:verify-runtime`
+
+Readable failure modes:
+
+- `unknown pond ids` means a linked domain returned pond references that are not present in the seeded ponds dataset.
+- `mismatched cross-domain pond links` means a domain returned a different bounded pond-id set than the linked smoke dataset is expected to expose.
 
 ## What stays intentionally out of scope
 

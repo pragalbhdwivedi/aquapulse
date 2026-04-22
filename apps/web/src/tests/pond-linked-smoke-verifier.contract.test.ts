@@ -4,12 +4,36 @@ const verifierModulePath = "../../../../scripts/lib/pond-linked-smoke-verifier.m
 
 async function loadVerifierModule() {
   return (await import(verifierModulePath)) as {
+    collectReferencedPondIdsByDomain: (input: {
+      readonly waterQualityList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
+      readonly feedList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
+      readonly tasksList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
+      readonly alertsList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
+    }) => {
+      readonly waterQuality: string[];
+      readonly feed: string[];
+      readonly tasks: string[];
+      readonly alerts: string[];
+    };
     collectReferencedPondIds: (input: {
       readonly waterQualityList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
       readonly feedList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
       readonly tasksList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
       readonly alertsList?: { readonly data?: { readonly items?: Array<{ readonly pondId?: string }> } };
     }) => string[];
+    collectSeededPondIds: (pondsList?: {
+      readonly data?: { readonly items?: Array<{ readonly id?: string }> };
+    }) => string[];
+    createExpectedSeededPondLinks: (config: {
+      readonly pondId: string;
+      readonly secondaryPondId: string;
+    }) => {
+      readonly ponds: string[];
+      readonly waterQuality: string[];
+      readonly feed: string[];
+      readonly tasks: string[];
+      readonly alerts: string[];
+    };
     readPondLinkedSmokeVerificationConfig: (
       env?: Record<string, string | undefined>
     ) => {
@@ -20,6 +44,20 @@ async function loadVerifierModule() {
       readonly secondaryPondId: string;
       readonly alertId: string;
       readonly expectSeededSmoke: boolean;
+    };
+    verifyReferencedPondIdsAgainstKnownPonds: (
+      knownPondIds: string[],
+      byDomain: Record<string, string[]>
+    ) => {
+      readonly ok: boolean;
+      readonly unknownByDomain: Record<string, string[]>;
+    };
+    verifyExpectedSeededPondLinks: (
+      actualByDomain: Record<string, string[]>,
+      expectedByDomain: Record<string, string[]>
+    ) => {
+      readonly ok: boolean;
+      readonly mismatches: Record<string, { readonly actual: string[]; readonly expected: string[] }>;
     };
   };
 }
@@ -60,15 +98,112 @@ describe("Pond-linked smoke verifier config", () => {
   });
 
   it("collects linked pond ids deterministically across domain payloads", async () => {
-    const { collectReferencedPondIds } = await loadVerifierModule();
+    const { collectReferencedPondIds, collectReferencedPondIdsByDomain } = await loadVerifierModule();
+    const payload = {
+      waterQualityList: { data: { items: [{ pondId: "pond-2" }, { pondId: "pond-1" }] } },
+      feedList: { data: { items: [{ pondId: "pond-1" }] } },
+      tasksList: { data: { items: [{ pondId: "pond-2" }, { pondId: undefined }] } },
+      alertsList: { data: { items: [{ pondId: "pond-1" }, { pondId: "pond-2" }] } }
+    };
+
+    expect(collectReferencedPondIdsByDomain(payload)).toEqual({
+      waterQuality: ["pond-1", "pond-2"],
+      feed: ["pond-1"],
+      tasks: ["pond-2"],
+      alerts: ["pond-1", "pond-2"]
+    });
+    expect(collectReferencedPondIds(payload)).toEqual(["pond-1", "pond-2"]);
+  });
+
+  it("derives seeded pond parity expectations and rejects unknown pond references deterministically", async () => {
+    const {
+      collectSeededPondIds,
+      createExpectedSeededPondLinks,
+      verifyExpectedSeededPondLinks,
+      verifyReferencedPondIdsAgainstKnownPonds
+    } = await loadVerifierModule();
+    const knownPondIds = collectSeededPondIds({
+      data: {
+        items: [
+          { id: "pond-4" },
+          { id: "pond-1" },
+          { id: "pond-3" },
+          { id: "pond-2" }
+        ]
+      }
+    });
+    const expected = createExpectedSeededPondLinks({
+      pondId: "pond-1",
+      secondaryPondId: "pond-2"
+    });
+
+    expect(knownPondIds).toEqual(["pond-1", "pond-2", "pond-3", "pond-4"]);
+    expect(expected).toEqual({
+      ponds: ["pond-1", "pond-2", "pond-3", "pond-4"],
+      waterQuality: ["pond-1", "pond-2", "pond-3"],
+      feed: ["pond-1", "pond-2"],
+      tasks: ["pond-1", "pond-2"],
+      alerts: ["pond-1", "pond-2"]
+    });
 
     expect(
-      collectReferencedPondIds({
-        waterQualityList: { data: { items: [{ pondId: "pond-2" }, { pondId: "pond-1" }] } },
-        feedList: { data: { items: [{ pondId: "pond-1" }] } },
-        tasksList: { data: { items: [{ pondId: "pond-2" }, { pondId: undefined }] } },
-        alertsList: { data: { items: [{ pondId: "pond-1" }, { pondId: "pond-2" }] } }
+      verifyReferencedPondIdsAgainstKnownPonds(knownPondIds, {
+        waterQuality: ["pond-1", "pond-3"],
+        feed: ["pond-1", "pond-2"],
+        tasks: ["pond-2"],
+        alerts: ["pond-1", "pond-2"]
       })
-    ).toEqual(["pond-1", "pond-2"]);
+    ).toEqual({
+      ok: true,
+      unknownByDomain: {}
+    });
+
+    expect(
+      verifyReferencedPondIdsAgainstKnownPonds(knownPondIds, {
+        waterQuality: ["pond-1", "pond-9"]
+      })
+    ).toEqual({
+      ok: false,
+      unknownByDomain: {
+        waterQuality: ["pond-9"]
+      }
+    });
+
+    expect(
+      verifyExpectedSeededPondLinks(
+        {
+          ponds: knownPondIds,
+          waterQuality: ["pond-1", "pond-2", "pond-3"],
+          feed: ["pond-1", "pond-2"],
+          tasks: ["pond-1", "pond-2"],
+          alerts: ["pond-1", "pond-2"]
+        },
+        expected
+      )
+    ).toEqual({
+      ok: true,
+      mismatches: {}
+    });
+
+    expect(
+      verifyExpectedSeededPondLinks(
+        {
+          ponds: knownPondIds,
+          waterQuality: ["pond-1", "pond-2"],
+          feed: ["pond-1", "pond-2"],
+          tasks: ["pond-1", "pond-2"],
+          alerts: ["pond-1", "pond-2"]
+        },
+        expected
+      )
+    ).toEqual({
+      ok: false,
+      mismatches: {
+        waterQuality: {
+          actual: ["pond-1", "pond-2"],
+          expected: ["pond-1", "pond-2", "pond-3"]
+        }
+      }
+    });
   });
 });

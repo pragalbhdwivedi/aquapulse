@@ -37,18 +37,32 @@ describe("Pond-linked cross-domain smoke stack", () => {
     expect(seedSql).toContain("INSERT INTO alerts");
     expect(seedSql).toContain("'North Nursery'");
     expect(seedSql).toContain("'South Growout'");
+    expect(seedSql).toContain("'East Reserve'");
+    expect(seedSql).toContain("'West Nursery'");
+    expect(seedSql).toContain("'wq-smoke-pond-3-missing-ph'");
     expect(seedSql).toContain("'feed-1'");
+    expect(seedSql).toContain("'feed-4'");
     expect(seedSql).toContain("'task-1'");
+    expect(seedSql).toContain("'task-4'");
     expect(seedSql).toContain("'alert-1'");
+    expect(seedSql).toContain("'alert-4'");
 
     expect(verifierScript).toContain("/api/ponds");
     expect(verifierScript).toContain("/api/water-quality");
     expect(verifierScript).toContain("/api/feed");
     expect(verifierScript).toContain("/api/tasks");
     expect(verifierScript).toContain("/api/alerts");
+    expect(verifierScript).toContain("verifyReferencedPondIdsAgainstKnownPonds");
+    expect(verifierScript).toContain("verifyExpectedSeededPondLinks");
+    expect(verifierScript).toContain("Pond-linked domain coverage");
 
     expect(helperScript).toContain("readPondLinkedSmokeVerificationConfig");
     expect(helperScript).toContain("collectReferencedPondIds");
+    expect(helperScript).toContain("collectReferencedPondIdsByDomain");
+    expect(helperScript).toContain("collectSeededPondIds");
+    expect(helperScript).toContain("createExpectedSeededPondLinks");
+    expect(helperScript).toContain("verifyReferencedPondIdsAgainstKnownPonds");
+    expect(helperScript).toContain("verifyExpectedSeededPondLinks");
     expect(helperScript).toContain("AQUAPULSE_POND_LINKED_VERIFY_EXPECT_SEEDED_SMOKE");
 
     expect(databasePackageJson.scripts["db:prepare:pond-linked-smoke"]).toBeDefined();

@@ -90,6 +90,8 @@ AQUAPULSE_POND_LINKED_VERIFY_EXPECT_SEEDED_SMOKE=true
 corepack pnpm ponds:verify-linked-smoke
 ```
 
+That linked verifier now reports the observed pond coverage per domain and fails clearly if any linked domain points at an unknown pond id or if the bounded seeded pond-id sets drift across domains.
+
 ## Shut down the local smoke Postgres
 
 ```bash
