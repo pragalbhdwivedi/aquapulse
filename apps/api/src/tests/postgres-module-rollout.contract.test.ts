@@ -1,4 +1,5 @@
 import {
+  createPlaceholderPondRow,
   createPlaceholderAttachmentRow,
   createPlaceholderBatchRow,
   createPlaceholderFeedRow,
@@ -33,6 +34,14 @@ import {
   buildUpdateFeedQueryPlan
 } from "../modules/feed/adapters/postgres-feed.repository";
 import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
+import {
+  PostgresPondsRepository,
+  buildCreatePondQueryPlan,
+  buildPondByIdQueryPlan,
+  buildPondsListQueryPlan,
+  buildUpdatePondQueryPlan
+} from "../modules/ponds/adapters/postgres-ponds.repository";
+import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import {
   PostgresTasksRepository,
   buildCreateTaskQueryPlan,
@@ -194,5 +203,50 @@ describe("Postgres module rollout adapters", () => {
     });
     expect(batchPlans.length).toBe(4);
     expect(feedPlans.length).toBe(4);
+  });
+
+  it("ponds adopt the same controlled read/write slice structure", async () => {
+    const pondPlans: RecordedDatabasePlan[] = [];
+    const pondsRepository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(pondPlans, {
+        rows: [createPlaceholderPondRow({ id: "pond-42", farm_id: "farm-42" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const [pond, pondList, createdPond, updatedPond] = await Promise.all([
+      pondsRepository.getById("pond-42"),
+      pondsRepository.list({ page: 1, pageSize: 20, farmId: "farm-42", search: "north" }),
+      pondsRepository.create({ id: "pond-write-1" }),
+      pondsRepository.update("pond-write-2", {})
+    ]);
+
+    expect(pond.id).toBe("pond-42");
+    expect(pondList.items[0]?.farmId).toBe("farm-42");
+    expect(createdPond.id).toBe("pond-42");
+    expect(updatedPond.id).toBe("pond-42");
+    expect(buildPondByIdQueryPlan("pond-42").filters).toEqual({ id: "pond-42" });
+    expect(buildPondsListQueryPlan({ page: 1, pageSize: 20, farmId: "farm-42", search: "north" }).filters).toEqual({
+      farmId: "farm-42",
+      status: undefined,
+      kind: undefined,
+      search: "north"
+    });
+    expect(buildCreatePondQueryPlan(createPlaceholderPondRow({ id: "pond-write-1" })).filters).toEqual({
+      farmId: "farm-1",
+      kind: "pond",
+      status: "active"
+    });
+    expect(
+      buildUpdatePondQueryPlan("pond-write-2", {
+        id: "pond-write-2",
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).params
+    ).toEqual(["pond-write-2", null, null, null, null, null, "2026-04-13T00:00:00.000Z"]);
+    expect(pondPlans.length).toBe(4);
+    expect(pondPlans[0]?.statement).toContain("from ponds");
+    expect(pondPlans[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(pondPlans[2]?.statement).toContain("insert into ponds");
+    expect(pondPlans[3]?.statement).toContain("update ponds");
   });
 });

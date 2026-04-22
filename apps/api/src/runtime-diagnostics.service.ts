@@ -76,6 +76,12 @@ export class RuntimeDiagnosticsService {
       allowRuntimeSwitch: true,
       postgresEnabled: runtime.persistence.postgresEnabled
     });
+    const pondsSelection = resolvePersistenceSelection({
+      defaultAdapter: "in-memory",
+      requestedAdapter: runtime.persistence.requestedAdapter,
+      allowRuntimeSwitch: true,
+      postgresEnabled: runtime.persistence.postgresEnabled
+    });
     const tasksSelection = resolvePersistenceSelection({
       defaultAdapter: "in-memory",
       requestedAdapter: runtime.persistence.requestedAdapter,
@@ -91,6 +97,7 @@ export class RuntimeDiagnosticsService {
     const warnings: RuntimeWarning[] = [];
     const alertWarnings: RuntimeWarning[] = [];
     const feedWarnings: RuntimeWarning[] = [];
+    const pondsWarnings: RuntimeWarning[] = [];
     const tasksWarnings: RuntimeWarning[] = [];
     const waterQualityWarnings: RuntimeWarning[] = [];
     const cachedConnectionStatus = getCachedDatabaseConnectionStatus();
@@ -157,6 +164,30 @@ export class RuntimeDiagnosticsService {
         code: "ALERTS_POSTGRES_CONFIG_MISSING",
         message:
           "Alerts Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && !runtime.persistence.postgresEnabled) {
+      pondsWarnings.push({
+        code: "PONDS_POSTGRES_DISABLED",
+        message:
+          "Ponds Postgres cutover was requested, but AQUAPULSE_ENABLE_POSTGRES_ADAPTERS is not enabled. Ponds remain on the safe in-memory adapter."
+      });
+    }
+
+    if (runtime.persistence.requestedAdapter === "postgres" && pondsSelection.adapter !== "postgres") {
+      pondsWarnings.push({
+        code: "PONDS_POSTGRES_BLOCKED",
+        message:
+          "Ponds requested the Postgres adapter, but the effective ponds adapter is still in-memory."
+      });
+    }
+
+    if (pondsSelection.adapter === "postgres" && !configured) {
+      pondsWarnings.push({
+        code: "PONDS_POSTGRES_CONFIG_MISSING",
+        message:
+          "Ponds Postgres cutover is enabled, but database configuration is incomplete. The adapter selection is Postgres, but live connectivity has not been verified."
       });
     }
 
@@ -479,6 +510,17 @@ export class RuntimeDiagnosticsService {
                   "Alerts live updates are disabled by default. Enable AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES to attach the local websocket gateway."
               }
             ]
+      },
+      ponds: {
+        postgresReadCutoverAvailable: true,
+        postgresWriteCutoverAvailable: true,
+        requestedAdapter: runtime.persistence.requestedAdapter,
+        effectiveAdapter: pondsSelection.adapter,
+        runtimeSwitchEnabled: true,
+        cutoverActive: pondsSelection.adapter === "postgres",
+        databaseConfigured: configured,
+        connectivityStatus: connectivity.status,
+        warnings: pondsWarnings
       },
       feed: {
         postgresReadCutoverAvailable: true,

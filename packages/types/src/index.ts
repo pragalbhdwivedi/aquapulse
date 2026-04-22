@@ -1629,6 +1629,18 @@ export interface BackendTasksRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface BackendPondsRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface AlertLiveUpdateAlertPreview {
   readonly id: EntityId;
   readonly status: AlertSummary["status"];
@@ -1716,6 +1728,7 @@ export interface BackendRuntimeDiagnostics {
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;
   readonly alertsLiveUpdates?: BackendAlertsLiveUpdatesDiagnostics;
+  readonly ponds?: BackendPondsRuntimeDiagnostics;
   readonly feed?: BackendFeedRuntimeDiagnostics;
   readonly tasks?: BackendTasksRuntimeDiagnostics;
   readonly waterQuality: BackendWaterQualityRuntimeDiagnostics;

@@ -76,10 +76,17 @@ describe("Postgres read adapter slices", () => {
     expect(item.id).toBe("pond-42");
     expect(item.farmId).toBe("farm-42");
     expect(list.items[0]?.id).toBe("pond-42");
-    expect(recordedQueries).toEqual([
-      { statement: "ponds.getById", params: ["pond-42"] },
-      { statement: "ponds.list", params: [2, 10, "farm-42", "active", "pond", "north"] }
-    ]);
+    expect(list.page.totalItems).toBe(1);
+    expect(recordedQueries).toHaveLength(2);
+    expect(recordedQueries[0]).toEqual({
+      statement: expect.stringContaining("from ponds"),
+      params: ["pond-42"]
+    });
+    expect(recordedQueries[1]).toEqual({
+      statement: expect.stringContaining("count(*) over()::int as total_count"),
+      params: ["farm-42", "active", "pond", "%north%", "%north%", 10, 10]
+    });
+    expect(recordedQueries[1]?.statement).toContain("order by name asc, id asc");
     expect(buildPondByIdQueryPlan("pond-42").filters).toEqual({ id: "pond-42" });
     expect(buildPondsListQueryPlan({ page: 1, pageSize: 20, status: "active" }).filters).toEqual({
       farmId: undefined,
@@ -241,28 +248,28 @@ describe("Postgres read adapter slices", () => {
     expect(updatedAlert.id).toBe("alert-write-2");
     expect(recordedQueries).toEqual([
       {
-        statement: "ponds.create",
+        statement: expect.stringContaining("insert into ponds"),
         params: [
-          {
-            id: "pond-write-1",
-            name: "North Pond 1",
-            code: "NP-01",
-            farm_id: "farm-1",
-            kind: "pond",
-            status: "active",
-            created_at: "2026-04-13T00:00:00.000Z",
-            updated_at: "2026-04-13T00:00:00.000Z"
-          }
+          "pond-write-1",
+          "North Pond 1",
+          "NP-01",
+          "farm-1",
+          "pond",
+          "active",
+          "2026-04-13T00:00:00.000Z",
+          "2026-04-13T00:00:00.000Z"
         ]
       },
       {
-        statement: "ponds.update",
+        statement: expect.stringContaining("update ponds"),
         params: [
           "pond-write-2",
-          {
-            id: "pond-write-2",
-            updated_at: "2026-04-13T00:00:00.000Z"
-          }
+          null,
+          null,
+          null,
+          null,
+          null,
+          "2026-04-13T00:00:00.000Z"
         ]
       },
       {
@@ -308,7 +315,12 @@ describe("Postgres read adapter slices", () => {
     expect(buildCreatePondQueryPlan({ id: "pond-write-1", name: "North Pond 1", code: "NP-01", farm_id: "farm-1", kind: "pond", status: "active", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("ponds.create");
     expect(buildUpdatePondQueryPlan("pond-write-2", { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
       "pond-write-2",
-      { id: "pond-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
+      null,
+      null,
+      null,
+      null,
+      null,
+      "2026-04-13T00:00:00.000Z"
     ]);
     expect(buildCreateAlertQueryPlan({ id: "alert-write-1", title: "Low dissolved oxygen warning", severity: "high", source: "water-quality", pond_id: "pond-1", status: "open", assigned_to: undefined, review_state: "unreviewed", review_label: undefined, latest_note: "Placeholder alert note.", created_at: "2026-04-13T00:00:00.000Z", updated_at: "2026-04-13T00:00:00.000Z" }).key).toBe("alerts.create");
     expect(buildUpdateAlertQueryPlan("alert-write-2", { id: "alert-write-2", title: undefined, severity: undefined, source: undefined, pond_id: undefined, status: undefined, assigned_to: undefined, review_state: undefined, review_label: undefined, latest_note: undefined, updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([

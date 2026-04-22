@@ -2,6 +2,7 @@ import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
   createPlaceholderFeedRow,
+  createPlaceholderPondRow,
   createPlaceholderTaskRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig
@@ -51,7 +52,12 @@ import type { WaterQualityListQueryContract } from "../modules/water-quality/que
 
 describe("Persistence adapter skeletons", () => {
   it("postgres adapter skeletons satisfy the repository ports", async () => {
-    const pondsRepository: PondsRepositoryPort = new PostgresPondsRepository();
+    const pondsRepository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: [createPlaceholderPondRow({ id: "pond-1" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const alertsRepository: AlertsRepositoryPort = PostgresAlertsRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory([], {
         resolveRows(statement) {

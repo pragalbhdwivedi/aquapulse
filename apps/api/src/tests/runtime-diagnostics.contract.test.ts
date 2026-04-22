@@ -65,6 +65,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.feed?.effectiveAdapter).toBe("in-memory");
     expect(diagnostics.feed?.cutoverActive).toBe(false);
     expect(diagnostics.feed?.localBridgeExpectedPath).toBe("/api/feed");
+    expect(diagnostics.ponds?.requestedAdapter).toBe("postgres");
+    expect(diagnostics.ponds?.effectiveAdapter).toBe("in-memory");
+    expect(diagnostics.ponds?.cutoverActive).toBe(false);
     expect(diagnostics.tasks?.requestedAdapter).toBe("postgres");
     expect(diagnostics.tasks?.effectiveAdapter).toBe("in-memory");
     expect(diagnostics.tasks?.cutoverActive).toBe(false);
@@ -77,6 +80,9 @@ describe("API runtime diagnostics", () => {
     );
     expect(diagnostics.feed?.warnings.map((warning) => warning.code)).toContain(
       "FEED_POSTGRES_DISABLED"
+    );
+    expect(diagnostics.ponds?.warnings.map((warning) => warning.code)).toContain(
+      "PONDS_POSTGRES_DISABLED"
     );
     expect(diagnostics.tasks?.warnings.map((warning) => warning.code)).toContain(
       "TASKS_POSTGRES_DISABLED"
@@ -155,6 +161,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alerts.cutoverActive).toBe(true);
     expect(diagnostics.feed?.effectiveAdapter).toBe("postgres");
     expect(diagnostics.feed?.cutoverActive).toBe(true);
+    expect(diagnostics.ponds?.effectiveAdapter).toBe("postgres");
+    expect(diagnostics.ponds?.cutoverActive).toBe(true);
     expect(diagnostics.tasks?.effectiveAdapter).toBe("postgres");
     expect(diagnostics.tasks?.cutoverActive).toBe(true);
     expect(diagnostics.waterQuality.effectiveAdapter).toBe("postgres");
