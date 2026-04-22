@@ -16,7 +16,9 @@
     "db:seed:feed-smoke": "node ./scripts/seed-feed-smoke.mjs",
     "db:prepare:feed-smoke": "node ./scripts/prepare-feed-smoke.mjs",
     "db:seed:tasks-smoke": "node ./scripts/seed-tasks-smoke.mjs",
-    "db:prepare:tasks-smoke": "node ./scripts/prepare-tasks-smoke.mjs"
+    "db:prepare:tasks-smoke": "node ./scripts/prepare-tasks-smoke.mjs",
+    "db:seed:ponds-smoke": "node ./scripts/seed-ponds-smoke.mjs",
+    "db:prepare:ponds-smoke": "node ./scripts/prepare-ponds-smoke.mjs"
   },
   "dependencies": {
     "@aquapulse/types": "workspace:*",

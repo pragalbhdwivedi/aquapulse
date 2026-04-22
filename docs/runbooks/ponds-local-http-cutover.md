@@ -2,6 +2,9 @@
 
 This runbook explains the ponds-only opt-in HTTP path. AquaPulse still defaults to mock and in-memory runtime unless you explicitly enable the ponds cutover.
 
+For a known-good local Postgres dataset, use
+`docs/runbooks/ponds-local-postgres-smoke-stack.md` alongside this runbook.
+
 ## Default behavior
 
 - The web app stays mock-backed by default.
@@ -53,6 +56,7 @@ AQUAPULSE_PONDS_VERIFY_WEB_BASE_URL=http://localhost:3000
 AQUAPULSE_PONDS_VERIFY_API_BASE_URL=http://localhost:4000
 AQUAPULSE_PONDS_VERIFY_EXPECT_BACKEND_ADAPTER=postgres
 AQUAPULSE_PONDS_VERIFY_POND_ID=pond-1
+AQUAPULSE_PONDS_VERIFY_EXPECT_SEEDED_SMOKE=false
 ```
 
 The verifier checks:

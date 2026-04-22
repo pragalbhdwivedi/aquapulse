@@ -10,6 +10,16 @@ const expectedBackendAdapter = normalizeExpectedBackendAdapter(
   process.env.AQUAPULSE_PONDS_VERIFY_EXPECT_BACKEND_ADAPTER ?? "postgres"
 );
 const pondId = (process.env.AQUAPULSE_PONDS_VERIFY_POND_ID ?? "pond-1").trim() || "pond-1";
+const expectSeededSmoke = parseBoolean(process.env.AQUAPULSE_PONDS_VERIFY_EXPECT_SEEDED_SMOKE);
+
+function parseBoolean(value) {
+  if (!value) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
 
 function normalizeBaseUrl(value) {
   const trimmed = value.trim();
@@ -44,6 +54,32 @@ async function readJsonResponse(url, init = {}) {
   }
 
   return body;
+}
+
+function verifySeededSmokeExpectations({ list, detail }) {
+  if (!Array.isArray(list.data.items) || list.data.items.length !== 4) {
+    throw new Error(
+      `Seeded smoke verification expected exactly 4 seeded ponds, received ${list?.data?.items?.length ?? "unknown"}.`
+    );
+  }
+
+  if (list.data.items[0]?.id !== "pond-3") {
+    throw new Error(
+      `Seeded smoke verification expected the first alphabetically sorted pond to be pond-3, received ${list.data.items[0]?.id}.`
+    );
+  }
+
+  if (list.data.items[1]?.id !== pondId) {
+    throw new Error(
+      `Seeded smoke verification expected pond ${pondId} to appear second in sorted results, received ${list.data.items[1]?.id}.`
+    );
+  }
+
+  if (detail.data.name !== "North Nursery" || detail.data.code !== "NN-01") {
+    throw new Error("Seeded smoke verification found unexpected pond detail values.");
+  }
+
+  logStep("Seeded smoke dataset assertions passed.");
 }
 
 async function main() {
@@ -81,6 +117,10 @@ async function main() {
     throw new Error(
       `Ponds detail verification expected pond ${pondId}, received ${detail.data.id}.`
     );
+  }
+
+  if (expectSeededSmoke) {
+    verifySeededSmokeExpectations({ list, detail });
   }
 
   logStep(
