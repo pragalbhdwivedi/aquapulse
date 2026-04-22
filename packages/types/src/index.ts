@@ -1507,6 +1507,16 @@ export interface FeedRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface PondsRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface WaterQualityRuntimeDiagnostics {
   readonly requestedMode: "mock" | "http" | "inherit";
   readonly effectiveMode: "mock" | "http";
@@ -1559,6 +1569,7 @@ export interface FrontendRuntimeDiagnostics {
   readonly session: FrontendSessionBootstrapStatus;
   readonly alerts: AlertsRuntimeDiagnostics;
   readonly alertsLiveUpdates: AlertsLiveUpdatesRuntimeDiagnostics;
+  readonly ponds: PondsRuntimeDiagnostics;
   readonly feed: FeedRuntimeDiagnostics;
   readonly tasks: TasksRuntimeDiagnostics;
   readonly waterQuality: WaterQualityRuntimeDiagnostics;

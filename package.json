@@ -10,6 +10,7 @@
     "alerts:verify-live-updates": "node ./scripts/verify-alerts-live-updates-runtime.mjs",
     "auth:verify-runtime": "node ./scripts/verify-auth-runtime.mjs",
     "water-quality:verify-runtime": "node ./scripts/verify-water-quality-runtime.mjs",
+    "ponds:verify-runtime": "node ./scripts/verify-ponds-runtime.mjs",
     "feed:verify-runtime": "node ./scripts/verify-feed-runtime.mjs",
     "tasks:verify-runtime": "node ./scripts/verify-tasks-runtime.mjs",
     "alerts:smoke:db:up": "docker compose -f ./infra/local/alerts-smoke.compose.yaml up -d",

@@ -9,6 +9,7 @@ import type {
   FrontendSessionBootstrapStatus,
   FeedRuntimeDiagnostics,
   FrontendRuntimeDiagnostics,
+  PondsRuntimeDiagnostics,
   TasksRuntimeDiagnostics,
   WaterQualityRuntimeDiagnostics,
   LocalBridgeDiagnostics,
@@ -34,6 +35,9 @@ export interface AquaPulseClientRuntimeConfig {
   readonly alertsLiveUpdatesAuthToken?: string;
   readonly alertsLiveUpdatesSubscriptionTransport?: AlertsLiveUpdatesSubscriptionTransport;
   readonly alertsLiveUpdatesBootstrapPath?: string;
+  readonly pondsMode?: AquaPulseScopedRuntimeMode;
+  readonly pondsHttpBaseUrl?: string;
+  readonly pondsHttpTransport?: AquaPulseHttpTransportMode;
   readonly feedMode?: AquaPulseScopedRuntimeMode;
   readonly feedHttpBaseUrl?: string;
   readonly feedHttpTransport?: AquaPulseHttpTransportMode;
@@ -64,6 +68,9 @@ export interface AquaPulseClientRuntimeEnv {
   readonly AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
   readonly AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE?: string;
+  readonly AQUAPULSE_WEB_PONDS_MODE?: string;
+  readonly AQUAPULSE_WEB_PONDS_HTTP_BASE_URL?: string;
+  readonly AQUAPULSE_WEB_PONDS_HTTP_TRANSPORT?: string;
   readonly AQUAPULSE_WEB_FEED_MODE?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -87,6 +94,9 @@ export interface AquaPulseClientRuntimeEnv {
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_TRANSPORT?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -317,6 +327,24 @@ export function parseClientRuntimeConfig(
   const feedMode = parseScopedClientRuntimeMode(
     coalesceEnvValue(env.AQUAPULSE_WEB_FEED_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE)
   );
+  const pondsMode = parseScopedClientRuntimeMode(
+    coalesceEnvValue(env.AQUAPULSE_WEB_PONDS_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE)
+  );
+  const pondsHttpBaseUrl = normalizeHttpBaseUrl(
+    env.AQUAPULSE_WEB_PONDS_HTTP_BASE_URL,
+    warnings,
+    "AQUAPULSE_WEB_PONDS_HTTP_BASE_URL"
+  ) ?? normalizeHttpBaseUrl(
+    env.NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL,
+    warnings,
+    "NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL"
+  );
+  const pondsHttpTransport = parseHttpTransportMode(
+    coalesceEnvValue(
+      env.AQUAPULSE_WEB_PONDS_HTTP_TRANSPORT,
+      env.NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_TRANSPORT
+    )
+  );
   const feedHttpBaseUrl = normalizeHttpBaseUrl(
     env.AQUAPULSE_WEB_FEED_HTTP_BASE_URL,
     warnings,
@@ -416,6 +444,14 @@ export function parseClientRuntimeConfig(
     });
   }
 
+  if (pondsMode === "http" && !enableFetchHttp && !enablePlaceholderHttp) {
+    warnings.push({
+      code: "PONDS_HTTP_DISABLED",
+      message:
+        "Ponds HTTP mode was requested, but no HTTP executor is enabled. Ponds will remain mock-backed."
+    });
+  }
+
   if (feedMode === "http" && !enableFetchHttp && !enablePlaceholderHttp) {
     warnings.push({
       code: "FEED_HTTP_DISABLED",
@@ -453,6 +489,9 @@ export function parseClientRuntimeConfig(
     alertsLiveUpdatesAuthToken,
     alertsLiveUpdatesSubscriptionTransport,
     alertsLiveUpdatesBootstrapPath: "/api/alerts/live-updates/session",
+    pondsMode,
+    pondsHttpBaseUrl: pondsHttpBaseUrl ?? httpBaseUrl,
+    pondsHttpTransport,
     feedMode,
     feedHttpBaseUrl: feedHttpBaseUrl ?? httpBaseUrl,
     feedHttpTransport,
@@ -552,6 +591,24 @@ export function resolveFeedHttpBaseUrl(
   return config.httpBaseUrl;
 }
 
+export function resolvePondsHttpBaseUrl(
+  config: AquaPulseClientRuntimeConfig
+): string | undefined {
+  if (config.pondsMode === "http" && (config.pondsHttpTransport ?? "proxy") === "proxy") {
+    return "";
+  }
+
+  if (config.pondsHttpBaseUrl) {
+    return config.pondsHttpBaseUrl;
+  }
+
+  if (config.pondsMode === "http" && config.enableFetchHttp) {
+    return "";
+  }
+
+  return config.httpBaseUrl;
+}
+
 export function resolveWaterQualityHttpBaseUrl(
   config: AquaPulseClientRuntimeConfig
 ): string | undefined {
@@ -615,6 +672,39 @@ export function getAlertsRuntimeDiagnostics(
     transport: effectiveMode === "mock" ? "mock" : usesLocalProxy ? "proxy" : "direct",
     targetLabel,
     scopeLabel: alertsHttpRequested ? "alerts-only opt-in" : config.mode === "http" ? "global runtime" : "default mock runtime",
+    warnings: [...(config.warnings ?? [])]
+  };
+}
+
+export function getPondsRuntimeDiagnostics(
+  config: AquaPulseClientRuntimeConfig
+): PondsRuntimeDiagnostics {
+  const pondsHttpRequested = config.pondsMode === "http";
+  const pondsHttpEnabled =
+    pondsHttpRequested && Boolean(config.enableFetchHttp || config.enablePlaceholderHttp);
+  const effectiveMode: AquaPulseClientRuntimeMode =
+    pondsHttpEnabled || config.mode === "http" ? "http" : "mock";
+  const resolvedBaseUrl = resolvePondsHttpBaseUrl(config);
+  const usesLocalProxy = effectiveMode === "http" && (!resolvedBaseUrl || resolvedBaseUrl.startsWith("/"));
+  const targetLabel =
+    effectiveMode === "mock"
+      ? "mock adapters"
+      : usesLocalProxy
+        ? "/api/ponds local bridge"
+        : `${resolvedBaseUrl}/api/ponds`;
+
+  return {
+    requestedMode: config.pondsMode ?? "inherit",
+    effectiveMode,
+    usesLocalProxy,
+    transport: effectiveMode === "mock" ? "mock" : usesLocalProxy ? "proxy" : "direct",
+    targetLabel,
+    scopeLabel:
+      pondsHttpRequested
+        ? "ponds-only opt-in"
+        : config.mode === "http"
+          ? "global runtime"
+          : "default mock runtime",
     warnings: [...(config.warnings ?? [])]
   };
 }
@@ -980,6 +1070,7 @@ export function getFrontendRuntimeDiagnostics(
     session
   });
   const feed = getFeedRuntimeDiagnostics(config);
+  const ponds = getPondsRuntimeDiagnostics(config);
   const tasks = getTasksRuntimeDiagnostics(config);
   const waterQuality = getWaterQualityRuntimeDiagnostics(config);
   const mode: RuntimeModeSummary = {
@@ -989,6 +1080,7 @@ export function getFrontendRuntimeDiagnostics(
     safeFallbackActive:
       config.mode === "mock" &&
       alerts.effectiveMode === "mock" &&
+      ponds.effectiveMode === "mock" &&
       feed.effectiveMode === "mock" &&
       tasks.effectiveMode === "mock" &&
       waterQuality.effectiveMode === "mock"
@@ -1009,6 +1101,14 @@ export function getFrontendRuntimeDiagnostics(
       code: "LOCAL_BRIDGE_DEFAULT_TARGET",
       message:
         "Feed HTTP proxy mode is using the default local backend target. Set AQUAPULSE_WEB_LOCAL_API_BACKEND_URL if your API is running elsewhere."
+    });
+  }
+
+  if (ponds.effectiveMode === "http" && ponds.usesLocalProxy && !localBridgeConfig?.backendBaseUrl) {
+    localBridgeWarnings.push({
+      code: "LOCAL_BRIDGE_DEFAULT_TARGET",
+      message:
+        "Ponds HTTP proxy mode is using the default local backend target. Set AQUAPULSE_WEB_LOCAL_API_BACKEND_URL if your API is running elsewhere."
     });
   }
 
@@ -1047,6 +1147,7 @@ export function getFrontendRuntimeDiagnostics(
     session,
     alerts,
     alertsLiveUpdates,
+    ponds,
     feed,
     tasks,
     waterQuality,
@@ -1056,6 +1157,7 @@ export function getFrontendRuntimeDiagnostics(
       ...auth.warnings,
       ...alerts.warnings,
       ...alertsLiveUpdates.warnings,
+      ...ponds.warnings,
       ...feed.warnings,
       ...tasks.warnings,
       ...waterQuality.warnings,

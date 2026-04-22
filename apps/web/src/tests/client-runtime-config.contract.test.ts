@@ -11,11 +11,13 @@ import {
   getAlertsRuntimeDiagnostics,
   getFeedRuntimeDiagnostics,
   getDefaultClientRuntimeConfig,
+  getPondsRuntimeDiagnostics,
   getTasksRuntimeDiagnostics,
   getWaterQualityRuntimeDiagnostics,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
   resolveFeedHttpBaseUrl,
+  resolvePondsHttpBaseUrl,
   resolveTasksHttpBaseUrl,
   resolveWaterQualityHttpBaseUrl
 } from "../clients/runtime-config";
@@ -77,6 +79,19 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.waterQualityMode).toBe("http");
     expect(config.enableFetchHttp).toBe(true);
     expect(config.waterQualityHttpBaseUrl).toBe("http://water-quality-backend.local");
+  });
+
+  it("allows ponds-only HTTP override without changing the default global mode", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL: "http://ponds-backend.local"
+    });
+
+    expect(config.mode).toBe("mock");
+    expect(config.pondsMode).toBe("http");
+    expect(config.enableFetchHttp).toBe(true);
+    expect(config.pondsHttpBaseUrl).toBe("http://ponds-backend.local");
   });
 
   it("allows feed-only HTTP override without changing the default global mode", () => {
@@ -175,6 +190,15 @@ describe("Client runtime config and invocation registry", () => {
     expect(resolveWaterQualityHttpBaseUrl(config)).toBe("");
   });
 
+  it("defaults ponds-only fetch HTTP mode to the local proxy path", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true"
+    });
+
+    expect(resolvePondsHttpBaseUrl(config)).toBe("");
+  });
+
   it("defaults feed-only fetch HTTP mode to the local proxy path", () => {
     const config = parseClientRuntimeConfig({
       NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE: "http",
@@ -236,6 +260,29 @@ describe("Client runtime config and invocation registry", () => {
       code: "WATER_QUALITY_HTTP_DISABLED",
       message:
         "Water-quality HTTP mode was requested, but no HTTP executor is enabled. Water-quality will remain mock-backed."
+    });
+  });
+
+  it("keeps malformed ponds HTTP settings safe and visible through diagnostics", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "false",
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL: "bad-target"
+    });
+    const diagnostics = getPondsRuntimeDiagnostics(config);
+
+    expect(config.mode).toBe("mock");
+    expect(config.pondsHttpBaseUrl).toBeUndefined();
+    expect(diagnostics.effectiveMode).toBe("mock");
+    expect(diagnostics.warnings).toContainEqual({
+      code: "INVALID_HTTP_URL",
+      message:
+        "NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL was ignored because it is not a valid http/https URL."
+    });
+    expect(diagnostics.warnings).toContainEqual({
+      code: "PONDS_HTTP_DISABLED",
+      message:
+        "Ponds HTTP mode was requested, but no HTTP executor is enabled. Ponds will remain mock-backed."
     });
   });
 
@@ -391,6 +438,21 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.effectiveMode).toBe("http");
     expect(diagnostics.usesLocalProxy).toBe(false);
     expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/water-quality");
+  });
+
+  it("supports direct ponds HTTP transport when explicitly configured", () => {
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_TRANSPORT: "direct",
+      NEXT_PUBLIC_AQUAPULSE_WEB_PONDS_HTTP_BASE_URL: "http://localhost:4000"
+    });
+    const diagnostics = getPondsRuntimeDiagnostics(config);
+
+    expect(resolvePondsHttpBaseUrl(config)).toBe("http://localhost:4000");
+    expect(diagnostics.effectiveMode).toBe("http");
+    expect(diagnostics.usesLocalProxy).toBe(false);
+    expect(diagnostics.targetLabel).toBe("http://localhost:4000/api/ponds");
   });
 
   it("supports direct feed HTTP transport when explicitly configured", () => {
