@@ -1221,6 +1221,9 @@ export type AlertsLiveUpdatesSubscriptionAuthState =
   | "authenticated"
   | "degraded"
   | "unavailable";
+export type AlertsLiveUpdatesSubscriptionTransport =
+  | "direct"
+  | "local_proxy_bootstrap";
 export type AlertsLiveUpdatesGatewayPolicy =
   | "disabled"
   | "bypassed_local"
@@ -1522,6 +1525,9 @@ export interface AlertsLiveUpdatesRuntimeDiagnostics {
   readonly targetLabel: string;
   readonly connectionState: AlertsLiveUpdatesConnectionState;
   readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly proxyBootstrapPathLabel?: string;
+  readonly proxyBootstrapAvailable: boolean;
   readonly authMode: AquaPulseAuthMode;
   readonly websocketAuthConfigured: boolean;
   readonly currentSessionSufficient: boolean;
@@ -1642,6 +1648,23 @@ export interface AlertsLiveUpdatesSubscriptionStatus {
   readonly authMode: AquaPulseAuthMode;
   readonly subscriptionAuthState: "authenticated" | "bypassed_local";
   readonly message: string;
+}
+
+export interface AlertsLiveUpdatesBootstrapPayload {
+  readonly requested: boolean;
+  readonly enabled: boolean;
+  readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly targetLabel: string;
+  readonly webSocketUrl?: string;
+  readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly authMode: AquaPulseAuthMode;
+  readonly forwardedAuthPresent: boolean;
+  readonly forwardingSource:
+    | "env_token"
+    | "cookie_token"
+    | "authorization_header"
+    | "none";
+  readonly warnings: RuntimeWarning[];
 }
 
 export interface BackendAlertsLiveUpdatesDiagnostics {

@@ -177,6 +177,128 @@ describe("Alerts live updates connector", () => {
     connection.disconnect();
   });
 
+  it("can connect through the local bootstrap route without a direct websocket auth env token", async () => {
+    const states: string[] = [];
+    const subscriptionStates: string[] = [];
+    const events: unknown[] = [];
+    let socket: FakeWebSocket | undefined;
+    const config = parseClientRuntimeConfig({
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
+      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE: "proxy_bootstrap",
+      NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
+      NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+    });
+    const auth = getAuthRuntimeDiagnostics(config, {
+      forwardedAuthPresent: true,
+      forwardingSource: "env_token"
+    });
+    const session = deriveFrontendSessionBootstrap(auth, {
+      currentSession: {
+        requestedMode: "keycloak",
+        effectiveMode: "keycloak",
+        availabilityState: "authenticated_user",
+        authSource: "keycloak_bearer",
+        sessionPresent: true,
+        protectedReadSliceLabel: "alerts_list_read",
+        protectedReadSliceEnforced: true,
+        secondaryProtectedReadSliceLabel: "alerts_detail_read",
+        secondaryProtectedReadSliceEnforced: true,
+        tertiaryProtectedReadSliceLabel: "alerts_summary_read",
+        tertiaryProtectedReadSliceEnforced: true,
+        protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+        protectedOperatorSliceEnforced: true,
+        secondaryProtectedSliceLabel: "alerts_triage_actions",
+        secondaryProtectedSliceEnforced: true,
+        tertiaryProtectedSliceLabel: "alerts_bulk_actions",
+        tertiaryProtectedSliceEnforced: true,
+        quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+        quaternaryProtectedSliceEnforced: true,
+        verificationState: "verified",
+        warnings: []
+      },
+      currentSessionEndpointStatus: "available"
+    });
+    const diagnostics = getAlertsLiveUpdatesRuntimeDiagnostics(config, { auth, session });
+
+    const connection = connectAlertsLiveUpdates({
+      config,
+      diagnostics,
+      onEvent: (event) => {
+        events.push(event);
+      },
+      onStateChange: (state) => {
+        states.push(state);
+      },
+      onSubscriptionStateChange: (state) => {
+        subscriptionStates.push(state);
+      },
+      bootstrapFetch: vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            data: {
+              requested: true,
+              enabled: true,
+              subscriptionTransport: "local_proxy_bootstrap",
+              targetLabel: "/api/alerts/live-updates/session",
+              webSocketUrl: "ws://localhost:4000/ws/alerts?access_token=bootstrap-token",
+              subscriptionAuthState: "authenticated",
+              authMode: "keycloak",
+              forwardedAuthPresent: true,
+              forwardingSource: "env_token",
+              warnings: []
+            }
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json"
+            }
+          }
+        )
+      ),
+      webSocketFactory: (url) => {
+        socket = new FakeWebSocket(url);
+        return socket;
+      }
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(socket?.url).toBe("ws://localhost:4000/ws/alerts?access_token=bootstrap-token");
+
+    socket?.emit("open");
+    socket?.emit("message", {
+      data: JSON.stringify({
+        source: "alerts_live_updates",
+        kind: "subscription_status",
+        timestamp: "2026-04-22T09:14:00.000Z",
+        authMode: "keycloak",
+        subscriptionAuthState: "authenticated",
+        message: "authenticated"
+      })
+    });
+    socket?.emit("message", {
+      data: JSON.stringify({
+        source: "alerts",
+        eventType: "alert_lifecycle_changed",
+        timestamp: "2026-04-22T09:15:00.000Z",
+        alertId: "alert-1"
+      })
+    });
+
+    expect(states).toContain("connecting");
+    expect(states).toContain("active");
+    expect(subscriptionStates).toContain("authenticated");
+    expect(events).toHaveLength(1);
+
+    connection.disconnect();
+  });
+
   it("stays degraded instead of opening a websocket when keycloak auth is active without websocket auth config", () => {
     const states: string[] = [];
     const subscriptionStates: string[] = [];

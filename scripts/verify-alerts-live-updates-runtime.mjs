@@ -28,6 +28,16 @@ function ensureJsonPayload(result, label) {
   }
 }
 
+function ensureBootstrapPayload(result) {
+  ensureJsonPayload(result, "Alerts live-updates bootstrap");
+
+  if (result.body?.ok !== true || !result.body?.data || typeof result.body.data !== "object") {
+    throw new Error("Alerts live-updates bootstrap did not return a bounded success envelope.");
+  }
+
+  return result.body.data;
+}
+
 function waitForWebSocketOpen(socket, timeoutMs) {
   return new Promise((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -185,12 +195,44 @@ async function main() {
   logStep(`Verifier bearer token: ${config.bearerToken ? "provided" : "not provided"}`);
 
   const runtime = await verifyBackendRuntime();
-  const webSocketUrl = deriveAlertsLiveUpdatesWebSocketUrl({
-    backendBaseUrl: config.backendBaseUrl,
-    gatewayPath: runtime.alertsLiveUpdates.gatewayPath,
-    explicitWebSocketUrl: config.webSocketUrl,
-    bearerToken: config.bearerToken
-  });
+  const shouldUseBootstrap =
+    config.subscriptionMode === "local_proxy_bootstrap" ||
+    (config.subscriptionMode === "auto" && !config.webSocketUrl);
+  let webSocketUrl;
+
+  if (shouldUseBootstrap) {
+    logStep(`Resolving websocket target through bootstrap route: ${config.bootstrapEndpoint}`);
+    const bootstrapResult = await readJsonResponse(config.bootstrapEndpoint, {
+      method: "GET",
+      headers: createAlertsLiveUpdatesVerifierHeaders(config)
+    });
+    const bootstrap = ensureBootstrapPayload(bootstrapResult);
+
+    logStep(
+      `Bootstrap subscription transport: ${bootstrap.subscriptionTransport} / auth state: ${bootstrap.subscriptionAuthState} / forwarded auth: ${bootstrap.forwardedAuthPresent ? "present" : "absent"}`
+    );
+
+    if (!bootstrapResult.ok) {
+      throw new Error(
+        `GET ${config.bootstrapEndpoint} failed with ${bootstrapResult.status}: ${JSON.stringify(bootstrapResult.body)}`
+      );
+    }
+
+    if (!bootstrap.webSocketUrl) {
+      throw new Error(
+        `Bootstrap route did not return a websocket target. Current state: ${bootstrap.subscriptionAuthState}.`
+      );
+    }
+
+    webSocketUrl = bootstrap.webSocketUrl;
+  } else {
+    webSocketUrl = deriveAlertsLiveUpdatesWebSocketUrl({
+      backendBaseUrl: config.backendBaseUrl,
+      gatewayPath: runtime.alertsLiveUpdates.gatewayPath,
+      explicitWebSocketUrl: config.webSocketUrl,
+      bearerToken: config.bearerToken
+    });
+  }
 
   logStep(`Connecting to websocket target: ${webSocketUrl}`);
   const socket = new WebSocket(webSocketUrl);

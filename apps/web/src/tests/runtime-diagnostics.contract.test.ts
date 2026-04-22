@@ -91,13 +91,14 @@ describe("Frontend runtime diagnostics", () => {
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
       NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
-      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL: "ws://localhost:4000/ws/alerts",
       AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: "http://localhost:4001"
     });
 
     expect(diagnostics.alerts.effectiveMode).toBe("http");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(true);
-    expect(diagnostics.alertsLiveUpdates.targetLabel).toBe("ws://localhost:4000/ws/alerts");
+    expect(diagnostics.alertsLiveUpdates.targetLabel).toBe("/api/alerts/live-updates/session");
+    expect(diagnostics.alertsLiveUpdates.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.alertsLiveUpdates.proxyBootstrapAvailable).toBe(true);
     expect(diagnostics.alertsLiveUpdates.subscriptionAuthState).toBe("bypassed_local");
     expect(diagnostics.alerts.transport).toBe("proxy");
     expect(diagnostics.alerts.targetLabel).toBe("/api/alerts local bridge");
@@ -106,12 +107,11 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.localBridge.configured).toBe(true);
   });
 
-  it("marks alerts live updates as degraded when keycloak auth is active without websocket auth config", () => {
+  it("uses the local bootstrap transport for alerts live updates when keycloak auth forwarding is present", () => {
     const diagnostics = readFrontendRuntimeDiagnostics({
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: "http",
       NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: "true",
       NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES: "true",
-      NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL: "ws://localhost:4000/ws/alerts",
       NEXT_PUBLIC_AQUAPULSE_WEB_AUTH_MODE: "keycloak",
       NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
       NEXT_PUBLIC_AQUAPULSE_WEB_KEYCLOAK_REALM: "aquapulse",
@@ -120,11 +120,12 @@ describe("Frontend runtime diagnostics", () => {
     });
 
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(true);
-    expect(diagnostics.alertsLiveUpdates.connectionState).toBe("degraded");
-    expect(diagnostics.alertsLiveUpdates.subscriptionAuthState).toBe("degraded");
+    expect(diagnostics.alertsLiveUpdates.connectionState).toBe("inactive");
+    expect(diagnostics.alertsLiveUpdates.subscriptionAuthState).toBe("authenticated");
     expect(diagnostics.alertsLiveUpdates.authMode).toBe("keycloak");
     expect(diagnostics.alertsLiveUpdates.currentSessionSufficient).toBe(true);
-    expect(diagnostics.alertsLiveUpdates.websocketAuthConfigured).toBe(false);
+    expect(diagnostics.alertsLiveUpdates.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.alertsLiveUpdates.websocketAuthConfigured).toBe(true);
   });
 
   it("represents feed-only HTTP proxy mode and bridge assumptions consistently", () => {

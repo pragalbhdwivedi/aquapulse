@@ -102,6 +102,8 @@ export function AlertsActionList({
           process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL:
           process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE,
         NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN:
           process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN
       }),
@@ -774,7 +776,8 @@ export function AlertsActionList({
           </div>
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
           <span style={{ color: "#94a3b8" }}>
-            Live target: {liveUpdatesDiagnostics.targetLabel}. State: {liveUpdatesStatus.helperText}
+            Live target: {liveUpdatesDiagnostics.targetLabel}. Transport:{" "}
+            {liveUpdatesDiagnostics.subscriptionTransport}. State: {liveUpdatesStatus.helperText}
           </span>
           <span style={{ color: "#94a3b8" }}>
             Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}
@@ -785,6 +788,10 @@ export function AlertsActionList({
             Live subscription auth: {liveSubscriptionState}. Websocket auth configured:{" "}
             {liveUpdatesDiagnostics.websocketAuthConfigured ? "yes" : "no"} / Current session sufficient:{" "}
             {liveUpdatesDiagnostics.currentSessionSufficient ? "yes" : "no"}.
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Live bootstrap path: {liveUpdatesDiagnostics.proxyBootstrapPathLabel ?? "not used"} / Available:{" "}
+            {liveUpdatesDiagnostics.proxyBootstrapAvailable ? "yes" : "no"}.
           </span>
           <span style={{ color: "#94a3b8" }}>
             List read slice: {session.protectedReadGuardedSliceLabel ?? authDiagnostics.protectedReadSliceLabel ?? "none"} / Enforced:{" "}

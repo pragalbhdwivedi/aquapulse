@@ -203,9 +203,14 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts scope: {diagnostics.alerts.scopeLabel}</span>
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
+        <span>Alerts live transport: {diagnostics.alertsLiveUpdates.subscriptionTransport}</span>
         <span>Alerts live auth mode: {diagnostics.alertsLiveUpdates.authMode}</span>
         <span>Alerts live subscription: {diagnostics.alertsLiveUpdates.subscriptionAuthState}</span>
         <span>Alerts live websocket auth configured: {diagnostics.alertsLiveUpdates.websocketAuthConfigured ? "yes" : "no"}</span>
+        <span>
+          Alerts live bootstrap: {diagnostics.alertsLiveUpdates.proxyBootstrapPathLabel ?? "not used"} / Available:{" "}
+          {diagnostics.alertsLiveUpdates.proxyBootstrapAvailable ? "yes" : "no"}
+        </span>
         <span>Alerts live current-session sufficient: {diagnostics.alertsLiveUpdates.currentSessionSufficient ? "yes" : "no"}</span>
         <span>Alerts live fallback: {diagnostics.alertsLiveUpdates.fallbackMode.replace("_", " ")}</span>
         <span>Alerts live status: {alertsLiveUpdatesStatus.helperText}</span>

@@ -3,6 +3,8 @@ export function readAlertsLiveUpdatesVerificationConfig(
 ): {
   webBaseUrl: string;
   backendBaseUrl: string;
+  subscriptionMode: "auto" | "direct" | "local_proxy_bootstrap";
+  bootstrapEndpoint: string;
   bearerToken?: string;
   alertId: string;
   timeoutMs: number;

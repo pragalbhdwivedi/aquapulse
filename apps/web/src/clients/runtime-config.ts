@@ -1,5 +1,7 @@
 import type {
   AlertsRuntimeDiagnostics,
+  AlertsLiveUpdatesSubscriptionTransport,
+  AlertsLiveUpdatesBootstrapPayload,
   AlertsLiveUpdatesRuntimeDiagnostics,
   AquaPulseAuthMode,
   CurrentSessionPayload,
@@ -30,6 +32,8 @@ export interface AquaPulseClientRuntimeConfig {
   readonly alertsLiveUpdatesEnabled?: boolean;
   readonly alertsLiveUpdatesBaseUrl?: string;
   readonly alertsLiveUpdatesAuthToken?: string;
+  readonly alertsLiveUpdatesSubscriptionTransport?: AlertsLiveUpdatesSubscriptionTransport;
+  readonly alertsLiveUpdatesBootstrapPath?: string;
   readonly feedMode?: AquaPulseScopedRuntimeMode;
   readonly feedHttpBaseUrl?: string;
   readonly feedHttpTransport?: AquaPulseHttpTransportMode;
@@ -59,6 +63,7 @@ export interface AquaPulseClientRuntimeEnv {
   readonly AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
   readonly AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
+  readonly AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE?: string;
   readonly AQUAPULSE_WEB_FEED_MODE?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -81,6 +86,7 @@ export interface AquaPulseClientRuntimeEnv {
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN?: string;
+  readonly NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_BASE_URL?: string;
   readonly NEXT_PUBLIC_AQUAPULSE_WEB_FEED_HTTP_TRANSPORT?: string;
@@ -130,6 +136,26 @@ export function parseAuthMode(value: string | undefined): AquaPulseAuthMode {
   }
 
   return "disabled";
+}
+
+export function parseAlertsLiveUpdatesSubscriptionTransport(
+  value: string | undefined,
+  alertsHttpTransport?: AquaPulseHttpTransportMode
+): AlertsLiveUpdatesSubscriptionTransport {
+  const normalizedValue = normalizeEnvValue(value)?.toLowerCase();
+  if (normalizedValue === "direct") {
+    return "direct";
+  }
+
+  if (
+    normalizedValue === "proxy" ||
+    normalizedValue === "proxy_bootstrap" ||
+    normalizedValue === "local_proxy_bootstrap"
+  ) {
+    return "local_proxy_bootstrap";
+  }
+
+  return alertsHttpTransport === "proxy" ? "local_proxy_bootstrap" : "direct";
 }
 
 function tryParseAbsoluteHttpUrl(value: string): string | undefined {
@@ -281,6 +307,13 @@ export function parseClientRuntimeConfig(
       env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN
     )
   );
+  const alertsLiveUpdatesSubscriptionTransport = parseAlertsLiveUpdatesSubscriptionTransport(
+    coalesceEnvValue(
+      env.AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE,
+      env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE
+    ),
+    alertsHttpTransport
+  );
   const feedMode = parseScopedClientRuntimeMode(
     coalesceEnvValue(env.AQUAPULSE_WEB_FEED_MODE, env.NEXT_PUBLIC_AQUAPULSE_WEB_FEED_MODE)
   );
@@ -418,6 +451,8 @@ export function parseClientRuntimeConfig(
     alertsLiveUpdatesEnabled,
     alertsLiveUpdatesBaseUrl,
     alertsLiveUpdatesAuthToken,
+    alertsLiveUpdatesSubscriptionTransport,
+    alertsLiveUpdatesBootstrapPath: "/api/alerts/live-updates/session",
     feedMode,
     feedHttpBaseUrl: feedHttpBaseUrl ?? httpBaseUrl,
     feedHttpTransport,
@@ -478,6 +513,10 @@ function coerceHttpUrlToWebSocketBaseUrl(value: string): string {
 export function resolveAlertsLiveUpdatesBaseUrl(
   config: AquaPulseClientRuntimeConfig
 ): string | undefined {
+  if (config.alertsLiveUpdatesSubscriptionTransport === "local_proxy_bootstrap") {
+    return undefined;
+  }
+
   if (config.alertsLiveUpdatesBaseUrl) {
     return coerceHttpUrlToWebSocketBaseUrl(config.alertsLiveUpdatesBaseUrl);
   }
@@ -598,6 +637,7 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
     });
   const session = options.session ?? deriveFrontendSessionBootstrap(auth);
   const warnings: RuntimeWarning[] = [...(config.warnings ?? [])];
+  const subscriptionTransport = config.alertsLiveUpdatesSubscriptionTransport ?? "direct";
 
   if (requested && alertsRuntime.effectiveMode !== "http") {
     warnings.push({
@@ -607,7 +647,7 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
     });
   }
 
-  if (requested && !resolvedBaseUrl) {
+  if (requested && subscriptionTransport !== "local_proxy_bootstrap" && !resolvedBaseUrl) {
     warnings.push({
       code: "ALERTS_LIVE_UPDATES_TARGET_MISSING",
       message:
@@ -618,8 +658,18 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
   const enabled =
     requested &&
     alertsRuntime.effectiveMode === "http" &&
-    Boolean(resolvedBaseUrl);
-  const websocketAuthConfigured = Boolean(config.alertsLiveUpdatesAuthToken);
+    (config.alertsLiveUpdatesSubscriptionTransport === "local_proxy_bootstrap" ||
+      Boolean(resolvedBaseUrl));
+  const proxyBootstrapPathLabel =
+    subscriptionTransport === "local_proxy_bootstrap"
+      ? config.alertsLiveUpdatesBootstrapPath ?? "/api/alerts/live-updates/session"
+      : undefined;
+  const websocketAuthConfigured =
+    auth.effectiveMode === "keycloak"
+      ? subscriptionTransport === "local_proxy_bootstrap"
+        ? auth.forwardedAuthPresent
+        : Boolean(config.alertsLiveUpdatesAuthToken)
+      : Boolean(config.alertsLiveUpdatesAuthToken);
   const currentSessionSufficient =
     auth.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
 
@@ -633,9 +683,14 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
   } else if (auth.effectiveMode === "keycloak" && !websocketAuthConfigured) {
     subscriptionAuthState = "degraded";
     warnings.push({
-      code: "ALERTS_LIVE_UPDATES_WS_AUTH_TOKEN_MISSING",
+      code:
+        subscriptionTransport === "local_proxy_bootstrap"
+          ? "ALERTS_LIVE_UPDATES_PROXY_FORWARDING_UNAVAILABLE"
+          : "ALERTS_LIVE_UPDATES_WS_AUTH_TOKEN_MISSING",
       message:
-        "Alerts live updates are protected in Keycloak mode, but no local websocket auth token is configured. Set NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN only for bounded local verification."
+        subscriptionTransport === "local_proxy_bootstrap"
+          ? "Alerts live updates are protected in Keycloak mode, but the local websocket bootstrap route does not have forwardable auth yet. Provide a bounded forwarded token or cookie for the local web bridge."
+          : "Alerts live updates are protected in Keycloak mode, but no local websocket auth token is configured. Set NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN only for bounded local verification."
     });
   } else if (auth.effectiveMode === "keycloak" && !currentSessionSufficient) {
     subscriptionAuthState = "degraded";
@@ -654,9 +709,11 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
     requested,
     enabled,
     targetLabel: requested
-      ? resolvedBaseUrl
-        ? resolvedBaseUrl
-        : "target not configured"
+      ? subscriptionTransport === "local_proxy_bootstrap"
+        ? proxyBootstrapPathLabel ?? "target not configured"
+        : resolvedBaseUrl
+          ? resolvedBaseUrl
+          : "target not configured"
       : "disabled",
     connectionState:
       !requested
@@ -667,12 +724,48 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
             ? "inactive"
             : "unavailable",
     subscriptionAuthState,
+    subscriptionTransport,
+    proxyBootstrapPathLabel,
+    proxyBootstrapAvailable:
+      subscriptionTransport === "local_proxy_bootstrap" &&
+      alertsRuntime.effectiveMode === "http" &&
+      Boolean(proxyBootstrapPathLabel),
     authMode: auth.effectiveMode,
     websocketAuthConfigured,
     currentSessionSufficient,
     fallbackMode: "manual_refresh",
     warnings
   };
+}
+
+function isAlertsLiveUpdatesBootstrapPayload(
+  value: unknown
+): value is AlertsLiveUpdatesBootstrapPayload {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "requested" in value &&
+      "enabled" in value &&
+      "subscriptionTransport" in value &&
+      "subscriptionAuthState" in value &&
+      "authMode" in value &&
+      "forwardedAuthPresent" in value
+  );
+}
+
+export function isAlertsLiveUpdatesBootstrapEnvelope(
+  value: unknown
+): value is { readonly ok: true; readonly data: AlertsLiveUpdatesBootstrapPayload } {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "ok" in value &&
+      (value as { readonly ok?: unknown }).ok === true &&
+      "data" in value &&
+      isAlertsLiveUpdatesBootstrapPayload(
+        (value as { readonly data?: unknown }).data
+      )
+  );
 }
 
 export function getFeedRuntimeDiagnostics(

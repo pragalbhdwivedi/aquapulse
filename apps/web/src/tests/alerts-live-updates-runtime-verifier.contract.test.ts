@@ -8,6 +8,8 @@ describe("Alerts live-updates runtime verifier", () => {
 
     expect(config.webBaseUrl).toBe("http://localhost:3000");
     expect(config.backendBaseUrl).toBe("http://localhost:4000");
+    expect(config.subscriptionMode).toBe("auto");
+    expect(config.bootstrapEndpoint).toBe("http://localhost:3000/api/alerts/live-updates/session");
     expect(config.expectEnabled).toBe(true);
     expect(config.alertId).toBe("alert-1");
     expect(config.mutationPath).toBe("review-state");
@@ -40,5 +42,15 @@ describe("Alerts live-updates runtime verifier", () => {
     });
 
     expect(url).toBe("ws://localhost:4000/ws/alerts?access_token=verifier-token");
+  });
+
+  it("supports the bounded local proxy bootstrap verifier mode", () => {
+    const config = readAlertsLiveUpdatesVerificationConfig({
+      AQUAPULSE_ALERTS_LIVE_VERIFY_WS_SUBSCRIPTION_MODE: "proxy_bootstrap",
+      AQUAPULSE_ALERTS_VERIFY_WEB_BASE_URL: "http://localhost:3100"
+    });
+
+    expect(config.subscriptionMode).toBe("local_proxy_bootstrap");
+    expect(config.bootstrapEndpoint).toBe("http://localhost:3100/api/alerts/live-updates/session");
   });
 });

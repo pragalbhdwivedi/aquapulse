@@ -6,7 +6,10 @@ import type {
   AlertsLiveUpdatesRuntimeDiagnostics
 } from "@aquapulse/types";
 import type { AquaPulseClientRuntimeConfig } from "@web/clients/runtime-config";
-import { getAlertsLiveUpdatesRuntimeDiagnostics } from "@web/clients/runtime-config";
+import {
+  getAlertsLiveUpdatesRuntimeDiagnostics,
+  isAlertsLiveUpdatesBootstrapEnvelope
+} from "@web/clients/runtime-config";
 
 export interface AlertsLiveUpdatesConnection {
   disconnect(): void;
@@ -24,6 +27,7 @@ export interface AlertsLiveUpdatesConnectorOptions {
   readonly onStateChange?: (state: AlertsLiveUpdatesConnectionState) => void;
   readonly onSubscriptionStateChange?: (state: AlertsLiveUpdatesSubscriptionAuthState) => void;
   readonly webSocketFactory?: (url: string) => WebSocketLike;
+  readonly bootstrapFetch?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 interface WebSocketLike {
@@ -129,93 +133,160 @@ export function connectAlertsLiveUpdates(
   const diagnostics = options.diagnostics ?? deriveAlertsLiveUpdatesIndicator(options.config);
   const onStateChange = options.onStateChange ?? (() => undefined);
   const onSubscriptionStateChange = options.onSubscriptionStateChange ?? (() => undefined);
+  const bootstrapFetch = options.bootstrapFetch ?? fetch;
   let currentState: AlertsLiveUpdatesConnectionState = diagnostics.connectionState;
+  let currentSubscriptionState: AlertsLiveUpdatesSubscriptionAuthState =
+    diagnostics.subscriptionAuthState;
+  let disconnected = false;
+  let socket: WebSocketLike | undefined;
   const setState = (state: AlertsLiveUpdatesConnectionState) => {
     currentState = state;
     onStateChange(state);
   };
+  const setSubscriptionState = (state: AlertsLiveUpdatesSubscriptionAuthState) => {
+    currentSubscriptionState = state;
+    onSubscriptionStateChange(state);
+  };
+
+  const attachSocket = (targetUrl: string) => {
+    if (disconnected) {
+      return;
+    }
+
+    const createSocket = options.webSocketFactory ?? createBrowserWebSocket;
+    socket = createSocket(targetUrl);
+
+    socket.addEventListener("open", () => {
+      setState("active");
+      setSubscriptionState(currentSubscriptionState);
+    });
+    socket.addEventListener("error", () => {
+      setState("unavailable");
+      setSubscriptionState("unavailable");
+    });
+    socket.addEventListener("close", () => {
+      if (currentState === "unavailable" || currentState === "degraded") {
+        setState(currentState);
+        return;
+      }
+
+      setState("inactive");
+    });
+    socket.addEventListener("message", (event) => {
+      try {
+        const raw = typeof event.data === "string" ? event.data : String(event.data);
+        const payload = JSON.parse(raw) as unknown;
+        if (isAlertLiveUpdateEvent(payload)) {
+          options.onEvent(payload);
+          return;
+        }
+
+        if (isAlertsLiveUpdatesSubscriptionStatus(payload)) {
+          setSubscriptionState(payload.subscriptionAuthState);
+          return;
+        }
+
+        setState("degraded");
+        setSubscriptionState("degraded");
+      } catch {
+        setState("degraded");
+        setSubscriptionState("degraded");
+      }
+    });
+  };
 
   if (!diagnostics.requested) {
     setState("disabled");
-    onSubscriptionStateChange("disabled");
+    setSubscriptionState("disabled");
     return {
       disconnect() {
+        disconnected = true;
         setState("disabled");
-        onSubscriptionStateChange("disabled");
+        setSubscriptionState("disabled");
       }
     };
   }
 
   if (!diagnostics.enabled || diagnostics.targetLabel === "target not configured") {
     setState("unavailable");
-    onSubscriptionStateChange("unavailable");
+    setSubscriptionState("unavailable");
     return {
       disconnect() {
+        disconnected = true;
         setState("unavailable");
-        onSubscriptionStateChange("unavailable");
+        setSubscriptionState("unavailable");
       }
     };
   }
 
   if (diagnostics.subscriptionAuthState === "degraded") {
     setState("degraded");
-    onSubscriptionStateChange("degraded");
+    setSubscriptionState("degraded");
     return {
       disconnect() {
+        disconnected = true;
         setState("degraded");
-        onSubscriptionStateChange("degraded");
+        setSubscriptionState("degraded");
       }
     };
   }
 
-  const createSocket = options.webSocketFactory ?? createBrowserWebSocket;
   setState("connecting");
-  onSubscriptionStateChange(diagnostics.subscriptionAuthState);
-  const socket = createSocket(buildAlertsLiveUpdatesTargetUrl(options.config, diagnostics.targetLabel));
+  setSubscriptionState(diagnostics.subscriptionAuthState);
 
-  socket.addEventListener("open", () => {
-    setState("active");
-    onSubscriptionStateChange(diagnostics.subscriptionAuthState);
-  });
-  socket.addEventListener("error", () => {
-    setState("unavailable");
-    onSubscriptionStateChange("unavailable");
-  });
-  socket.addEventListener("close", () => {
-    if (currentState === "unavailable" || currentState === "degraded") {
-      setState(currentState);
-      return;
-    }
+  if (diagnostics.subscriptionTransport === "local_proxy_bootstrap") {
+    const bootstrapPath =
+      diagnostics.proxyBootstrapPathLabel ??
+      options.config.alertsLiveUpdatesBootstrapPath ??
+      "/api/alerts/live-updates/session";
 
-    setState("inactive");
-  });
-  socket.addEventListener("message", (event) => {
-    try {
-      const raw = typeof event.data === "string" ? event.data : String(event.data);
-      const payload = JSON.parse(raw) as unknown;
-      if (isAlertLiveUpdateEvent(payload)) {
-        options.onEvent(payload);
-        return;
+    void bootstrapFetch(bootstrapPath, {
+      method: "GET",
+      headers: {
+        accept: "application/json"
       }
+    })
+      .then(async (response) => {
+        const payload = (await response.json()) as unknown;
+        if (!response.ok || !isAlertsLiveUpdatesBootstrapEnvelope(payload)) {
+          throw new Error("Alerts live updates bootstrap endpoint returned an unexpected response.");
+        }
 
-      if (isAlertsLiveUpdatesSubscriptionStatus(payload)) {
-        onSubscriptionStateChange(payload.subscriptionAuthState);
-        return;
-      }
+        const bootstrap = payload.data;
+        setSubscriptionState(bootstrap.subscriptionAuthState);
 
-      setState("degraded");
-      onSubscriptionStateChange("degraded");
-    } catch {
-      setState("degraded");
-      onSubscriptionStateChange("degraded");
-    }
-  });
+        if (
+          !bootstrap.webSocketUrl ||
+          bootstrap.subscriptionAuthState === "degraded" ||
+          bootstrap.subscriptionAuthState === "unavailable" ||
+          bootstrap.subscriptionAuthState === "disabled"
+        ) {
+          setState(
+            bootstrap.subscriptionAuthState === "degraded"
+              ? "degraded"
+              : bootstrap.subscriptionAuthState === "disabled"
+                ? "disabled"
+                : "unavailable"
+          );
+          return;
+        }
+
+        attachSocket(bootstrap.webSocketUrl);
+      })
+      .catch(() => {
+        setState("unavailable");
+        setSubscriptionState("unavailable");
+      });
+  } else {
+    attachSocket(buildAlertsLiveUpdatesTargetUrl(options.config, diagnostics.targetLabel));
+  }
 
   return {
     disconnect() {
-      socket.close();
+      disconnected = true;
+      socket?.close();
       setState("inactive");
-      onSubscriptionStateChange(diagnostics.subscriptionAuthState);
+      setSubscriptionState(diagnostics.subscriptionAuthState);
     }
   };
 }

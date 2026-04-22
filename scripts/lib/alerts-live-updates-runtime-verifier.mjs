@@ -9,6 +9,19 @@ function normalizeOptionalValue(value) {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeSubscriptionMode(value) {
+  const normalized = normalizeOptionalValue(value)?.toLowerCase();
+  if (
+    normalized === "direct" ||
+    normalized === "proxy_bootstrap" ||
+    normalized === "local_proxy_bootstrap"
+  ) {
+    return normalized === "direct" ? "direct" : "local_proxy_bootstrap";
+  }
+
+  return "auto";
+}
+
 function normalizeWebSocketUrl(value) {
   const parsed = new URL(value.trim());
   if (parsed.protocol !== "ws:" && parsed.protocol !== "wss:") {
@@ -54,6 +67,12 @@ export function readAlertsLiveUpdatesVerificationConfig(env = process.env) {
   return {
     webBaseUrl,
     backendBaseUrl,
+    subscriptionMode: normalizeSubscriptionMode(
+      env.AQUAPULSE_ALERTS_LIVE_VERIFY_WS_SUBSCRIPTION_MODE
+    ),
+    bootstrapEndpoint:
+      normalizeOptionalValue(env.AQUAPULSE_ALERTS_LIVE_VERIFY_WS_BOOTSTRAP_URL) ??
+      `${webBaseUrl}/api/alerts/live-updates/session`,
     bearerToken: normalizeOptionalValue(
       env.AQUAPULSE_ALERTS_LIVE_VERIFY_BEARER_TOKEN ??
         env.AQUAPULSE_AUTH_VERIFY_BEARER_TOKEN ??
