@@ -1224,6 +1224,10 @@ export type AlertsLiveUpdatesSubscriptionAuthState =
 export type AlertsLiveUpdatesSubscriptionTransport =
   | "direct"
   | "local_proxy_bootstrap";
+export type AlertsLiveUpdatesCredentialMode =
+  | "none"
+  | "direct_bearer"
+  | "ephemeral_ticket";
 export type AlertsLiveUpdatesGatewayPolicy =
   | "disabled"
   | "bypassed_local"
@@ -1231,6 +1235,10 @@ export type AlertsLiveUpdatesGatewayPolicy =
 export type AlertsLiveUpdatesLastSubscriptionState =
   | "authenticated"
   | "bypassed_local"
+  | "ticket_authenticated"
+  | "ticket_bypassed_local"
+  | "rejected_invalid_ticket"
+  | "rejected_expired_ticket"
   | "rejected_missing_auth"
   | "rejected_invalid_auth"
   | "rejected_insufficient_access";
@@ -1526,6 +1534,7 @@ export interface AlertsLiveUpdatesRuntimeDiagnostics {
   readonly connectionState: AlertsLiveUpdatesConnectionState;
   readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
   readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
   readonly proxyBootstrapPathLabel?: string;
   readonly proxyBootstrapAvailable: boolean;
   readonly authMode: AquaPulseAuthMode;
@@ -1654,8 +1663,11 @@ export interface AlertsLiveUpdatesBootstrapPayload {
   readonly requested: boolean;
   readonly enabled: boolean;
   readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
   readonly targetLabel: string;
   readonly webSocketUrl?: string;
+  readonly ticketIssued: boolean;
+  readonly ticketExpiresAt?: ISODateString;
   readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
   readonly authMode: AquaPulseAuthMode;
   readonly forwardedAuthPresent: boolean;
@@ -1670,11 +1682,16 @@ export interface AlertsLiveUpdatesBootstrapPayload {
 export interface BackendAlertsLiveUpdatesDiagnostics {
   readonly enabled: boolean;
   readonly gatewayPath: string;
+  readonly ticketBootstrapPath: string;
+  readonly ticketTtlSeconds: number;
   readonly gatewayAttached: boolean;
   readonly activeConnections: number;
   readonly subscriptionPolicy: AlertsLiveUpdatesGatewayPolicy;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
   readonly authenticatedConnections: number;
   readonly bypassedConnections: number;
+  readonly lastTicketIssuedAt?: ISODateString;
+  readonly lastTicketIssuedState?: AlertsLiveUpdatesSubscriptionAuthState;
   readonly lastSubscriptionAt?: ISODateString;
   readonly lastSubscriptionState?: AlertsLiveUpdatesLastSubscriptionState;
   readonly lastSubscriptionReason?: string;

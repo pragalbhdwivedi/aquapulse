@@ -415,6 +415,8 @@ export class RuntimeDiagnosticsService {
       alertsLiveUpdates: {
         enabled: alertsLiveUpdatesRuntime.enabled,
         gatewayPath: alertsLiveUpdatesRuntime.path,
+        ticketBootstrapPath: alertsLiveUpdatesRuntime.ticketBootstrapPath,
+        ticketTtlSeconds: Math.floor(alertsLiveUpdatesRuntime.ticketTtlMs / 1000),
         gatewayAttached: cachedAlertsLiveUpdatesState?.gatewayAttached ?? false,
         activeConnections: cachedAlertsLiveUpdatesState?.activeConnections ?? 0,
         subscriptionPolicy: !alertsLiveUpdatesRuntime.enabled
@@ -422,8 +424,11 @@ export class RuntimeDiagnosticsService {
           : authRuntime.effectiveMode === "keycloak"
             ? "authenticated_operator_required"
             : "bypassed_local",
+        credentialMode: alertsLiveUpdatesRuntime.enabled ? "ephemeral_ticket" : "none",
         authenticatedConnections: cachedAlertsLiveUpdatesState?.authenticatedConnections ?? 0,
         bypassedConnections: cachedAlertsLiveUpdatesState?.bypassedConnections ?? 0,
+        lastTicketIssuedAt: cachedAlertsLiveUpdatesState?.lastTicketIssuedAt,
+        lastTicketIssuedState: cachedAlertsLiveUpdatesState?.lastTicketIssuedState,
         lastSubscriptionAt: cachedAlertsLiveUpdatesState?.lastSubscriptionAt,
         lastSubscriptionState: cachedAlertsLiveUpdatesState?.lastSubscriptionState,
         lastSubscriptionReason: cachedAlertsLiveUpdatesState?.lastSubscriptionReason,

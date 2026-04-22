@@ -32,6 +32,8 @@ describe("HTTP route-handler parity", () => {
       update: vi.fn(),
       list: vi.fn().mockResolvedValue(pondList),
       getById: vi.fn()
+    } as never, {
+      issueSubscriptionBootstrap: vi.fn()
     } as never);
     const tasksController = new TasksController(placeholderService as never, {
       create: vi.fn(),

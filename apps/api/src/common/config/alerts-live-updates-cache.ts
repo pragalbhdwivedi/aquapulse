@@ -5,10 +5,20 @@ export interface AlertsLiveUpdatesGatewayState {
   readonly activeConnections: number;
   readonly authenticatedConnections: number;
   readonly bypassedConnections: number;
+  readonly lastTicketIssuedAt?: ISODateString;
+  readonly lastTicketIssuedState?:
+    | "authenticated"
+    | "bypassed_local"
+    | "degraded"
+    | "unavailable";
   readonly lastSubscriptionAt?: ISODateString;
   readonly lastSubscriptionState?:
     | "authenticated"
     | "bypassed_local"
+    | "ticket_authenticated"
+    | "ticket_bypassed_local"
+    | "rejected_invalid_ticket"
+    | "rejected_expired_ticket"
     | "rejected_missing_auth"
     | "rejected_invalid_auth"
     | "rejected_insufficient_access";

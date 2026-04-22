@@ -98,6 +98,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(true);
     expect(diagnostics.alertsLiveUpdates.targetLabel).toBe("/api/alerts/live-updates/session");
     expect(diagnostics.alertsLiveUpdates.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.alertsLiveUpdates.credentialMode).toBe("ephemeral_ticket");
     expect(diagnostics.alertsLiveUpdates.proxyBootstrapAvailable).toBe(true);
     expect(diagnostics.alertsLiveUpdates.subscriptionAuthState).toBe("bypassed_local");
     expect(diagnostics.alerts.transport).toBe("proxy");
@@ -125,6 +126,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates.authMode).toBe("keycloak");
     expect(diagnostics.alertsLiveUpdates.currentSessionSufficient).toBe(true);
     expect(diagnostics.alertsLiveUpdates.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.alertsLiveUpdates.credentialMode).toBe("ephemeral_ticket");
     expect(diagnostics.alertsLiveUpdates.websocketAuthConfigured).toBe(true);
   });
 

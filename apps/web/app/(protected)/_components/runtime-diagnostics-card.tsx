@@ -204,6 +204,7 @@ export function RuntimeDiagnosticsCard({
         <span>Alerts target: {diagnostics.alerts.targetLabel}</span>
         <span>Alerts live target: {diagnostics.alertsLiveUpdates.targetLabel}</span>
         <span>Alerts live transport: {diagnostics.alertsLiveUpdates.subscriptionTransport}</span>
+        <span>Alerts live credential mode: {diagnostics.alertsLiveUpdates.credentialMode}</span>
         <span>Alerts live auth mode: {diagnostics.alertsLiveUpdates.authMode}</span>
         <span>Alerts live subscription: {diagnostics.alertsLiveUpdates.subscriptionAuthState}</span>
         <span>Alerts live websocket auth configured: {diagnostics.alertsLiveUpdates.websocketAuthConfigured ? "yes" : "no"}</span>
@@ -326,6 +327,13 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime?.alertsLiveUpdates ? (
           <span>
+            Backend alerts live bootstrap: {backendProbe.runtime.alertsLiveUpdates.ticketBootstrapPath} / Ticket TTL:{" "}
+            {backendProbe.runtime.alertsLiveUpdates.ticketTtlSeconds}s / Credential mode:{" "}
+            {backendProbe.runtime.alertsLiveUpdates.credentialMode}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates ? (
+          <span>
             Backend alerts live gateway: {backendProbe.runtime.alertsLiveUpdates.enabled ? "enabled" : "disabled"} / Attached: {backendProbe.runtime.alertsLiveUpdates.gatewayAttached ? "yes" : "no"} / Connections: {backendProbe.runtime.alertsLiveUpdates.activeConnections}
           </span>
         ) : null}
@@ -361,6 +369,14 @@ export function RuntimeDiagnosticsCard({
               : ""}
             {backendProbe.runtime.alertsLiveUpdates.lastSubscriptionReason
               ? ` / ${backendProbe.runtime.alertsLiveUpdates.lastSubscriptionReason}`
+              : ""}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.alertsLiveUpdates?.lastTicketIssuedState ? (
+          <span>
+            Backend last live ticket: {backendProbe.runtime.alertsLiveUpdates.lastTicketIssuedState}
+            {backendProbe.runtime.alertsLiveUpdates.lastTicketIssuedAt
+              ? ` / ${backendProbe.runtime.alertsLiveUpdates.lastTicketIssuedAt}`
               : ""}
           </span>
         ) : null}

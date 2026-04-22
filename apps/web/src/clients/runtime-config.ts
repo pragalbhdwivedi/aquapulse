@@ -725,6 +725,14 @@ export function getAlertsLiveUpdatesRuntimeDiagnostics(
             : "unavailable",
     subscriptionAuthState,
     subscriptionTransport,
+    credentialMode:
+      !requested || !enabled
+        ? "none"
+        : subscriptionTransport === "local_proxy_bootstrap"
+          ? "ephemeral_ticket"
+          : auth.effectiveMode === "keycloak" && Boolean(config.alertsLiveUpdatesAuthToken)
+            ? "direct_bearer"
+            : "none",
     proxyBootstrapPathLabel,
     proxyBootstrapAvailable:
       subscriptionTransport === "local_proxy_bootstrap" &&
@@ -747,6 +755,7 @@ function isAlertsLiveUpdatesBootstrapPayload(
       "requested" in value &&
       "enabled" in value &&
       "subscriptionTransport" in value &&
+      "credentialMode" in value &&
       "subscriptionAuthState" in value &&
       "authMode" in value &&
       "forwardedAuthPresent" in value

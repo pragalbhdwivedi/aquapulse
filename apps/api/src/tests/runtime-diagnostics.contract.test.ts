@@ -169,6 +169,8 @@ describe("API runtime diagnostics", () => {
       activeConnections: 2,
       authenticatedConnections: 1,
       bypassedConnections: 1,
+      lastTicketIssuedAt: "2026-04-22T09:09:30.000Z",
+      lastTicketIssuedState: "authenticated",
       lastSubscriptionAt: "2026-04-22T09:10:00.000Z",
       lastSubscriptionState: "authenticated",
       lastSubscriptionReason: "Accepted an authenticated alerts websocket subscription.",
@@ -187,8 +189,11 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.gatewayAttached).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.activeConnections).toBe(2);
+    expect(diagnostics.alertsLiveUpdates?.ticketBootstrapPath).toBe("/api/alerts/live-updates/session");
+    expect(diagnostics.alertsLiveUpdates?.credentialMode).toBe("ephemeral_ticket");
     expect(diagnostics.alertsLiveUpdates?.authenticatedConnections).toBe(1);
     expect(diagnostics.alertsLiveUpdates?.bypassedConnections).toBe(1);
+    expect(diagnostics.alertsLiveUpdates?.lastTicketIssuedState).toBe("authenticated");
     expect(diagnostics.alertsLiveUpdates?.lastSubscriptionState).toBe("authenticated");
     expect(diagnostics.alertsLiveUpdates?.lastEventAt).toBe("2026-04-22T09:15:00.000Z");
     expect(diagnostics.alertsLiveUpdates?.warnings.map((warning) => warning.code)).not.toContain(
@@ -203,7 +208,8 @@ describe("API runtime diagnostics", () => {
       gatewayAttached: false,
       activeConnections: 0,
       authenticatedConnections: 0,
-      bypassedConnections: 0
+      bypassedConnections: 0,
+      lastTicketIssuedState: "unavailable"
     });
 
     const pendingService = new RuntimeDiagnosticsService({
@@ -220,7 +226,8 @@ describe("API runtime diagnostics", () => {
       gatewayAttached: true,
       activeConnections: 0,
       authenticatedConnections: 0,
-      bypassedConnections: 0
+      bypassedConnections: 0,
+      lastTicketIssuedState: "bypassed_local"
     });
 
     const idleService = new RuntimeDiagnosticsService({

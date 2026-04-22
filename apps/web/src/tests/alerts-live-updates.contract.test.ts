@@ -244,8 +244,11 @@ describe("Alerts live updates connector", () => {
               requested: true,
               enabled: true,
               subscriptionTransport: "local_proxy_bootstrap",
+              credentialMode: "ephemeral_ticket",
               targetLabel: "/api/alerts/live-updates/session",
-              webSocketUrl: "ws://localhost:4000/ws/alerts?access_token=bootstrap-token",
+              webSocketUrl: "ws://localhost:4000/ws/alerts?subscription_ticket=bootstrap-ticket",
+              ticketIssued: true,
+              ticketExpiresAt: "2026-04-22T09:16:00.000Z",
               subscriptionAuthState: "authenticated",
               authMode: "keycloak",
               forwardedAuthPresent: true,
@@ -269,7 +272,7 @@ describe("Alerts live updates connector", () => {
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(socket?.url).toBe("ws://localhost:4000/ws/alerts?access_token=bootstrap-token");
+    expect(socket?.url).toBe("ws://localhost:4000/ws/alerts?subscription_ticket=bootstrap-ticket");
 
     socket?.emit("open");
     socket?.emit("message", {

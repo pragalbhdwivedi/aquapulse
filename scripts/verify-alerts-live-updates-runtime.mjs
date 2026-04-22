@@ -209,7 +209,7 @@ async function main() {
     const bootstrap = ensureBootstrapPayload(bootstrapResult);
 
     logStep(
-      `Bootstrap subscription transport: ${bootstrap.subscriptionTransport} / auth state: ${bootstrap.subscriptionAuthState} / forwarded auth: ${bootstrap.forwardedAuthPresent ? "present" : "absent"}`
+      `Bootstrap subscription transport: ${bootstrap.subscriptionTransport} / credential mode: ${bootstrap.credentialMode} / auth state: ${bootstrap.subscriptionAuthState} / ticket issued: ${bootstrap.ticketIssued ? "yes" : "no"} / forwarded auth: ${bootstrap.forwardedAuthPresent ? "present" : "absent"}`
     );
 
     if (!bootstrapResult.ok) {

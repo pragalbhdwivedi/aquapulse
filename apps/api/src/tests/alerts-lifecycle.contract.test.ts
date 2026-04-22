@@ -26,7 +26,8 @@ describe("Alerts lifecycle flow", () => {
     const applicationService = new AlertsApplicationService(repository);
     const controller = new AlertsController(
       { getPlaceholder: async () => ({ ok: true }) } as never,
-      applicationService
+      applicationService,
+      { issueSubscriptionBootstrap: async () => undefined } as never
     );
 
     const acknowledged = await controller.acknowledge("alert-1", { note: "Checked aerator." });

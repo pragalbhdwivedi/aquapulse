@@ -777,7 +777,8 @@ export function AlertsActionList({
           <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
           <span style={{ color: "#94a3b8" }}>
             Live target: {liveUpdatesDiagnostics.targetLabel}. Transport:{" "}
-            {liveUpdatesDiagnostics.subscriptionTransport}. State: {liveUpdatesStatus.helperText}
+            {liveUpdatesDiagnostics.subscriptionTransport}. Credential:{" "}
+            {liveUpdatesDiagnostics.credentialMode}. State: {liveUpdatesStatus.helperText}
           </span>
           <span style={{ color: "#94a3b8" }}>
             Fallback: {liveUpdatesDiagnostics.fallbackMode.replace("_", " ")}

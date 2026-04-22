@@ -39,11 +39,11 @@ corepack pnpm alerts:verify-live-updates
 
 Expected verifier behavior:
 - it reads backend runtime diagnostics
-- it resolves the websocket target through the local bootstrap route when the local proxy transport is active
+- it resolves a short-lived ticket-backed websocket target through the local bootstrap route when the local proxy transport is active
 - it reports whether the subscription is `authenticated` or `bypassed_local`
 - it triggers one bounded alerts review-state mutation through the web bridge
 - it waits for one bounded alerts live-update event
-- it fails clearly if live updates are disabled, unreachable, auth-protected without a forwarded token, or degraded by malformed payload flow
+- it fails clearly if live updates are disabled, unreachable, ticket issuance is degraded, auth is missing, or websocket payload flow is unhealthy
 
 ## What this branch does
 
@@ -69,8 +69,9 @@ Expected verifier behavior:
 - Disabled auth mode and local auth mode keep alerts live subscriptions on the bounded `bypassed_local` path.
 - In Keycloak mode, alerts live subscriptions are auth-aware and require an authenticated operator websocket subscription.
 - The web app can distinguish `authenticated`, `bypassed_local`, `degraded`, and `unavailable` live-update states without changing the default runtime.
-- In proxy-bootstrap mode, the web server derives the websocket subscription target from the local alerts bridge and can reuse bounded forwarded auth from `AQUAPULSE_WEB_AUTH_BEARER_TOKEN` or the configured auth cookie.
-- `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN` remains available only for bounded direct websocket verification; the new local proxy-bootstrap path avoids needing that value in the common local flow.
+- In proxy-bootstrap mode, the web server uses `/api/alerts/live-updates/session` to request a short-lived alerts-only subscription ticket tied to the current bounded auth/session state.
+- That ticket is then exchanged on the websocket URL as `subscription_ticket=...`, which avoids passing the raw bearer token in the common local bootstrap path.
+- `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN` remains available only for bounded direct websocket verification; the ticket-backed local proxy-bootstrap path avoids needing that value in the common local flow.
 - The verifier can reuse a local forwarded bearer token through `AQUAPULSE_ALERTS_LIVE_VERIFY_BEARER_TOKEN` or `AQUAPULSE_WEB_AUTH_BEARER_TOKEN` when the alerts mutation slices are protected.
 - Disabled/local auth modes remain usable without additional setup.
 - In active Keycloak mode, missing forwarded auth/current-session alignment should produce a readable degraded verifier/runtime state rather than a silent websocket failure.
@@ -80,6 +81,7 @@ Expected verifier behavior:
 - The websocket path defaults to `/ws/alerts`.
 - If you change `AQUAPULSE_ALERTS_LIVE_UPDATES_PATH`, point the web app at the matching websocket URL through `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_BASE_URL`.
 - `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_SUBSCRIPTION_MODE=proxy_bootstrap` keeps the local flow server-mediated through `/api/alerts/live-updates/session`.
+- `AQUAPULSE_ALERTS_LIVE_UPDATES_TICKET_TTL_MS` controls the short-lived subscription ticket lifetime and defaults to `45000`.
 - `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_WS_AUTH_TOKEN` is still for bounded local verification only. Do not treat it as a production auth/session pattern.
 - If the runtime card shows `degraded`, the websocket connected but the live event stream or payload handling is unhealthy; the queue remains usable with manual refresh.
 - Default runtime safety is unchanged when the live-update env vars are not enabled.

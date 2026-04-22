@@ -314,6 +314,7 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.enabled).toBe(true);
     expect(diagnostics.targetLabel).toBe("ws://localhost:4000/ws/alerts");
     expect(diagnostics.subscriptionTransport).toBe("direct");
+    expect(diagnostics.credentialMode).toBe("none");
     expect(diagnostics.proxyBootstrapAvailable).toBe(false);
     expect(diagnostics.connectionState).toBe("inactive");
     expect(diagnostics.subscriptionAuthState).toBe("bypassed_local");
@@ -333,6 +334,7 @@ describe("Client runtime config and invocation registry", () => {
     expect(config.alertsLiveUpdatesSubscriptionTransport).toBe("local_proxy_bootstrap");
     expect(diagnostics.enabled).toBe(true);
     expect(diagnostics.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.credentialMode).toBe("ephemeral_ticket");
     expect(diagnostics.targetLabel).toBe("/api/alerts/live-updates/session");
     expect(diagnostics.proxyBootstrapAvailable).toBe(true);
     expect(diagnostics.subscriptionAuthState).toBe("bypassed_local");
@@ -369,6 +371,7 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.subscriptionAuthState).toBe("degraded");
     expect(diagnostics.authMode).toBe("keycloak");
     expect(diagnostics.subscriptionTransport).toBe("local_proxy_bootstrap");
+    expect(diagnostics.credentialMode).toBe("ephemeral_ticket");
     expect(diagnostics.websocketAuthConfigured).toBe(false);
     expect(diagnostics.warnings.map((warning) => warning.code)).toContain(
       "ALERTS_LIVE_UPDATES_PROXY_FORWARDING_UNAVAILABLE"

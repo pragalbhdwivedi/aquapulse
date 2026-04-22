@@ -1,13 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AlertsLiveUpdatesBootstrapPayload, AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { createSuccessResponse } from "../../common/api/response-mapper";
 import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
 import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AlertsApplicationService } from "./application/alerts.application-service";
+import { AlertsLiveUpdatesService } from "./live-updates/alerts-live-updates.service";
 import { AlertsService } from "./alerts.service";
 import {
   AcknowledgeAlertDto,
@@ -53,7 +55,8 @@ import {
 export class AlertsController {
   constructor(
     private readonly alertsService: AlertsService,
-    private readonly alertsApplicationService: AlertsApplicationService
+    private readonly alertsApplicationService: AlertsApplicationService,
+    private readonly alertsLiveUpdatesService: AlertsLiveUpdatesService
   ) {}
 
   // Collection handlers
@@ -149,6 +152,19 @@ export class AlertsController {
       (resourceId, mappedInput) => this.alertsApplicationService.attachExplanation(resourceId, mappedInput),
       toAlertsItemResponse
     );
+  }
+
+  @Get("live-updates/session")
+  async issueLiveUpdatesSession(
+    @Req()
+    request: {
+      readonly headers?: Record<string, string | string[] | undefined>;
+      readonly url?: string;
+      user?: AuthenticatedUserSession | null;
+    }
+  ) {
+    const payload = await this.alertsLiveUpdatesService.issueSubscriptionBootstrap(request);
+    return createSuccessResponse<AlertsLiveUpdatesBootstrapPayload>(payload);
   }
 
   // Resource handlers

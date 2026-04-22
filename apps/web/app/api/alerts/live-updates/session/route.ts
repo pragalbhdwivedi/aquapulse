@@ -1,11 +1,5 @@
-import { createAlertsLiveUpdatesBootstrapEnvelope } from "@web/server/alerts-live-updates-bootstrap";
+import { proxyAlertsApiRequest } from "@web/server/alerts-local-proxy";
 
 export async function GET(request: Request) {
-  const response = createAlertsLiveUpdatesBootstrapEnvelope(request);
-
-  return Response.json(response, {
-    headers: {
-      "cache-control": "no-store"
-    }
-  });
+  return proxyAlertsApiRequest(request);
 }

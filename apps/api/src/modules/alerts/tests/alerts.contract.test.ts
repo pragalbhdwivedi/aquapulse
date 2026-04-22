@@ -194,7 +194,11 @@ describe("Alerts contracts", () => {
       getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
     };
 
-    const controller = new AlertsController(placeholderService as never, appService as never);
+    const controller = new AlertsController(
+      placeholderService as never,
+      appService as never,
+      { issueSubscriptionBootstrap: vi.fn() } as never
+    );
     const response = await controller.getById("alert-1");
 
     expect(response.ok).toBe(true);
