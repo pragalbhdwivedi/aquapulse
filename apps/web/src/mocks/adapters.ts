@@ -201,11 +201,24 @@ function buildMockExplanation(
   const latestFeedback = alertExplanationFeedbackStore.get(input.alertId);
 
   return {
+    headline: `HIGH water-quality alert: Alert ${input.alertId}`,
     summary: `Alert ${input.alertId} likely reflects an operational condition that still needs a manual check.`,
     explanation:
       "Placeholder explanation for the current alert. Review the latest note, confirm the condition is still present, and treat this as advisory guidance only.",
+    explanationHindi:
+      input.outputMode === "bilingual"
+        ? "Hindi draft: Placeholder explanation for the current alert. Review the latest note, confirm the condition is still present, and treat this as advisory guidance only."
+        : undefined,
     recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
     likelyCauses: [
+      {
+        category: "water_quality",
+        label: "Water-quality threshold or missing reading",
+        rationale: "This placeholder explanation assumes the alert originated from a water-quality workflow.",
+        likelihood: "medium"
+      }
+    ],
+    likelyFactors: [
       {
         category: "water_quality",
         label: "Water-quality threshold or missing reading",
@@ -220,6 +233,13 @@ function buildMockExplanation(
         priority: "immediate"
       }
     ],
+    immediateChecks: [
+      {
+        title: "Repeat the reading",
+        detail: "Confirm the underlying condition before making any queue-state decision.",
+        priority: "immediate"
+      }
+    ],
     suggestedActions: [
       {
         title: "Document the recheck outcome",
@@ -227,17 +247,33 @@ function buildMockExplanation(
         priority: "next_round"
       }
     ],
+    escalationConsiderations: [
+      "Escalate after a fresh manual recheck if the alert condition remains high severity.",
+      "Do not treat the explanation as permission to mutate the alert lifecycle automatically."
+    ],
+    observedFacts: [
+      "The placeholder explanation uses alert-level context only.",
+      "The latest operator note may still need manual confirmation."
+    ],
     confidenceNote:
       "Confidence is limited because this placeholder explanation only uses alert-level context.",
     advisoryDisclaimer:
       "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
+    missingInformationNote: "This placeholder explanation has limited linked context, so manual review is still required.",
     metadata: {
       mode: "fallback",
       advisoryOnly: true,
       generatedAt,
       modelLabel: "gpt-5-nano",
       sourceLabel: "frontend_mock_fallback",
-      usedLiveOpenAi: false
+      usedLiveOpenAi: false,
+      providerPath: "deterministic_fallback",
+      output: {
+        outputMode: input.outputMode ?? "english_only",
+        primaryLanguage: "english",
+        bilingual: input.outputMode === "bilingual",
+        tone: input.tone ?? "operator"
+      }
     },
     cache: {
       status: generation === "cached_reuse" ? "reused" : "fresh",
@@ -310,8 +346,16 @@ export const pondsMockAdapter: PondsApiClient = {
     const scopeLabel = input.pondId ? `Pond ${input.pondId}` : "Farm-wide daily summary";
     return ok({
       summary: `${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`,
+      summaryHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`
+          : undefined,
       highlights: ["Water-quality follow-up is pending on one pond.", "Open alert queue still needs review."],
       headline: `${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`,
+      headlineHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`
+          : undefined,
       keyHighlights: ["Water-quality follow-up is pending on one pond.", "Open alert queue still needs review."],
       openIssues: ["High water-quality alert remains open.", "One pond has no fresh feed log in the selected window."],
       pendingActions: ["Repeat dissolved oxygen reading.", "Review open alert queue.", "Confirm next feed round."],
@@ -332,7 +376,13 @@ export const pondsMockAdapter: PondsApiClient = {
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false,
-        providerPath: "deterministic_fallback"
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone ?? "operator"
+        }
       },
       audit: {
         requestId: "mock-daily-summary-request",
@@ -828,7 +878,7 @@ export const aiMockAdapter: AiApiClient = {
       rewrittenEnglish,
       rewrittenHindi:
         input.outputMode === "bilingual"
-          ? `हिंदी मसौदा: ${rewrittenEnglish}`
+          ? `Hindi draft: ${rewrittenEnglish}`
           : undefined,
       tone: input.tone,
       clarificationNote:
@@ -843,7 +893,13 @@ export const aiMockAdapter: AiApiClient = {
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false,
-        providerPath: "deterministic_fallback"
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone
+        }
       },
       audit: {
         requestId: "mock-incident-rewrite-request",
@@ -862,7 +918,15 @@ export const aiMockAdapter: AiApiClient = {
 
     return ok({
       headline,
+      headlineHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${headline}`
+          : undefined,
       directAnswer,
+      directAnswerHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${directAnswer}`
+          : undefined,
       priorityItems: [
         {
           pondId: input.pondId ?? "pond-1",
@@ -898,7 +962,13 @@ export const aiMockAdapter: AiApiClient = {
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false,
-        providerPath: "deterministic_fallback"
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone ?? "operator"
+        }
       },
       audit: {
         requestId: "mock-dashboard-request",
@@ -912,8 +982,16 @@ export const aiMockAdapter: AiApiClient = {
   async generateHandover(input: AiHandoverGenerateRequest) {
     return ok({
       summary: `${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`,
+      summaryHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`
+          : undefined,
       actionItems: ["Check alert queue.", "Confirm next feed run."],
       headline: `${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`,
+      headlineHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`
+          : undefined,
       completedThisShift: ["Logged the latest feed entry.", "Captured fresh water-quality readings."],
       pendingItems: ["Check alert queue.", "Confirm next feed run."],
       priorityPonds: [
@@ -926,6 +1004,10 @@ export const aiMockAdapter: AiApiClient = {
       ],
       watchItems: ["One high-severity alert is still open.", "Confirm fresh readings before closing the shift."],
       nextShiftNote: "Start with the open alert queue, then confirm fresh readings on the priority pond.",
+      nextShiftNoteHindi:
+        input.outputMode === "bilingual"
+          ? "Hindi draft: Start with the open alert queue, then confirm fresh readings on the priority pond."
+          : undefined,
       metadata: {
         taskLabel: "shift_handover_generate",
         advisoryOnly: true,
@@ -934,7 +1016,13 @@ export const aiMockAdapter: AiApiClient = {
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false,
-        providerPath: "deterministic_fallback"
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone ?? "operator"
+        }
       },
       audit: {
         requestId: "mock-handover-request",
@@ -954,7 +1042,7 @@ export const aiMockAdapter: AiApiClient = {
       draftNote,
       draftNoteHindi:
         input.outputMode === "bilingual"
-          ? `हिंदी मसौदा: ${draftNote}`
+          ? `Hindi draft: ${draftNote}`
           : undefined,
       rationaleSummary:
         "This mock draft stays advisory-only and does not approve, close, or mutate any operational record.",
@@ -971,7 +1059,13 @@ export const aiMockAdapter: AiApiClient = {
         modelLabel: "gpt-5-nano",
         sourceLabel: "frontend_mock_fallback",
         usedLiveOpenAi: false,
-        providerPath: "deterministic_fallback"
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone ?? "formal"
+        }
       },
       audit: {
         requestId: "mock-approval-note-request",

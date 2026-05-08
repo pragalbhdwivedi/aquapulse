@@ -586,7 +586,7 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime ? (
           <span>
-            AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"}
+            AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"} / Output: {(backendProbe.runtime.aiExplanations.supportedOutputModes ?? ["english_only"]).join(", ")} / Tones: {(backendProbe.runtime.aiExplanations.supportedToneModes ?? ["operator"]).join(", ")}
           </span>
         ) : null}
         {backendProbe?.runtime?.aiOperatorAssistance ? (
@@ -596,7 +596,7 @@ export function RuntimeDiagnosticsCard({
         ) : null}
         {backendProbe?.runtime?.aiOperatorAssistance ? (
           <span>
-            AI operator assistance provider: {backendProbe.runtime.aiOperatorAssistance.providerPath} / Fallback active: {backendProbe.runtime.aiOperatorAssistance.fallbackActive ? "yes" : "no"}
+            AI operator assistance provider: {backendProbe.runtime.aiOperatorAssistance.providerPath} / Fallback active: {backendProbe.runtime.aiOperatorAssistance.fallbackActive ? "yes" : "no"} / Bilingual tasks: {(backendProbe.runtime.aiOperatorAssistance.bilingualTasks ?? []).join(", ")} / Tone tasks: {(backendProbe.runtime.aiOperatorAssistance.toneTasks ?? []).join(", ")}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

@@ -79,7 +79,11 @@ export function createReadonlyQueries(repositories: Pick<
         repositories.ponds.list(defaultPondsQuery),
         repositories.alerts.list(defaultAlertsQuery),
         repositories.tasks.list(defaultTasksQuery),
-        repositories.ai.queryDashboard({ question: "What needs attention first today?" })
+        repositories.ai.queryDashboard({
+          question: "What needs attention first today?",
+          tone: "operator",
+          outputMode: "bilingual"
+        })
       ]);
       const alertSummary = await loadAlertsSummaryWithFallback(
         repositories,
@@ -154,7 +158,9 @@ export function createReadonlyQueries(repositories: Pick<
       };
       const summary = await loadAlertsSummaryWithFallback(repositories, summaryQuery, alerts.data);
       const explanation = await repositories.alerts.explain({
-        alertId: alerts.data.items[0]?.id ?? "alert-1"
+        alertId: alerts.data.items[0]?.id ?? "alert-1",
+        tone: "operator",
+        outputMode: "bilingual"
       });
 
       return {
@@ -278,8 +284,17 @@ export async function getReportsPageData(): Promise<{
   const [ponds, alerts, dailySummary, handover, incidentRewrite, approvalNote] = await Promise.all([
     pondsRepository.list(defaultPondsQuery),
     alertsRepository.list(defaultAlertsQuery),
-    pondsRepository.summarize({ generatedForDate: "2026-04-13T00:00:00.000Z", includeMissingDataSignals: true }),
-    aiRepository.generateHandover({ shiftDate: "2026-04-13T00:00:00.000Z" }),
+    pondsRepository.summarize({
+      generatedForDate: "2026-04-13T00:00:00.000Z",
+      includeMissingDataSignals: true,
+      tone: "operator",
+      outputMode: "bilingual"
+    }),
+    aiRepository.generateHandover({
+      shiftDate: "2026-04-13T00:00:00.000Z",
+      tone: "operator",
+      outputMode: "bilingual"
+    }),
     aiRepository.rewriteText({
       originalText: "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
       tone: "operator",
@@ -292,7 +307,8 @@ export async function getReportsPageData(): Promise<{
       recordId: "alert-1",
       mode: "needs_review",
       promptNote: "Need wording for supervisor follow-up before approval.",
-      outputMode: "english_only"
+      outputMode: "bilingual",
+      tone: "formal"
     })
   ]);
 

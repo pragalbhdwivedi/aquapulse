@@ -109,12 +109,17 @@ describe("Alerts local API proxy", () => {
       return jsonResponse({
         ok: true,
         data: {
+          headline: "Bridge explanation",
           summary: "Bridge explanation",
           explanation: "Bridge explanation body",
           recommendations: [],
           likelyCauses: [],
+          likelyFactors: [],
           recommendedChecks: [],
+          immediateChecks: [],
           suggestedActions: [],
+          escalationConsiderations: [],
+          observedFacts: [],
           confidenceNote: "placeholder",
           advisoryDisclaimer: "Advisory only",
           metadata: {
@@ -123,7 +128,14 @@ describe("Alerts local API proxy", () => {
             generatedAt: "2026-04-16T09:00:00.000Z",
             modelLabel: "gpt-5-nano",
             sourceLabel: "proxy_test",
-            usedLiveOpenAi: false
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback",
+            output: {
+              outputMode: "english_only",
+              primaryLanguage: "english",
+              bilingual: false,
+              tone: "operator"
+            }
           },
           cache: {
             status: "fresh",

@@ -8,6 +8,10 @@ This branch adds the first broader backend-controlled AI operator-assistance sur
 - incident rewrite via `POST /api/ai/text/rewrite`
 - approval note draft via `POST /api/ai/approvals/draft-note`
 
+It also keeps the older alert explanation surface aligned with the same bounded output discipline:
+
+- alert explanation via `POST /api/ai/alerts/explain`
+
 Both flows are advisory-only. They do not:
 
 - close alerts
@@ -44,6 +48,22 @@ Optional provider-backed mode:
 - optionally set `OPENAI_OPERATOR_ASSISTANCE_MODEL`
 
 If provider mode is requested but config is incomplete, AquaPulse stays on deterministic fallback and surfaces a runtime warning.
+
+## Output alignment
+
+The bounded AI surfaces now share a compact output discipline where practical:
+
+- optional `outputMode` values such as `english_only` and `bilingual`
+- bounded tone values such as `operator`, `formal`, `management`, and `audit`
+- backend-owned output metadata describing fallback vs provider mode plus effective output settings
+
+Alert explanation now separates:
+
+- observed facts
+- likely factors
+- immediate checks
+- escalation considerations
+- missing-information notes when context is weak
 
 ## Data used
 
@@ -100,6 +120,14 @@ Approval note draft uses bounded linked-record context when available, such as:
 
 It remains advisory-only and does not approve, close, or mutate any record directly.
 
+Alert explanation uses bounded alert context such as:
+
+- alert severity, source, status, and review state
+- latest note when available
+- short recent history summary
+
+It remains advisory-only and does not acknowledge, resolve, assign, or mutate alerts.
+
 ## Runtime diagnostics
 
 Backend runtime diagnostics now expose `aiOperatorAssistance` with:
@@ -108,7 +136,14 @@ Backend runtime diagnostics now expose `aiOperatorAssistance` with:
 - fallback vs provider-backed mode
 - whether provider config is complete
 - supported tasks
+- supported bilingual/tone capabilities
 - safe degraded warnings
+
+Backend runtime diagnostics also expose `aiExplanations` with:
+
+- fallback vs provider-backed status
+- whether bilingual output is supported
+- whether bounded tone shaping is supported
 
 ## Local verification
 
@@ -119,6 +154,7 @@ Recommended checks:
 - open the dashboard page and confirm the bounded dashboard assistant answer renders
 - open the reports page and confirm daily summary plus shift handover render
 - confirm the reports page now shows incident rewrite plus approval note draft cards
+- open the alerts workbench and confirm the explanation card shows observed facts, likely factors, immediate checks, and escalation considerations
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
 
 ## Intentionally deferred
@@ -127,4 +163,5 @@ Still deferred for later AI branches:
 
 - incident drafting expansion
 - broader AI chat
+- treatment recommendation logic
 - any AI-driven critical write authority

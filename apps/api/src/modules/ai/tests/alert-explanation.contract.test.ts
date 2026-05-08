@@ -53,9 +53,28 @@ describe("Alert explanation service", () => {
 
     expect(response.metadata.mode).toBe("fallback");
     expect(response.metadata.usedLiveOpenAi).toBe(false);
+    expect(response.metadata.output.outputMode).toBe("english_only");
     expect(response.advisoryDisclaimer).toContain("Advisory only");
     expect(response.suggestedActions.length).toBeGreaterThan(0);
+    expect(response.immediateChecks.length).toBeGreaterThan(0);
+    expect(response.likelyFactors.length).toBeGreaterThan(0);
     expect(response.cache.status).toBe("fresh");
+  });
+
+  it("supports bounded bilingual and tone-shaped fallback output", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const response = await service.explainAlert({
+      alertId: "alert-1",
+      tone: "formal",
+      outputMode: "bilingual"
+    });
+
+    expect(response.metadata.output.outputMode).toBe("bilingual");
+    expect(response.metadata.output.tone).toBe("formal");
+    expect(response.explanationHindi).toBeTruthy();
   });
 
   it("reuses the cached explanation snapshot when cache reuse is allowed", async () => {

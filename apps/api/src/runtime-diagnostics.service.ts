@@ -534,9 +534,14 @@ export class RuntimeDiagnosticsService {
         mode: alertExplanationRuntime.configured ? "openai_nano" : "fallback",
         configured: alertExplanationRuntime.configured,
         modelLabel: alertExplanationRuntime.modelLabel,
+        providerPath: alertExplanationRuntime.configured
+          ? "openai_responses_api"
+          : "deterministic_fallback",
         cacheEnabled: true,
         attachmentAvailable: true,
         feedbackEnabled: true,
+        supportedOutputModes: ["english_only", "bilingual"],
+        supportedToneModes: ["operator", "formal", "management", "audit"],
         warnings: alertExplanationRuntime.warnings
       },
       aiOperatorAssistance: {
@@ -550,6 +555,21 @@ export class RuntimeDiagnosticsService {
           : "deterministic_fallback",
         fallbackActive: !operatorAssistanceRuntime.configured,
         supportedTasks: [
+          "daily_farm_summary",
+          "shift_handover_generate",
+          "dashboard_assistant_query",
+          "incident_rewrite",
+          "approval_note_draft"
+        ],
+        supportedOutputModes: ["english_only", "bilingual"],
+        bilingualTasks: [
+          "daily_farm_summary",
+          "shift_handover_generate",
+          "dashboard_assistant_query",
+          "incident_rewrite",
+          "approval_note_draft"
+        ],
+        toneTasks: [
           "daily_farm_summary",
           "shift_handover_generate",
           "dashboard_assistant_query",

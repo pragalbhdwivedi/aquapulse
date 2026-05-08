@@ -9,6 +9,7 @@ export class ApprovalNoteDraftDto implements AiApprovalNoteDraftRequest {
   mode!: "closure_note" | "escalation_justification" | "needs_review" | "pending_verification";
   promptNote?: string;
   outputMode?: "english_only" | "bilingual";
+  tone?: "operator" | "formal" | "management" | "audit";
 }
 
 export class ApprovalNoteDraftResponseDto implements AiApprovalNoteDraftResponse {

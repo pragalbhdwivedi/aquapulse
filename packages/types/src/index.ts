@@ -378,7 +378,23 @@ export interface AiActionDraftRecord extends BaseEntity {
   readonly status: "draft" | "approved" | "rejected";
 }
 
-export interface AiAlertsExplainRequest {
+export type AiStructuredOutputMode = "english_only" | "bilingual";
+export type AiOutputLanguage = "english" | "hindi";
+export type AiOutputTone = "operator" | "formal" | "management" | "audit";
+
+export interface AiOutputPreferences {
+  readonly outputMode?: AiStructuredOutputMode;
+  readonly tone?: AiOutputTone;
+}
+
+export interface AiStructuredOutputMetadata {
+  readonly outputMode: AiStructuredOutputMode;
+  readonly primaryLanguage: AiOutputLanguage;
+  readonly bilingual: boolean;
+  readonly tone?: AiOutputTone;
+}
+
+export interface AiAlertsExplainRequest extends AiOutputPreferences {
   readonly alertId: EntityId;
   readonly includeRecommendations?: boolean;
   readonly reuseCached?: boolean;
@@ -414,6 +430,8 @@ export interface AlertExplanationMetadata {
   readonly modelLabel: string;
   readonly sourceLabel: string;
   readonly usedLiveOpenAi: boolean;
+  readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+  readonly output: AiStructuredOutputMetadata;
 }
 
 export interface AlertExplanationCacheState {
@@ -445,14 +463,21 @@ export interface AlertExplanationFeedbackRequest {
 }
 
 export interface AiAlertsExplainResponse {
+  readonly headline: string;
   readonly explanation: string;
+  readonly explanationHindi?: string;
   readonly recommendations: string[];
   readonly summary: string;
   readonly likelyCauses: AlertExplanationLikelyCause[];
+  readonly likelyFactors: AlertExplanationLikelyCause[];
   readonly recommendedChecks: AlertExplanationSuggestedStep[];
+  readonly immediateChecks: AlertExplanationSuggestedStep[];
   readonly suggestedActions: AlertExplanationSuggestedStep[];
+  readonly escalationConsiderations: string[];
+  readonly observedFacts: string[];
   readonly confidenceNote: string;
   readonly advisoryDisclaimer: string;
+  readonly missingInformationNote?: string;
   readonly metadata: AlertExplanationMetadata;
   readonly cache: AlertExplanationCacheState;
   readonly feedbackSummary?: AlertExplanationFeedbackSummary;
@@ -479,6 +504,7 @@ export interface AiOperatorAssistanceMetadata {
   readonly sourceLabel: string;
   readonly usedLiveOpenAi: boolean;
   readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+  readonly output: AiStructuredOutputMetadata;
 }
 
 export interface AiOperatorAssistanceAuditMetadata {
@@ -496,7 +522,7 @@ export interface AiOperatorAttentionItem {
   readonly priority: "low" | "medium" | "high";
 }
 
-export interface AiPondsSummarizeRequest {
+export interface AiPondsSummarizeRequest extends AiOutputPreferences {
   readonly pondId?: EntityId;
   readonly farmId?: EntityId;
   readonly generatedForDate?: ISODateString;
@@ -506,8 +532,10 @@ export interface AiPondsSummarizeRequest {
 
 export interface AiPondsSummarizeResponse {
   readonly summary: string;
+  readonly summaryHindi?: string;
   readonly highlights: string[];
   readonly headline: string;
+  readonly headlineHindi?: string;
   readonly keyHighlights: string[];
   readonly openIssues: string[];
   readonly pendingActions: string[];
@@ -517,7 +545,7 @@ export interface AiPondsSummarizeResponse {
   readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
-export interface AiHandoverGenerateRequest {
+export interface AiHandoverGenerateRequest extends AiOutputPreferences {
   readonly shiftDate: ISODateString;
   readonly pondIds?: EntityId[];
   readonly shiftLabel?: string;
@@ -526,13 +554,16 @@ export interface AiHandoverGenerateRequest {
 
 export interface AiHandoverGenerateResponse {
   readonly summary: string;
+  readonly summaryHindi?: string;
   readonly actionItems: string[];
   readonly headline: string;
+  readonly headlineHindi?: string;
   readonly completedThisShift: string[];
   readonly pendingItems: string[];
   readonly priorityPonds: AiOperatorAttentionItem[];
   readonly watchItems: string[];
   readonly nextShiftNote: string;
+  readonly nextShiftNoteHindi?: string;
   readonly metadata: AiOperatorAssistanceMetadata;
   readonly audit: AiOperatorAssistanceAuditMetadata;
 }
@@ -553,8 +584,7 @@ export interface AiDashboardPriorityItem {
   readonly pondName?: string;
 }
 
-export type AiIncidentRewriteTone = "operator" | "formal" | "management" | "audit";
-export type AiStructuredOutputMode = "english_only" | "bilingual";
+export type AiIncidentRewriteTone = AiOutputTone;
 export type AiLinkedRecordType = "alert" | "task" | "incident";
 
 export interface AiIncidentRewriteRequest {
@@ -576,7 +606,7 @@ export interface AiIncidentRewriteResponse {
   readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
-export interface AiDashboardQueryRequest {
+export interface AiDashboardQueryRequest extends AiOutputPreferences {
   readonly question: string;
   readonly pondId?: EntityId;
   readonly dateRange?: DateRange;
@@ -584,7 +614,9 @@ export interface AiDashboardQueryRequest {
 
 export interface AiDashboardQueryResponse {
   readonly headline: string;
+  readonly headlineHindi?: string;
   readonly directAnswer: string;
+  readonly directAnswerHindi?: string;
   readonly priorityItems: AiDashboardPriorityItem[];
   readonly supportingFacts: AiDashboardSupportingFact[];
   readonly recommendedNextChecks: string[];
@@ -607,6 +639,7 @@ export interface AiApprovalNoteDraftRequest {
   readonly mode: AiApprovalNoteDraftMode;
   readonly promptNote?: string;
   readonly outputMode?: AiStructuredOutputMode;
+  readonly tone?: AiOutputTone;
 }
 
 export interface AiApprovalNoteDraftResponse {
@@ -2021,9 +2054,12 @@ export interface BackendRuntimeDiagnostics {
     readonly mode: "fallback" | "openai_nano";
     readonly configured: boolean;
     readonly modelLabel: string;
+    readonly providerPath?: "deterministic_fallback" | "openai_responses_api";
     readonly cacheEnabled: boolean;
     readonly attachmentAvailable: boolean;
     readonly feedbackEnabled: boolean;
+    readonly supportedOutputModes?: AiStructuredOutputMode[];
+    readonly supportedToneModes?: AiOutputTone[];
     readonly warnings: RuntimeWarning[];
   };
   readonly aiOperatorAssistance?: {
@@ -2035,6 +2071,9 @@ export interface BackendRuntimeDiagnostics {
     readonly providerPath: "deterministic_fallback" | "openai_responses_api";
     readonly fallbackActive: boolean;
     readonly supportedTasks: AiOperatorAssistanceTaskLabel[];
+    readonly supportedOutputModes?: AiStructuredOutputMode[];
+    readonly bilingualTasks?: AiOperatorAssistanceTaskLabel[];
+    readonly toneTasks?: AiOperatorAssistanceTaskLabel[];
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;

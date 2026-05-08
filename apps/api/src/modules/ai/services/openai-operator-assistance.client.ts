@@ -41,6 +41,8 @@ const aiApprovalNoteDraftContentSchema = aiApprovalNoteDraftResponseSchema.omit(
 
 export interface DailyFarmSummaryPromptPayload {
   readonly taskLabel: "daily_farm_summary";
+  readonly tone: "operator" | "formal" | "management" | "audit";
+  readonly outputMode: "english_only" | "bilingual";
   readonly generatedForDate: string;
   readonly scopeLabel: string;
   readonly pondSnapshot: {
@@ -73,6 +75,8 @@ export interface DailyFarmSummaryPromptPayload {
 
 export interface ShiftHandoverPromptPayload {
   readonly taskLabel: "shift_handover_generate";
+  readonly tone: "operator" | "formal" | "management" | "audit";
+  readonly outputMode: "english_only" | "bilingual";
   readonly shiftDate: string;
   readonly shiftLabel: string;
   readonly scopeLabel: string;
@@ -90,6 +94,8 @@ export interface ShiftHandoverPromptPayload {
 
 export interface DashboardAssistantPromptPayload {
   readonly taskLabel: "dashboard_assistant_query";
+  readonly tone: "operator" | "formal" | "management" | "audit";
+  readonly outputMode: "english_only" | "bilingual";
   readonly question: string;
   readonly scopeLabel: string;
   readonly timeWindowLabel: string;
@@ -128,6 +134,7 @@ export interface ApprovalNoteDraftPromptPayload {
   readonly recordLabel: string;
   readonly mode: "closure_note" | "escalation_justification" | "needs_review" | "pending_verification";
   readonly outputMode: "english_only" | "bilingual";
+  readonly tone: "operator" | "formal" | "management" | "audit";
   readonly statusLabel?: string;
   readonly severityLabel?: string;
   readonly promptNote?: string;
@@ -276,7 +283,7 @@ export class OpenAiOperatorAssistanceClient {
               {
                 type: "input_text",
                 text:
-                  "You generate advisory aquaculture operator assistance output. Stay read-only, do not suggest closing alerts automatically, do not change finance, inventory, thresholds, or treatment approvals, and return JSON only."
+                  "You generate advisory aquaculture operator assistance output. Stay read-only, do not suggest closing alerts automatically, do not change finance, inventory, thresholds, or treatment approvals, honor bounded tone and bilingual output requests when present, and return JSON only."
               }
             ]
           },
@@ -288,7 +295,7 @@ export class OpenAiOperatorAssistanceClient {
                 text: JSON.stringify({
                   taskLabel,
                   instruction:
-                    "Return JSON only with the exact requested fields. Keep the result concise, operator-friendly, and grounded only in the provided context.",
+                    "Return JSON only with the exact requested fields. Keep the result concise, operator-friendly, grounded only in the provided context, and avoid inventing facts or approvals.",
                   payload
                 })
               }

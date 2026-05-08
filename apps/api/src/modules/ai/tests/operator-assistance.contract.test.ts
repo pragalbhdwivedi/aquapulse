@@ -177,6 +177,7 @@ describe("Operator assistance service", () => {
 
     expect(summary.metadata.taskLabel).toBe("daily_farm_summary");
     expect(summary.metadata.mode).toBe("fallback");
+    expect(summary.metadata.output.outputMode).toBe("english_only");
     expect(summary.pendingActions.length).toBeGreaterThan(0);
     expect(summary.audit.fallbackUsed).toBe(true);
     expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);
@@ -231,6 +232,8 @@ describe("Operator assistance service", () => {
 
     expect(rewrite.metadata.taskLabel).toBe("incident_rewrite");
     expect(rewrite.metadata.mode).toBe("fallback");
+    expect(rewrite.metadata.output.outputMode).toBe("bilingual");
+    expect(rewrite.metadata.output.tone).toBe("audit");
     expect(rewrite.rewrittenEnglish).toContain("Audit note:");
     expect(rewrite.rewrittenHindi).toBeTruthy();
     expect(rewrite.audit.fallbackUsed).toBe(true);
@@ -264,6 +267,7 @@ describe("Operator assistance service", () => {
 
     expect(approvalNote.metadata.taskLabel).toBe("approval_note_draft");
     expect(approvalNote.metadata.mode).toBe("fallback");
+    expect(approvalNote.metadata.output.tone).toBe("formal");
     expect(approvalNote.reviewRequired).toBe(true);
     expect(approvalNote.draftNote).toContain("Low dissolved oxygen warning");
     expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);

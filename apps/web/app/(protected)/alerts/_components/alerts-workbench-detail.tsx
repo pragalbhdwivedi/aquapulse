@@ -182,10 +182,14 @@ export function AlertsWorkbenchDetail({
       {explanation ? (
         <div style={{ display: "grid", gap: "0.35rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
           <strong>AI advisory explanation</strong>
+          <div>{explanation.headline}</div>
           <div>{explanation.summary}</div>
           <div style={{ color: "#cbd5e1" }}>{explanation.explanation}</div>
+          {explanation.explanationHindi ? (
+            <div style={{ color: "#bfdbfe" }}>Hindi draft: {explanation.explanationHindi}</div>
+          ) : null}
           <div style={{ color: "#94a3b8" }}>
-            Mode: {explanation.metadata.mode} / Model: {explanation.metadata.modelLabel}
+            Mode: {explanation.metadata.mode} / Model: {explanation.metadata.modelLabel} / Output: {explanation.metadata.output.outputMode} / Tone: {explanation.metadata.output.tone ?? "operator"}
           </div>
           <div style={{ color: "#94a3b8" }}>
             Explanation source: {explanation.cache.generation} / Cached at: {explanation.cache.cachedAt}
@@ -198,6 +202,9 @@ export function AlertsWorkbenchDetail({
           ) : null}
           <div style={{ color: "#fbbf24" }}>{explanation.advisoryDisclaimer}</div>
           <div style={{ color: "#94a3b8" }}>{explanation.confidenceNote}</div>
+          {explanation.missingInformationNote ? (
+            <div style={{ color: "#fbbf24" }}>{explanation.missingInformationNote}</div>
+          ) : null}
           <label style={{ display: "grid", gap: "0.35rem" }}>
             <span>Explanation feedback note</span>
             <input
@@ -233,21 +240,35 @@ export function AlertsWorkbenchDetail({
               {isSubmittingFeedback ? "Saving..." : "Mark neutral"}
             </button>
           </div>
-          {explanation.likelyCauses.length ? (
+          {explanation.observedFacts.length ? (
             <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
-              {explanation.likelyCauses.map((cause) => (
+              {explanation.observedFacts.map((fact) => (
+                <li key={`fact:${fact}`}>Observed fact: {fact}</li>
+              ))}
+            </ul>
+          ) : null}
+          {explanation.likelyFactors.length ? (
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {explanation.likelyFactors.map((cause) => (
                 <li key={`${cause.category}:${cause.label}`}>
                   {cause.label} [{cause.likelihood}] - {cause.rationale}
                 </li>
               ))}
             </ul>
           ) : null}
-          {explanation.recommendedChecks.length ? (
+          {explanation.immediateChecks.length ? (
             <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
-              {explanation.recommendedChecks.map((step) => (
+              {explanation.immediateChecks.map((step) => (
                 <li key={`check:${step.title}`}>
                   Check: {step.title} ({step.priority}) - {step.detail}
                 </li>
+              ))}
+            </ul>
+          ) : null}
+          {explanation.escalationConsiderations.length ? (
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {explanation.escalationConsiderations.map((item) => (
+                <li key={`escalation:${item}`}>Escalation: {item}</li>
               ))}
             </ul>
           ) : null}

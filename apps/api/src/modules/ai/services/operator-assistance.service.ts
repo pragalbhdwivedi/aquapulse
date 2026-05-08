@@ -14,6 +14,7 @@ import type {
   AiOperatorAttentionItem,
   AiOperatorAssistanceAuditMetadata,
   AiOperatorAssistanceMetadata,
+  AiOutputPreferences,
   AiPondsSummarizeRequest,
   AiPondsSummarizeResponse,
   AiRequestRecord,
@@ -46,6 +47,11 @@ import {
   type DailyFarmSummaryPromptPayload,
   type ShiftHandoverPromptPayload
 } from "./openai-operator-assistance.client";
+import {
+  buildStructuredOutputMetadata,
+  prefixToneLabel,
+  withOptionalHindi
+} from "./ai-output-formatting";
 
 const MAX_CONTEXT_ITEMS = 6;
 const ACTIVE_PONDS_PAGE_SIZE = 50;
@@ -206,88 +212,24 @@ function buildMissingDataNotes(
   return notes.slice(0, MAX_CONTEXT_ITEMS);
 }
 
-function buildDailySummaryMetadata(
+function buildOperatorAssistanceMetadata(
+  taskLabel: AiOperatorAssistanceMetadata["taskLabel"],
   generatedAt: string,
   modelLabel: string,
-  usedLiveOpenAi: boolean
+  usedLiveOpenAi: boolean,
+  input?: AiOutputPreferences,
+  fallbackTone?: AiOperatorAssistanceMetadata["output"]["tone"]
 ): AiOperatorAssistanceMetadata {
   return {
-    taskLabel: "daily_farm_summary",
+    taskLabel,
     advisoryOnly: true,
     mode: usedLiveOpenAi ? "openai_nano" : "fallback",
     generatedAt,
     modelLabel,
     sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
     usedLiveOpenAi,
-    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
-  };
-}
-
-function buildHandoverMetadata(
-  generatedAt: string,
-  modelLabel: string,
-  usedLiveOpenAi: boolean
-): AiOperatorAssistanceMetadata {
-  return {
-    taskLabel: "shift_handover_generate",
-    advisoryOnly: true,
-    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
-    generatedAt,
-    modelLabel,
-    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
-    usedLiveOpenAi,
-    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
-  };
-}
-
-function buildDashboardMetadata(
-  generatedAt: string,
-  modelLabel: string,
-  usedLiveOpenAi: boolean
-): AiOperatorAssistanceMetadata {
-  return {
-    taskLabel: "dashboard_assistant_query",
-    advisoryOnly: true,
-    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
-    generatedAt,
-    modelLabel,
-    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
-    usedLiveOpenAi,
-    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
-  };
-}
-
-function buildIncidentRewriteMetadata(
-  generatedAt: string,
-  modelLabel: string,
-  usedLiveOpenAi: boolean
-): AiOperatorAssistanceMetadata {
-  return {
-    taskLabel: "incident_rewrite",
-    advisoryOnly: true,
-    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
-    generatedAt,
-    modelLabel,
-    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
-    usedLiveOpenAi,
-    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
-  };
-}
-
-function buildApprovalNoteMetadata(
-  generatedAt: string,
-  modelLabel: string,
-  usedLiveOpenAi: boolean
-): AiOperatorAssistanceMetadata {
-  return {
-    taskLabel: "approval_note_draft",
-    advisoryOnly: true,
-    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
-    generatedAt,
-    modelLabel,
-    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
-    usedLiveOpenAi,
-    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
+    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback",
+    output: buildStructuredOutputMetadata(input, fallbackTone)
   };
 }
 
@@ -350,6 +292,21 @@ export class OperatorAssistanceService {
         "incident_rewrite",
         "approval_note_draft"
       ] as const,
+      supportedOutputModes: ["english_only", "bilingual"] as const,
+      bilingualTasks: [
+        "daily_farm_summary",
+        "shift_handover_generate",
+        "dashboard_assistant_query",
+        "incident_rewrite",
+        "approval_note_draft"
+      ] as const,
+      toneTasks: [
+        "daily_farm_summary",
+        "shift_handover_generate",
+        "dashboard_assistant_query",
+        "incident_rewrite",
+        "approval_note_draft"
+      ] as const,
       warnings: this.runtime.warnings
     };
   }
@@ -379,6 +336,7 @@ export class OperatorAssistanceService {
       : buildMissingDataNotes(context.ponds, context.waterQuality, context.feedEntries);
 
     let response = this.buildDailySummaryFallback(
+      input,
       generatedAt,
       attentionItems,
       missingDataNotes,
@@ -392,7 +350,14 @@ export class OperatorAssistanceService {
         if (openAiResponse) {
           response = {
             ...openAiResponse,
-            metadata: buildDailySummaryMetadata(generatedAt, this.runtime.modelLabel, true),
+            metadata: buildOperatorAssistanceMetadata(
+              "daily_farm_summary",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              "operator"
+            ),
             audit: response.audit
           };
         }
@@ -432,6 +397,7 @@ export class OperatorAssistanceService {
     const promptPayload = this.buildShiftHandoverPromptPayload(input, context, attentionItems);
 
     let response = this.buildShiftHandoverFallback(
+      input,
       generatedAt,
       input.shiftLabel ?? "Shift handover",
       attentionItems,
@@ -444,7 +410,14 @@ export class OperatorAssistanceService {
         if (openAiResponse) {
           response = {
             ...openAiResponse,
-            metadata: buildHandoverMetadata(generatedAt, this.runtime.modelLabel, true),
+            metadata: buildOperatorAssistanceMetadata(
+              "shift_handover_generate",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              "operator"
+            ),
             audit: response.audit
           };
         }
@@ -499,7 +472,14 @@ export class OperatorAssistanceService {
         if (openAiResponse) {
           response = {
             ...openAiResponse,
-            metadata: buildDashboardMetadata(generatedAt, this.runtime.modelLabel, true),
+            metadata: buildOperatorAssistanceMetadata(
+              "dashboard_assistant_query",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              "operator"
+            ),
             audit: response.audit
           };
         }
@@ -540,7 +520,14 @@ export class OperatorAssistanceService {
         if (openAiResponse) {
           response = {
             ...openAiResponse,
-            metadata: buildIncidentRewriteMetadata(generatedAt, this.runtime.modelLabel, true),
+            metadata: buildOperatorAssistanceMetadata(
+              "incident_rewrite",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              input.tone
+            ),
             audit: response.audit
           };
         }
@@ -581,7 +568,14 @@ export class OperatorAssistanceService {
         if (openAiResponse) {
           response = {
             ...openAiResponse,
-            metadata: buildApprovalNoteMetadata(generatedAt, this.runtime.modelLabel, true),
+            metadata: buildOperatorAssistanceMetadata(
+              "approval_note_draft",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              input.tone ?? "formal"
+            ),
             audit: response.audit
           };
         }
@@ -720,6 +714,8 @@ export class OperatorAssistanceService {
 
     return {
       taskLabel: "daily_farm_summary",
+      tone: input.tone ?? "operator",
+      outputMode: input.outputMode ?? "english_only",
       generatedForDate: input.generatedForDate ?? generatedAt,
       scopeLabel: input.pondId
         ? `Pond ${context.ponds[0]?.name ?? input.pondId}`
@@ -781,6 +777,8 @@ export class OperatorAssistanceService {
 
     return {
       taskLabel: "shift_handover_generate",
+      tone: input.tone ?? "operator",
+      outputMode: input.outputMode ?? "english_only",
       shiftDate: input.shiftDate,
       shiftLabel: input.shiftLabel?.trim() || "Shift handover",
       scopeLabel:
@@ -833,6 +831,8 @@ export class OperatorAssistanceService {
 
     return {
       taskLabel: "dashboard_assistant_query",
+      tone: input.tone ?? "operator",
+      outputMode: input.outputMode ?? "english_only",
       question: input.question,
       scopeLabel: input.pondId ? `Pond ${context.ponds[0]?.name ?? input.pondId}` : "Farm-wide dashboard assistant",
       timeWindowLabel:
@@ -914,6 +914,7 @@ export class OperatorAssistanceService {
       recordLabel,
       mode: input.mode,
       outputMode: input.outputMode ?? "english_only",
+      tone: input.tone ?? "formal",
       statusLabel,
       severityLabel,
       promptNote: input.promptNote?.trim(),
@@ -922,13 +923,17 @@ export class OperatorAssistanceService {
   }
 
   private buildDailySummaryFallback(
+    input: AiPondsSummarizeRequest,
     generatedAt: string,
     attentionItems: AiOperatorAttentionItem[],
     missingDataNotes: string[],
     context: DomainContextSnapshot,
     scopeLabel: string
   ): AiPondsSummarizeResponse {
-    const headline = `${scopeLabel}: ${context.alerts.length} open alerts, ${context.tasks.length} pending tasks, ${attentionItems.length} ponds needing attention.`;
+    const headline = prefixToneLabel(
+      `${scopeLabel}: ${context.alerts.length} open alerts, ${context.tasks.length} pending tasks, ${attentionItems.length} ponds needing attention.`,
+      input.tone ?? "operator"
+    );
     const keyHighlights = pickTopStrings([
       `${context.ponds.length} active ponds were included in this summary.`,
       `${context.waterQuality.length} recent water-quality readings were considered.`,
@@ -947,19 +952,29 @@ export class OperatorAssistanceService {
 
     return {
       summary: headline,
+      summaryHindi: withOptionalHindi(headline, input),
       highlights: keyHighlights,
       headline,
+      headlineHindi: withOptionalHindi(headline, input),
       keyHighlights,
       openIssues,
       pendingActions,
       pondsNeedingAttention: attentionItems,
       missingDataNotes,
-      metadata: buildDailySummaryMetadata(generatedAt, this.runtime.modelLabel, false),
+      metadata: buildOperatorAssistanceMetadata(
+        "daily_farm_summary",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone ?? "operator"
+      ),
       audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
     };
   }
 
   private buildShiftHandoverFallback(
+    input: AiHandoverGenerateRequest,
     generatedAt: string,
     shiftLabel: string,
     attentionItems: AiOperatorAttentionItem[],
@@ -982,18 +997,31 @@ export class OperatorAssistanceService {
     const nextShiftNote = pendingItems.length > 0
       ? `Start with ${pendingItems[0]} and review ${attentionItems[0]?.pondName ?? "the highest-priority pond"} first.`
       : "Start by reviewing open alerts and confirming fresh readings for the top attention ponds.";
-    const headline = `${shiftLabel}: ${pendingItems.length} pending items and ${attentionItems.length} priority ponds need follow-up.`;
+    const headline = prefixToneLabel(
+      `${shiftLabel}: ${pendingItems.length} pending items and ${attentionItems.length} priority ponds need follow-up.`,
+      input.tone ?? "operator"
+    );
 
     return {
       summary: headline,
+      summaryHindi: withOptionalHindi(headline, input),
       actionItems: pendingItems,
       headline,
+      headlineHindi: withOptionalHindi(headline, input),
       completedThisShift,
       pendingItems,
       priorityPonds: attentionItems,
       watchItems,
       nextShiftNote,
-      metadata: buildHandoverMetadata(generatedAt, this.runtime.modelLabel, false),
+      nextShiftNoteHindi: withOptionalHindi(nextShiftNote, input),
+      metadata: buildOperatorAssistanceMetadata(
+        "shift_handover_generate",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone ?? "operator"
+      ),
       audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
     };
   }
@@ -1211,14 +1239,23 @@ export class OperatorAssistanceService {
 
     return {
       headline,
+      headlineHindi: withOptionalHindi(headline, input),
       directAnswer,
+      directAnswerHindi: withOptionalHindi(directAnswer, input),
       priorityItems,
       supportingFacts,
       recommendedNextChecks,
       missingInformationNote,
       answer: directAnswer,
       relatedMetrics,
-      metadata: buildDashboardMetadata(generatedAt, this.runtime.modelLabel, false),
+      metadata: buildOperatorAssistanceMetadata(
+        "dashboard_assistant_query",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone ?? "operator"
+      ),
       audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
     };
   }
@@ -1233,18 +1270,17 @@ export class OperatorAssistanceService {
       if (!normalized) {
         return "No operator note was supplied, so there is nothing to rewrite yet.";
       }
+      const normalizedSentence = normalized.endsWith(".") ? normalized : `${normalized}.`;
 
-      switch (input.tone) {
-        case "audit":
-          return `Audit note: ${normalized.endsWith(".") ? normalized : `${normalized}.`} Verification is still required before this note is used in any critical workflow.`;
-        case "management":
-          return `Management summary: ${normalized.endsWith(".") ? normalized : `${normalized}.`} This wording should be reviewed before any approval or escalation decision.`;
-        case "formal":
-          return normalized.endsWith(".") ? normalized : `${normalized}.`;
-        case "operator":
-        default:
-          return `Operator note: ${normalized.endsWith(".") ? normalized : `${normalized}.`}`;
+      if (input.tone === "audit") {
+        return `${prefixToneLabel(normalizedSentence, input.tone)} Verification is still required before this note is used in any critical workflow.`;
       }
+
+      if (input.tone === "management") {
+        return `${prefixToneLabel(normalizedSentence, input.tone)} This wording should be reviewed before any approval or escalation decision.`;
+      }
+
+      return prefixToneLabel(normalizedSentence, input.tone);
     })();
 
     const clarificationNote =
@@ -1259,14 +1295,18 @@ export class OperatorAssistanceService {
     return {
       originalText: input.originalText,
       rewrittenEnglish,
-      rewrittenHindi:
-        (input.outputMode ?? "english_only") === "bilingual"
-          ? buildHindiFallbackLine(rewrittenEnglish)
-          : undefined,
+      rewrittenHindi: withOptionalHindi(rewrittenEnglish, input),
       tone: input.tone,
       clarificationNote,
       missingInformationNote,
-      metadata: buildIncidentRewriteMetadata(generatedAt, this.runtime.modelLabel, false),
+      metadata: buildOperatorAssistanceMetadata(
+        "incident_rewrite",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone
+      ),
       audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
     };
   }
@@ -1297,6 +1337,7 @@ export class OperatorAssistanceService {
         "Verification is still pending, so this note should not be treated as an approval or final decision."
     };
     const draftNote = `${subject}: ${draftCoreByMode[input.mode]}${statusFragment}${severityFragment}${promptFragment}`.trim();
+    const tonedDraftNote = prefixToneLabel(draftNote, input.tone ?? "formal");
     const reviewRequired = input.mode !== "closure_note" || input.recordType === "incident";
     const missingInformationNote =
       !input.recordId && !input.promptNote?.trim()
@@ -1305,11 +1346,9 @@ export class OperatorAssistanceService {
 
     return {
       headline: `${modeLabelByType[input.mode]} for ${subject}`,
-      draftNote,
+      draftNote: tonedDraftNote,
       draftNoteHindi:
-        (input.outputMode ?? "english_only") === "bilingual"
-          ? buildHindiFallbackLine(draftNote)
-          : undefined,
+        withOptionalHindi(tonedDraftNote, input),
       rationaleSummary:
         "The draft was built from bounded linked-record context and remains advisory-only. It does not approve, close, or mutate any operational record.",
       suggestedNextChecks: pickTopStrings([
@@ -1321,7 +1360,14 @@ export class OperatorAssistanceService {
       ]),
       reviewRequired,
       missingInformationNote,
-      metadata: buildApprovalNoteMetadata(generatedAt, this.runtime.modelLabel, false),
+      metadata: buildOperatorAssistanceMetadata(
+        "approval_note_draft",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone ?? "formal"
+      ),
       audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
     };
   }

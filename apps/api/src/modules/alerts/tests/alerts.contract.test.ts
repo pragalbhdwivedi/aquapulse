@@ -342,12 +342,17 @@ describe("Alerts contracts", () => {
     } as unknown as AlertsLiveUpdatesService);
     const result = await service.attachExplanation("alert-1", {
       explanation: {
+        headline: "High alert explanation",
         summary: "Alert explanation summary",
         explanation: "Alert explanation body",
         recommendations: ["Inspect aeration equipment."],
         likelyCauses: [],
+        likelyFactors: [],
         recommendedChecks: [],
+        immediateChecks: [],
         suggestedActions: [],
+        escalationConsiderations: [],
+        observedFacts: [],
         confidenceNote: "Limited confidence.",
         advisoryDisclaimer: "Advisory only.",
         metadata: {
@@ -356,7 +361,14 @@ describe("Alerts contracts", () => {
           generatedAt: "2026-04-16T10:00:00.000Z",
           modelLabel: "gpt-5-nano",
           sourceLabel: "test",
-          usedLiveOpenAi: false
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: "english_only",
+            primaryLanguage: "english",
+            bilingual: false,
+            tone: "operator"
+          }
         },
         cache: {
           status: "fresh",

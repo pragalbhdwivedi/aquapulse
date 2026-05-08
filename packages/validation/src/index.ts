@@ -124,31 +124,82 @@ export const aiTextRewriteRequestSchema = z.object({
 export const aiAlertExplanationRequestSchema = z.object({
   alertId: z.string().min(1),
   includeRecommendations: z.boolean().optional(),
-  reuseCached: z.boolean().optional()
+  reuseCached: z.boolean().optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional()
+});
+
+const aiStructuredOutputMetadataSchema = z.object({
+  outputMode: z.enum(["english_only", "bilingual"]),
+  primaryLanguage: z.enum(["english", "hindi"]),
+  bilingual: z.boolean(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional()
+});
+
+const alertExplanationCauseSchema = z.object({
+  category: z.enum(["water_quality", "feed", "equipment", "operator_process", "environmental", "unknown"]),
+  label: z.string().min(1),
+  rationale: z.string().min(1),
+  likelihood: z.enum(["low", "medium", "high"])
+});
+
+const alertExplanationStepSchema = z.object({
+  title: z.string().min(1),
+  detail: z.string().min(1),
+  priority: z.enum(["immediate", "next_round", "monitor"])
+});
+
+export const aiAlertExplanationResponseSchema = z.object({
+  headline: z.string().min(1),
+  summary: z.string().min(1),
+  explanation: z.string().min(1),
+  explanationHindi: z.string().min(1).optional(),
+  recommendations: z.array(z.string().min(1)),
+  likelyCauses: z.array(alertExplanationCauseSchema),
+  likelyFactors: z.array(alertExplanationCauseSchema),
+  recommendedChecks: z.array(alertExplanationStepSchema),
+  immediateChecks: z.array(alertExplanationStepSchema),
+  suggestedActions: z.array(alertExplanationStepSchema),
+  escalationConsiderations: z.array(z.string().min(1)),
+  observedFacts: z.array(z.string().min(1)),
+  confidenceNote: z.string().min(1),
+  advisoryDisclaimer: z.string().min(1),
+  missingInformationNote: z.string().min(1).optional(),
+  metadata: z.object({
+    mode: z.enum(["fallback", "openai_nano"]),
+    advisoryOnly: z.literal(true),
+    generatedAt: z.string().min(1),
+    modelLabel: z.string().min(1),
+    sourceLabel: z.string().min(1),
+    usedLiveOpenAi: z.boolean(),
+    providerPath: z.enum(["deterministic_fallback", "openai_responses_api"]),
+    output: aiStructuredOutputMetadataSchema
+  }),
+  cache: z.object({
+    status: z.enum(["fresh", "reused"]),
+    cachedAt: z.string().min(1),
+    freshness: z.enum(["fresh", "stale"]),
+    explanationVersion: z.literal("v1"),
+    generation: z.enum(["cached_reuse", "fresh_fallback", "fresh_openai_nano"])
+  }),
+  feedbackSummary: z
+    .object({
+      latest: z
+        .object({
+          alertId: z.string().min(1),
+          value: z.enum(["useful", "not_useful", "neutral"]),
+          note: z.string().min(1).optional(),
+          submittedAt: z.string().min(1),
+          generation: z.enum(["cached_reuse", "fresh_fallback", "fresh_openai_nano"]),
+          sourceMode: z.enum(["fallback", "openai_nano"])
+        })
+        .optional()
+    })
+    .optional()
 });
 
 export const alertExplanationAttachmentSchema = z.object({
-  explanation: z.object({
-    summary: z.string().min(1),
-    explanation: z.string().min(1),
-    recommendations: z.array(z.string()),
-    confidenceNote: z.string().min(1),
-    advisoryDisclaimer: z.string().min(1),
-    metadata: z.object({
-      mode: z.enum(["fallback", "openai_nano"]),
-      advisoryOnly: z.literal(true),
-      generatedAt: z.string().min(1),
-      modelLabel: z.string().min(1),
-      sourceLabel: z.string().min(1),
-      usedLiveOpenAi: z.boolean()
-    }),
-    cache: z.object({
-      status: z.enum(["fresh", "reused"]),
-      cachedAt: z.string().min(1),
-      freshness: z.enum(["fresh", "stale"]),
-      explanationVersion: z.literal("v1")
-    })
-  }),
+  explanation: aiAlertExplanationResponseSchema,
   note: z.string().min(1).optional()
 });
 
@@ -158,7 +209,9 @@ export const aiDashboardQueryRequestSchema = z.object({
   dateRange: z.object({
     from: z.string().min(1).optional(),
     to: z.string().min(1).optional()
-  }).optional()
+  }).optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional()
 });
 
 const aiOperatorAssistanceMetadataSchema = z.object({
@@ -175,7 +228,8 @@ const aiOperatorAssistanceMetadataSchema = z.object({
   modelLabel: z.string().min(1),
   sourceLabel: z.string().min(1),
   usedLiveOpenAi: z.boolean(),
-  providerPath: z.enum(["deterministic_fallback", "openai_responses_api"])
+  providerPath: z.enum(["deterministic_fallback", "openai_responses_api"]),
+  output: aiStructuredOutputMetadataSchema
 });
 
 const aiOperatorAssistanceAuditMetadataSchema = z.object({
@@ -217,13 +271,17 @@ export const aiDailyFarmSummaryRequestSchema = z.object({
     from: z.string().min(1).optional(),
     to: z.string().min(1).optional()
   }).optional(),
-  includeMissingDataSignals: z.boolean().optional()
+  includeMissingDataSignals: z.boolean().optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional()
 });
 
 export const aiDailyFarmSummaryResponseSchema = z.object({
   summary: z.string().min(1),
+  summaryHindi: z.string().min(1).optional(),
   highlights: z.array(z.string().min(1)),
   headline: z.string().min(1),
+  headlineHindi: z.string().min(1).optional(),
   keyHighlights: z.array(z.string().min(1)),
   openIssues: z.array(z.string().min(1)),
   pendingActions: z.array(z.string().min(1)),
@@ -239,18 +297,23 @@ export const aiShiftHandoverRequestSchema = z.object({
   shiftDate: z.string().min(1),
   pondIds: z.array(z.string().min(1)).optional(),
   shiftLabel: z.string().min(1).optional(),
-  includeCompletedItems: z.boolean().optional()
+  includeCompletedItems: z.boolean().optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional()
 });
 
 export const aiShiftHandoverResponseSchema = z.object({
   summary: z.string().min(1),
+  summaryHindi: z.string().min(1).optional(),
   actionItems: z.array(z.string().min(1)),
   headline: z.string().min(1),
+  headlineHindi: z.string().min(1).optional(),
   completedThisShift: z.array(z.string().min(1)),
   pendingItems: z.array(z.string().min(1)),
   priorityPonds: z.array(aiOperatorAttentionItemSchema),
   watchItems: z.array(z.string().min(1)),
   nextShiftNote: z.string().min(1),
+  nextShiftNoteHindi: z.string().min(1).optional(),
   metadata: aiOperatorAssistanceMetadataSchema.extend({
     taskLabel: z.literal("shift_handover_generate")
   }),
@@ -259,7 +322,9 @@ export const aiShiftHandoverResponseSchema = z.object({
 
 export const aiDashboardAssistantResponseSchema = z.object({
   headline: z.string().min(1),
+  headlineHindi: z.string().min(1).optional(),
   directAnswer: z.string().min(1),
+  directAnswerHindi: z.string().min(1).optional(),
   priorityItems: z.array(aiDashboardPriorityItemSchema),
   supportingFacts: z.array(aiDashboardSupportingFactSchema),
   recommendedNextChecks: z.array(z.string().min(1)),
@@ -290,7 +355,8 @@ export const aiApprovalNoteDraftRequestSchema = z.object({
   recordId: z.string().min(1).optional(),
   mode: z.enum(["closure_note", "escalation_justification", "needs_review", "pending_verification"]),
   promptNote: z.string().min(1).optional(),
-  outputMode: z.enum(["english_only", "bilingual"]).optional()
+  outputMode: z.enum(["english_only", "bilingual"]).optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional()
 });
 
 export const aiApprovalNoteDraftResponseSchema = z.object({

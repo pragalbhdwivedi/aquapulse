@@ -6,11 +6,15 @@ export class SummarizePondDto implements AiPondsSummarizeRequest {
   generatedForDate?: string;
   dateRange?: DateRange;
   includeMissingDataSignals?: boolean;
+  tone?: "operator" | "formal" | "management" | "audit";
+  outputMode?: "english_only" | "bilingual";
 }
 export class SummarizePondResponseDto implements AiPondsSummarizeResponse {
   summary!: string;
+  summaryHindi?: string;
   highlights!: string[];
   headline!: string;
+  headlineHindi?: string;
   keyHighlights!: string[];
   openIssues!: string[];
   pendingActions!: string[];

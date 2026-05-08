@@ -24,12 +24,17 @@ const alert: AlertSummary = {
 };
 
 const explanation: AiAlertsExplainResponse = {
+  headline: "High alert explanation",
   summary: "Alert alert-1 likely reflects an operational condition that still needs a manual check.",
   explanation: "Placeholder explanation for the current alert.",
   recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
   likelyCauses: [],
+  likelyFactors: [],
   recommendedChecks: [],
+  immediateChecks: [],
   suggestedActions: [],
+  escalationConsiderations: [],
+  observedFacts: [],
   confidenceNote: "Confidence is limited because this is a placeholder explanation.",
   advisoryDisclaimer:
     "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
@@ -39,7 +44,14 @@ const explanation: AiAlertsExplainResponse = {
     generatedAt: "2026-04-16T09:00:00.000Z",
     modelLabel: "gpt-5-nano",
     sourceLabel: "test_placeholder",
-    usedLiveOpenAi: false
+    usedLiveOpenAi: false,
+    providerPath: "deterministic_fallback",
+    output: {
+      outputMode: "english_only",
+      primaryLanguage: "english",
+      bilingual: false,
+      tone: "operator"
+    }
   },
   cache: {
     status: "fresh",

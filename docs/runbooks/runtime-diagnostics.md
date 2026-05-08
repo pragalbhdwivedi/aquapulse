@@ -68,6 +68,8 @@ For AI alert explanations:
 - `mode = fallback` means AquaPulse is using the deterministic advisory explanation path
 - `mode = openai_nano` means the backend is configured to attempt a live OpenAI explanation call
 - `configured = false` means the backend will keep falling back safely even if OpenAI mode was requested
+- `supportedOutputModes` shows whether alert explanation can return `english_only` or bounded `bilingual` output
+- `supportedToneModes` shows the bounded tone labels shared with the newer operator-assistance tasks
 
 For AI operator assistance:
 
@@ -75,5 +77,7 @@ For AI operator assistance:
 - `aiOperatorAssistance.mode = openai_nano` means the backend is configured to attempt the provider-backed Responses path
 - `aiOperatorAssistance.fallbackActive = true` means AquaPulse is intentionally staying on the safe degraded advisory path
 - `aiOperatorAssistance.supportedTasks` lists the currently bounded operator-assistance surfaces exposed in this branch
+- `aiOperatorAssistance.bilingualTasks` lists which bounded tasks can return bilingual output
+- `aiOperatorAssistance.toneTasks` lists which bounded tasks accept bounded tone shaping
 
 These diagnostics are intentionally lightweight. They are for runtime clarity, not full monitoring or production observability.

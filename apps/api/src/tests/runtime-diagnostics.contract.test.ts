@@ -78,9 +78,21 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
     expect(diagnostics.aiExplanations.mode).toBe("fallback");
     expect(diagnostics.aiExplanations.configured).toBe(false);
+    expect(diagnostics.aiExplanations.providerPath).toBe("deterministic_fallback");
+    expect(diagnostics.aiExplanations.supportedOutputModes).toEqual(["english_only", "bilingual"]);
+    expect(diagnostics.aiExplanations.supportedToneModes).toEqual([
+      "operator",
+      "formal",
+      "management",
+      "audit"
+    ]);
     expect(diagnostics.aiOperatorAssistance?.enabled).toBe(true);
     expect(diagnostics.aiOperatorAssistance?.mode).toBe("fallback");
     expect(diagnostics.aiOperatorAssistance?.configured).toBe(false);
+    expect(diagnostics.aiOperatorAssistance?.supportedOutputModes).toEqual([
+      "english_only",
+      "bilingual"
+    ]);
     expect(diagnostics.aiOperatorAssistance?.supportedTasks).toEqual([
       "daily_farm_summary",
       "shift_handover_generate",
@@ -88,6 +100,8 @@ describe("API runtime diagnostics", () => {
       "incident_rewrite",
       "approval_note_draft"
     ]);
+    expect(diagnostics.aiOperatorAssistance?.bilingualTasks).toContain("incident_rewrite");
+    expect(diagnostics.aiOperatorAssistance?.toneTasks).toContain("approval_note_draft");
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);

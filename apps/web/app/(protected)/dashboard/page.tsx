@@ -22,10 +22,12 @@ export default async function DashboardPage() {
       <p>Pending tasks: {dashboard.tasks.items.length}</p>
       <section aria-label="Dashboard assistant">
         <h2>{dashboard.answer.headline}</h2>
+        {dashboard.answer.headlineHindi ? <p>Hindi draft: {dashboard.answer.headlineHindi}</p> : null}
         <p>{dashboard.answer.directAnswer}</p>
+        {dashboard.answer.directAnswerHindi ? <p>Hindi draft: {dashboard.answer.directAnswerHindi}</p> : null}
         <p>
           Assistant mode: {dashboard.answer.metadata.mode} /{" "}
-          {dashboard.answer.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"}
+          {dashboard.answer.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output: {dashboard.answer.metadata.output.outputMode} / Tone: {dashboard.answer.metadata.output.tone ?? "operator"}
         </p>
         {dashboard.answer.priorityItems.length > 0 ? (
           <ul>

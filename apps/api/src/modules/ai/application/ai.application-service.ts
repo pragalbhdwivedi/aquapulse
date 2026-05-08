@@ -50,22 +50,39 @@ export class AiApplicationService {
     return {
       ok: true,
       data: {
+        headline: "Placeholder AI explanation for an alert.",
         summary: "Placeholder AI explanation for an alert.",
         explanation: "Placeholder AI explanation for an alert.",
+        explanationHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Placeholder AI explanation for an alert."
+            : undefined,
         recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
         likelyCauses: [],
+        likelyFactors: [],
         recommendedChecks: [],
+        immediateChecks: [],
         suggestedActions: [],
+        escalationConsiderations: ["Escalate only after fresh verification if the alert condition remains high severity."],
+        observedFacts: ["The placeholder explanation only sees the requested alert identifier."],
         confidenceNote: "Confidence is limited because no alert explanation service was attached.",
         advisoryDisclaimer:
           "Advisory only. AquaPulse will not mutate alerts from explanation output.",
+        missingInformationNote: "No attached alert explanation service was available, so the response stayed on the bounded fallback placeholder path.",
         metadata: {
           mode: "fallback",
           advisoryOnly: true,
           generatedAt: "2026-04-16T00:00:00.000Z",
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
-          usedLiveOpenAi: false
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: _input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: _input.outputMode === "bilingual",
+            tone: _input.tone ?? "operator"
+          }
         },
         cache: {
           status: "fresh",
@@ -105,8 +122,16 @@ export class AiApplicationService {
       ok: true,
       data: {
         summary: "Fallback daily farm summary is available, but no operator assistance service was attached.",
+        summaryHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Fallback daily farm summary is available, but no operator assistance service was attached."
+            : undefined,
         highlights: ["No operator-assistance service is attached.", "The bounded fallback path stayed active."],
         headline: "Fallback daily farm summary is available, but no operator assistance service was attached.",
+        headlineHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Fallback daily farm summary is available, but no operator assistance service was attached."
+            : undefined,
         keyHighlights: ["No operator-assistance service is attached.", "The bounded fallback path stayed active."],
         openIssues: [],
         pendingActions: [],
@@ -120,7 +145,13 @@ export class AiApplicationService {
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
           usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback"
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: _input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: _input.outputMode === "bilingual",
+            tone: _input.tone ?? "operator"
+          }
         },
         audit: {
           requestId: "placeholder-request",
@@ -141,13 +172,25 @@ export class AiApplicationService {
       ok: true,
       data: {
         summary: "Fallback shift handover is available, but no operator assistance service was attached.",
+        summaryHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Fallback shift handover is available, but no operator assistance service was attached."
+            : undefined,
         actionItems: ["Review open issues manually."],
         headline: "Fallback shift handover is available, but no operator assistance service was attached.",
+        headlineHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Fallback shift handover is available, but no operator assistance service was attached."
+            : undefined,
         completedThisShift: [],
         pendingItems: ["Review open issues manually."],
         priorityPonds: [],
         watchItems: [],
         nextShiftNote: "Start with the open issues queue and confirm fresh readings manually.",
+        nextShiftNoteHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Start with the open issues queue and confirm fresh readings manually."
+            : undefined,
         metadata: {
           taskLabel: "shift_handover_generate",
           advisoryOnly: true,
@@ -156,7 +199,13 @@ export class AiApplicationService {
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
           usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback"
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: _input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: _input.outputMode === "bilingual",
+            tone: _input.tone ?? "operator"
+          }
         },
         audit: {
           requestId: "placeholder-request",
@@ -195,7 +244,13 @@ export class AiApplicationService {
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
           usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback"
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: input.outputMode === "bilingual",
+            tone: input.tone
+          }
         },
         audit: {
           requestId: "placeholder-request",
@@ -216,8 +271,16 @@ export class AiApplicationService {
       ok: true,
       data: {
         headline: "Fallback dashboard assistant is available, but no operator assistance service was attached.",
+        headlineHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Fallback dashboard assistant is available, but no operator assistance service was attached."
+            : undefined,
         directAnswer:
           "Review the open alert queue and pending tasks manually because no operator assistance service is attached.",
+        directAnswerHindi:
+          _input.outputMode === "bilingual"
+            ? "Hindi draft: Review the open alert queue and pending tasks manually because no operator assistance service is attached."
+            : undefined,
         priorityItems: [],
         supportingFacts: [],
         recommendedNextChecks: ["Review the open alert queue manually.", "Confirm fresh pond readings manually."],
@@ -232,7 +295,13 @@ export class AiApplicationService {
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
           usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback"
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: _input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: _input.outputMode === "bilingual",
+            tone: _input.tone ?? "operator"
+          }
         },
         audit: {
           requestId: "placeholder-request",
@@ -273,7 +342,13 @@ export class AiApplicationService {
           modelLabel: "gpt-5-nano",
           sourceLabel: "application_service_placeholder",
           usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback"
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: input.outputMode ?? "english_only",
+            primaryLanguage: "english",
+            bilingual: input.outputMode === "bilingual",
+            tone: input.tone ?? "formal"
+          }
         },
         audit: {
           requestId: "placeholder-request",
