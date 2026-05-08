@@ -107,6 +107,8 @@ export function createMockApiClients(): AquaPulseApiClients {
             quinaryNonAlertsProtectedSliceEnforced: false,
             senaryNonAlertsProtectedSliceLabel: "feed_create",
             senaryNonAlertsProtectedSliceEnforced: false,
+            septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+            septenaryNonAlertsProtectedSliceEnforced: false,
             verificationState: "disabled",
             warnings: []
           }

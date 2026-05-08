@@ -63,6 +63,8 @@ describe("Auth local API proxy", () => {
           quinaryNonAlertsProtectedSliceEnforced: false,
           senaryNonAlertsProtectedSliceLabel: "feed_create",
           senaryNonAlertsProtectedSliceEnforced: false,
+          septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+          septenaryNonAlertsProtectedSliceEnforced: false,
           verificationState: "local_bypass",
           warnings: []
         }

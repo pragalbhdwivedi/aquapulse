@@ -23,6 +23,8 @@ export class TasksController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateTasksDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.tasks.create>> {

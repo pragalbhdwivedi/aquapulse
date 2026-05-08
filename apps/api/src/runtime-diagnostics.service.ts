@@ -346,6 +346,8 @@ export class RuntimeDiagnosticsService {
       quinaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       senaryNonAlertsProtectedSliceLabel: "feed_create",
       senaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+      septenaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -428,6 +430,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_FEED_CREATE_SLICE_ACTIVE",
         message:
           "Feed create actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_TASKS_CREATE_SLICE_ACTIVE",
+        message:
+          "Tasks create actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
       });
     }
 

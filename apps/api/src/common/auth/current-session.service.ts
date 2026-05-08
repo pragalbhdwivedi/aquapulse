@@ -119,6 +119,8 @@ export class CurrentSessionService {
       quinaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       senaryNonAlertsProtectedSliceLabel: "feed_create",
       senaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
+      septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+      septenaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       verificationState:
         runtime.effectiveMode === "disabled"
           ? "disabled"

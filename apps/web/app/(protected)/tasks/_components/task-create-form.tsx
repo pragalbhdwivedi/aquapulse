@@ -1,8 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { FrontendSessionBootstrapStatus } from "@aquapulse/types";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
 import { createRepositoriesFromConfig } from "@web/repositories";
+import {
+  deriveNonAlertOperatorAccessSummary,
+  deriveProtectedOperatorUiGuard
+} from "@web/features/auth-session";
 import {
   createTaskSubmitter,
   type TaskCreateSubmissionResult
@@ -15,9 +20,10 @@ import { toMutationPageState } from "@web/features/mutation-refresh";
 
 interface TaskCreateFormProps {
   readonly pondId?: string;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
-export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
+export function TaskCreateForm({ pondId = "pond-1", session }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("user-1");
   const [result, setResult] = useState<TaskCreateSubmissionResult | null>(null);
@@ -46,12 +52,33 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
     () => deriveTasksRuntimeIndicator(runtimeConfig),
     [runtimeConfig]
   );
+  const createGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.septenaryNonAlertsGuardedSliceLabel ?? "tasks_create",
+        enforcedByBackend: session.septenaryNonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
+  const operatorSummary = useMemo(() => deriveNonAlertOperatorAccessSummary(session), [session]);
   const pageState = toMutationPageState(result, isSubmitting);
+  const createDisabled = !createGuard.enabled;
+  const operatorStatusLabel =
+    operatorSummary.accessState === "available"
+      ? "action available"
+      : operatorSummary.accessState === "bypassed_local"
+        ? "allowed in disabled/local modes"
+        : operatorSummary.accessState === "degraded"
+          ? "protected with degraded forwarding/session"
+          : "protected and waiting for forwarded auth/session";
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
+        if (createDisabled) {
+          return;
+        }
         setIsSubmitting(true);
         setRuntimeError(null);
 
@@ -96,6 +123,19 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
           Tasks runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
         </span>
         <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Tasks create auth: {createGuard.sliceLabel} / {createGuard.state}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Shared non-alert operator access: {operatorSummary.label} / {operatorStatusLabel}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {operatorSummary.message}
+        </span>
+        <span style={{ color: "#94a3b8" }}>
+          Current-session sufficient: {operatorSummary.currentSessionSufficient ? "yes" : "no"} /
+          Forwarding: {operatorSummary.forwardingState}
+        </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
             {warning.message}
@@ -108,6 +148,7 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Inspect paddlewheel motor"
+          disabled={createDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -117,12 +158,13 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
           value={assigneeId}
           onChange={(event) => setAssigneeId(event.target.value)}
           placeholder="user-1"
+          disabled={createDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <button
         type="submit"
-        disabled={pageState.isSubmitting}
+        disabled={pageState.isSubmitting || createDisabled}
         style={{
           padding: "0.7rem 0.9rem",
           borderRadius: "0.5rem",
@@ -145,6 +187,12 @@ export function TaskCreateForm({ pondId = "pond-1" }: TaskCreateFormProps) {
         </p>
       ) : null}
       {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {createDisabled ? (
+        <p style={{ margin: 0, color: "#fca5a5" }}>
+          Tasks create is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded non-alert operator action can run.
+        </p>
+      ) : null}
     </form>
   );
 }

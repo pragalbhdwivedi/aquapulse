@@ -55,6 +55,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.quinaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.auth?.senaryNonAlertsProtectedSliceLabel).toBe("feed_create");
     expect(diagnostics.auth?.senaryNonAlertsProtectedSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.septenaryNonAlertsProtectedSliceLabel).toBe("tasks_create");
+    expect(diagnostics.auth?.septenaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -169,6 +171,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_FEED_CREATE_SLICE_ACTIVE"
     );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_TASKS_CREATE_SLICE_ACTIVE"
+    );
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryProtectedSliceEnforced).toBe(true);
@@ -180,6 +185,7 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quinaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.senaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth?.septenaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
   });
 

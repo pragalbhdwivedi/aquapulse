@@ -34,6 +34,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.quaternaryNonAlertsProtectedSliceLabel).toBe("water_quality_create");
     expect(diagnostics.auth.quinaryNonAlertsProtectedSliceLabel).toBe("water_quality_update");
     expect(diagnostics.auth.senaryNonAlertsProtectedSliceLabel).toBe("feed_create");
+    expect(diagnostics.auth.septenaryNonAlertsProtectedSliceLabel).toBe("tasks_create");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
@@ -55,6 +56,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.session.quinaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.senaryNonAlertsGuardedSliceLabel).toBe("feed_create");
     expect(diagnostics.session.senaryNonAlertsGuardedSliceEnforced).toBe(false);
+    expect(diagnostics.session.septenaryNonAlertsGuardedSliceLabel).toBe("tasks_create");
+    expect(diagnostics.session.septenaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -108,6 +111,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.quaternaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.quinaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.senaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.septenaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
@@ -846,6 +850,8 @@ describe("Frontend runtime diagnostics", () => {
                   quinaryNonAlertsProtectedSliceEnforced: false,
                   senaryNonAlertsProtectedSliceLabel: "feed_create",
                   senaryNonAlertsProtectedSliceEnforced: false,
+                  septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+                  septenaryNonAlertsProtectedSliceEnforced: false,
                   forwardingMode: "bypassed",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
@@ -947,6 +953,8 @@ describe("Frontend runtime diagnostics", () => {
               quinaryNonAlertsProtectedSliceEnforced: false,
               senaryNonAlertsProtectedSliceLabel: "feed_create",
               senaryNonAlertsProtectedSliceEnforced: false,
+              septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+              septenaryNonAlertsProtectedSliceEnforced: false,
               forwardingMode: "bypassed",
               forwardingActive: false,
               forwardedAuthPresent: false,
@@ -1092,6 +1100,8 @@ describe("Frontend runtime diagnostics", () => {
                   quinaryNonAlertsProtectedSliceEnforced: true,
                   senaryNonAlertsProtectedSliceLabel: "feed_create",
                   senaryNonAlertsProtectedSliceEnforced: true,
+                  septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+                  septenaryNonAlertsProtectedSliceEnforced: true,
                   forwardingMode: "unavailable",
                   forwardingActive: false,
                   forwardedAuthPresent: false,

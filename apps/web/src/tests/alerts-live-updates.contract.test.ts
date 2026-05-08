@@ -231,6 +231,8 @@ describe("Alerts live updates connector", () => {
         quinaryNonAlertsProtectedSliceEnforced: true,
         senaryNonAlertsProtectedSliceLabel: "feed_create",
         senaryNonAlertsProtectedSliceEnforced: true,
+        septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+        septenaryNonAlertsProtectedSliceEnforced: true,
         verificationState: "verified",
         warnings: []
       },

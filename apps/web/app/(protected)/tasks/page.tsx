@@ -18,7 +18,7 @@ export default async function TasksPage() {
           </li>
         ))}
       </ul>
-      <TaskCreateForm pondId={tasks.items[0]?.pondId} />
+      <TaskCreateForm pondId={tasks.items[0]?.pondId} session={diagnostics.session} />
       {tasks.items[0] ? <TaskUpdateForm task={tasks.items[0]} session={diagnostics.session} /> : null}
     </PageShell>
   );
