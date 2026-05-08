@@ -55,7 +55,8 @@ describe("Frontend contract boundaries", () => {
     const repositories = createRepositories(createMockApiClients());
     const result = await repositories.ai.queryDashboard({ question: "What needs attention today?" });
 
-    expect(result.data.answer).toContain("Placeholder");
+    expect(result.data.answer).toContain("Start with");
+    expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expectTypeOf<typeof result>().toEqualTypeOf<ApiSuccessEnvelope<AiDashboardQueryResponse>>();
   });
 

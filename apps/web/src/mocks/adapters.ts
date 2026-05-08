@@ -818,7 +818,61 @@ export const aiMockAdapter: AiApiClient = {
   },
   async getById(id: string) { return ok(mockAiResponses.find((item) => item.id === id) ?? mockAiResponses[0]); },
   async rewriteText(input: AiTextRewriteRequest) { return ok({ rewrittenText: `[placeholder] ${input.text}` }); },
-  async queryDashboard(_input: AiDashboardQueryRequest) { return ok({ answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] }); },
+  async queryDashboard(input: AiDashboardQueryRequest) {
+    const headline = "Dashboard assistant: bounded operational read-only answer";
+    const directAnswer = input.question.toLowerCase().includes("missed updates")
+      ? "North Pond 1 and South Pond 2 should be checked first for fresh readings."
+      : "Start with North Pond 1, then review the open alert queue and pending tasks.";
+
+    return ok({
+      headline,
+      directAnswer,
+      priorityItems: [
+        {
+          pondId: input.pondId ?? "pond-1",
+          pondName: input.pondId ? `Pond ${input.pondId}` : "North Pond 1",
+          label: "Open water-quality follow-up",
+          detail: "Fresh confirmation is still pending on the highest-priority pond.",
+          priority: "high"
+        }
+      ],
+      supportingFacts: [
+        {
+          label: "Open alerts",
+          detail: "One high-severity alert remains open in the current mock context.",
+          severity: "high"
+        },
+        {
+          label: "Pending tasks",
+          detail: "One pending task remains open for a pond follow-up.",
+          severity: "medium"
+        }
+      ],
+      recommendedNextChecks: [
+        "Repeat the latest reading on the highest-priority pond.",
+        "Review the open alert queue before the next feed round."
+      ],
+      answer: directAnswer,
+      relatedMetrics: ["open_alerts", "pending_tasks", "water_quality_risk_signals"],
+      metadata: {
+        taskLabel: "dashboard_assistant_query",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T10:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "mock-dashboard-request",
+        responseId: "mock-dashboard-response",
+        requestLoggedAt: "2026-05-08T10:00:00.000Z",
+        responseLoggedAt: "2026-05-08T10:00:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  },
   async generateHandover(input: AiHandoverGenerateRequest) {
     return ok({
       summary: `${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`,

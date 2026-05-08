@@ -167,6 +167,42 @@ export class AiApplicationService {
     };
   }
   async rewriteText(input: RewriteTextDto): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>> { return { ok: true, data: { rewrittenText: `[placeholder] ${input.text}` } }; }
-  async queryDashboard(_input: DashboardQueryDto): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>> { return { ok: true, data: { answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] } }; }
+  async queryDashboard(_input: DashboardQueryDto): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.generateDashboardAssistant(_input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        headline: "Fallback dashboard assistant is available, but no operator assistance service was attached.",
+        directAnswer:
+          "Review the open alert queue and pending tasks manually because no operator assistance service is attached.",
+        priorityItems: [],
+        supportingFacts: [],
+        recommendedNextChecks: ["Review the open alert queue manually.", "Confirm fresh pond readings manually."],
+        answer:
+          "Review the open alert queue and pending tasks manually because no operator assistance service is attached.",
+        relatedMetrics: ["open_alerts", "pending_tasks"],
+        metadata: {
+          taskLabel: "dashboard_assistant_query",
+          advisoryOnly: true,
+          generatedAt: "2026-05-08T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback"
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-08T00:00:00.000Z",
+          responseLoggedAt: "2026-05-08T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
   async draftIncident(_input: DraftIncidentDto): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>> { return { ok: true, data: { draftTitle: "Placeholder incident draft", draftBody: "This is a placeholder incident draft." } }; }
 }

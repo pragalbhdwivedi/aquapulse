@@ -38,7 +38,8 @@ describe("Frontend query layer", () => {
     expect(dashboard.ponds.items.length).toBeGreaterThan(0);
     expect(dashboard.alerts.items.length).toBeGreaterThan(0);
     expect(dashboard.alertSummary.totalAlerts).toBeGreaterThan(0);
-    expect(dashboard.answer.answer).toContain("Placeholder");
+    expect(dashboard.answer.answer).toBe(dashboard.answer.directAnswer);
+    expect(dashboard.answer.metadata.taskLabel).toBe("dashboard_assistant_query");
   });
 
   it("builds pond detail data from repository-backed queries", async () => {

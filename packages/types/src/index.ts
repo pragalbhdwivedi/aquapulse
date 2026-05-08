@@ -343,6 +343,7 @@ export interface AiRequestRecord extends BaseEntity {
     | "handover_generate"
     | "text_rewrite"
     | "dashboard_query"
+    | "dashboard_assistant_query"
     | "incident_draft"
     | "daily_farm_summary"
     | "shift_handover_generate";
@@ -462,7 +463,8 @@ export interface AlertExplanationAttachmentRequest {
 
 export type AiOperatorAssistanceTaskLabel =
   | "daily_farm_summary"
-  | "shift_handover_generate";
+  | "shift_handover_generate"
+  | "dashboard_assistant_query";
 
 export interface AiOperatorAssistanceMetadata {
   readonly taskLabel: AiOperatorAssistanceTaskLabel;
@@ -531,6 +533,22 @@ export interface AiHandoverGenerateResponse {
   readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
+export interface AiDashboardSupportingFact {
+  readonly label: string;
+  readonly detail: string;
+  readonly pondId?: EntityId;
+  readonly pondName?: string;
+  readonly severity?: "low" | "medium" | "high";
+}
+
+export interface AiDashboardPriorityItem {
+  readonly label: string;
+  readonly detail: string;
+  readonly priority: "low" | "medium" | "high";
+  readonly pondId?: EntityId;
+  readonly pondName?: string;
+}
+
 export interface AiTextRewriteRequest {
   readonly text: string;
   readonly tone: "concise" | "formal" | "friendly";
@@ -542,12 +560,21 @@ export interface AiTextRewriteResponse {
 
 export interface AiDashboardQueryRequest {
   readonly question: string;
+  readonly pondId?: EntityId;
   readonly dateRange?: DateRange;
 }
 
 export interface AiDashboardQueryResponse {
+  readonly headline: string;
+  readonly directAnswer: string;
+  readonly priorityItems: AiDashboardPriorityItem[];
+  readonly supportingFacts: AiDashboardSupportingFact[];
+  readonly recommendedNextChecks: string[];
+  readonly missingInformationNote?: string;
   readonly answer: string;
   readonly relatedMetrics: string[];
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface AiIncidentsDraftRequest {

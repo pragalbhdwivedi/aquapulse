@@ -174,6 +174,25 @@ describe("Operator assistance service", () => {
     expect(handover.nextShiftNote).toBeTruthy();
   });
 
+  it("returns a deterministic bounded dashboard assistant answer with structured facts and checks", async () => {
+    const { service, aiRepository, ponds, waterQuality } = createService();
+
+    const dashboard = await service.generateDashboardAssistant({
+      question: "Which ponds missed updates today?"
+    });
+
+    expect(dashboard.metadata.taskLabel).toBe("dashboard_assistant_query");
+    expect(dashboard.metadata.mode).toBe("fallback");
+    expect(dashboard.answer).toBe(dashboard.directAnswer);
+    expect(dashboard.supportingFacts.length).toBeGreaterThanOrEqual(0);
+    expect(dashboard.recommendedNextChecks.length).toBeGreaterThan(0);
+    expect(dashboard.audit.fallbackUsed).toBe(true);
+    expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);
+    expect(aiRepository.saveResponseRecord).toHaveBeenCalledTimes(1);
+    expect(ponds.list).toHaveBeenCalled();
+    expect(waterQuality.list).toHaveBeenCalled();
+  });
+
   it("keeps openai mode config-safe when credentials are missing", () => {
     process.env.AQUAPULSE_AI_OPERATOR_ASSISTANCE_MODE = "openai";
 
@@ -182,6 +201,7 @@ describe("Operator assistance service", () => {
 
     expect(runtime.mode).toBe("fallback");
     expect(runtime.configured).toBe(false);
+    expect(runtime.supportedTasks).toContain("dashboard_assistant_query");
     expect(runtime.warnings.map((warning) => warning.code)).toContain("OPENAI_API_KEY_MISSING");
   });
 });

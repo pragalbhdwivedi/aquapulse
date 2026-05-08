@@ -4,6 +4,7 @@ This branch adds the first broader backend-controlled AI operator-assistance sur
 
 - daily farm summary via `POST /api/ai/ponds/summarize`
 - shift handover via `POST /api/ai/handover/generate`
+- dashboard assistant via `POST /api/ai/dashboard/query`
 
 Both flows are advisory-only. They do not:
 
@@ -61,6 +62,26 @@ Shift handover uses bounded shift/day-window context such as:
 - ponds needing attention
 - watch items for the next shift
 
+Dashboard assistant uses bounded operational context such as:
+
+- ponds needing attention
+- recent water-quality risk signals
+- open alerts
+- pending tasks
+- missing or stale update signals
+- recent feed context when it helps answer a bounded operational question
+
+Intended bounded question categories:
+
+- `What needs attention first?`
+- `Which ponds missed updates today?`
+- `Which ponds have open critical alerts?`
+- `Which pond had recent low DO / poor readings?`
+- `Which tasks are still pending?`
+- `Summarize important operational issues today.`
+
+The assistant remains advisory-only and schema-driven. It does not become a general free-form chat surface in this branch.
+
 ## Runtime diagnostics
 
 Backend runtime diagnostics now expose `aiOperatorAssistance` with:
@@ -77,6 +98,7 @@ Recommended checks:
 
 - `corepack pnpm typecheck`
 - `corepack pnpm test:contracts`
+- open the dashboard page and confirm the bounded dashboard assistant answer renders
 - open the reports page and confirm daily summary plus shift handover render
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
 
@@ -84,7 +106,6 @@ Recommended checks:
 
 Still deferred for later AI branches:
 
-- dashboard assistant / Q&A
 - incident drafting expansion
 - approval-note drafting
 - broader AI chat

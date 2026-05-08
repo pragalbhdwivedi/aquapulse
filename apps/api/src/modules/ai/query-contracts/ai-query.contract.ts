@@ -9,6 +9,7 @@ export interface AiRequestLogQueryContract extends ListQueryRequest {
     | "handover_generate"
     | "text_rewrite"
     | "dashboard_query"
+    | "dashboard_assistant_query"
     | "incident_draft"
     | "daily_farm_summary"
     | "shift_handover_generate";

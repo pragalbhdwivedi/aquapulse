@@ -171,7 +171,7 @@ export class PostgresAiRepository implements AiRepositoryPort {
     return {
       items: [mapAiRequestRowToDomain({
         id: "ai-request-1",
-        request_type: "dashboard_query",
+        request_type: "dashboard_assistant_query",
         requested_by: "user-1",
         input_payload: { question: "What needs attention today?" },
         status: "completed",

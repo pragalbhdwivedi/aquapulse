@@ -31,7 +31,7 @@ const aiRequest: AiRequestRecord = {
   id: "ai-request-1",
   createdAt: "2026-04-13T00:00:00.000Z",
   updatedAt: "2026-04-13T00:00:00.000Z",
-  requestType: "dashboard_query",
+  requestType: "dashboard_assistant_query",
   requestedBy: "user-1",
   inputPayload: { question: "What needs attention today?" },
   status: "completed"

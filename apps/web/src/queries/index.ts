@@ -77,7 +77,7 @@ export function createReadonlyQueries(repositories: Pick<
         repositories.ponds.list(defaultPondsQuery),
         repositories.alerts.list(defaultAlertsQuery),
         repositories.tasks.list(defaultTasksQuery),
-        repositories.ai.queryDashboard({ question: "What needs attention today?" })
+        repositories.ai.queryDashboard({ question: "What needs attention first today?" })
       ]);
       const alertSummary = await loadAlertsSummaryWithFallback(
         repositories,

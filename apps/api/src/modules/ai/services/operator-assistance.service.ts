@@ -1,6 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type {
+  AiDashboardPriorityItem,
+  AiDashboardQueryRequest,
+  AiDashboardQueryResponse,
+  AiDashboardSupportingFact,
   AiHandoverGenerateRequest,
   AiHandoverGenerateResponse,
   AiOperatorAttentionItem,
@@ -17,6 +21,7 @@ import type {
   WaterQualityReading
 } from "@aquapulse/types";
 import {
+  aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
@@ -28,6 +33,7 @@ import { WaterQualityApplicationService } from "../../water-quality/application/
 import { readOperatorAssistanceRuntimeConfig } from "../config/operator-assistance.config";
 import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.port";
 import {
+  type DashboardAssistantPromptPayload,
   OpenAiOperatorAssistanceClient,
   type DailyFarmSummaryPromptPayload,
   type ShiftHandoverPromptPayload
@@ -226,6 +232,37 @@ function buildHandoverMetadata(
   };
 }
 
+function buildDashboardMetadata(
+  generatedAt: string,
+  modelLabel: string,
+  usedLiveOpenAi: boolean
+): AiOperatorAssistanceMetadata {
+  return {
+    taskLabel: "dashboard_assistant_query",
+    advisoryOnly: true,
+    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
+    generatedAt,
+    modelLabel,
+    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
+    usedLiveOpenAi,
+    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
+  };
+}
+
+function buildLatestReadingByPond(
+  waterQuality: readonly WaterQualityReading[]
+): Map<string, WaterQualityReading> {
+  const latestReadingByPond = new Map<string, WaterQualityReading>();
+
+  for (const reading of sortNewestFirst(waterQuality)) {
+    if (!latestReadingByPond.has(reading.pondId)) {
+      latestReadingByPond.set(reading.pondId, reading);
+    }
+  }
+
+  return latestReadingByPond;
+}
+
 @Injectable()
 export class OperatorAssistanceService {
   private readonly runtime = readOperatorAssistanceRuntimeConfig();
@@ -251,7 +288,7 @@ export class OperatorAssistanceService {
       modelLabel: this.runtime.modelLabel,
       providerPath: this.runtime.configured ? "openai_responses_api" as const : "deterministic_fallback" as const,
       fallbackActive: !this.runtime.configured,
-      supportedTasks: ["daily_farm_summary", "shift_handover_generate"] as const,
+      supportedTasks: ["daily_farm_summary", "shift_handover_generate", "dashboard_assistant_query"] as const,
       warnings: this.runtime.warnings
     };
   }
@@ -364,6 +401,66 @@ export class OperatorAssistanceService {
     return aiShiftHandoverResponseSchema.parse(withAudit);
   }
 
+  async generateDashboardAssistant(
+    input: AiDashboardQueryRequest
+  ): Promise<AiDashboardQueryResponse> {
+    const generatedAt = new Date().toISOString();
+    const requestRecord = await this.logRequest("dashboard_assistant_query", {
+      ...input,
+      generatedAt
+    });
+    const contextWindow = this.resolveDashboardWindow(input, generatedAt);
+    const context = await this.loadContext({
+      pondId: input.pondId,
+      window: contextWindow
+    });
+    const attentionItems = buildAttentionItems(
+      context.ponds,
+      context.waterQuality,
+      context.alerts,
+      context.tasks
+    );
+    const missingDataNotes = buildMissingDataNotes(context.ponds, context.waterQuality, context.feedEntries);
+    const promptPayload = this.buildDashboardPromptPayload(input, context, attentionItems, missingDataNotes, contextWindow);
+
+    let response = this.buildDashboardFallback(
+      input,
+      generatedAt,
+      context,
+      attentionItems,
+      missingDataNotes,
+      promptPayload
+    );
+
+    if (this.runtime.configured) {
+      try {
+        const openAiResponse = await this.openAiClient.generateDashboardAssistant(promptPayload);
+        if (openAiResponse) {
+          response = {
+            ...openAiResponse,
+            metadata: buildDashboardMetadata(generatedAt, this.runtime.modelLabel, true),
+            audit: response.audit
+          };
+        }
+      } catch {
+        // Stay on the deterministic fallback path.
+      }
+    }
+
+    const responseRecord = await this.logResponse(requestRecord.id, this.runtime.modelLabel, response);
+    const withAudit = {
+      ...response,
+      audit: this.buildAuditMetadata(
+        generatedAt,
+        requestRecord.id,
+        responseRecord.id,
+        !this.runtime.configured || response.metadata.mode === "fallback"
+      )
+    };
+
+    return aiDashboardAssistantResponseSchema.parse(withAudit);
+  }
+
   private async loadContext(input: {
     readonly pondId?: string;
     readonly pondIds?: readonly string[];
@@ -444,6 +541,23 @@ export class OperatorAssistanceService {
     return {
       from: makeIsoDayStart(shiftDate),
       to: makeIsoDayEnd(shiftDate)
+    };
+  }
+
+  private resolveDashboardWindow(
+    input: AiDashboardQueryRequest,
+    generatedAt: string
+  ): ContextWindow {
+    if (input.dateRange?.from || input.dateRange?.to) {
+      return {
+        from: input.dateRange.from,
+        to: input.dateRange.to
+      };
+    }
+
+    return {
+      from: makeIsoDayStart(generatedAt),
+      to: makeIsoDayEnd(generatedAt)
     };
   }
 
@@ -538,6 +652,68 @@ export class OperatorAssistanceService {
     };
   }
 
+  private buildDashboardPromptPayload(
+    input: AiDashboardQueryRequest,
+    context: DomainContextSnapshot,
+    attentionItems: AiOperatorAttentionItem[],
+    missingDataNotes: readonly string[],
+    window: ContextWindow
+  ): DashboardAssistantPromptPayload {
+    const latestReadingByPond = buildLatestReadingByPond(context.waterQuality);
+    const waterQualityRisks = pickTopStrings(
+      context.ponds.flatMap((pond) => {
+        const latest = latestReadingByPond.get(pond.id);
+        if (!latest) {
+          return [`${pond.name} has no recent water-quality reading in the selected window.`];
+        }
+
+        const signals: string[] = [];
+        if (latest.temperatureC !== undefined && (latest.temperatureC < 24 || latest.temperatureC > 31)) {
+          signals.push(`${pond.name} temperature is ${latest.temperatureC}C at ${latest.recordedAt}.`);
+        }
+        if (latest.ph !== undefined && (latest.ph < 6.5 || latest.ph > 8.5)) {
+          signals.push(`${pond.name} pH is ${latest.ph} at ${latest.recordedAt}.`);
+        }
+        if (latest.temperatureC === undefined || latest.ph === undefined) {
+          signals.push(`${pond.name} has an incomplete reading at ${latest.recordedAt}.`);
+        }
+        return signals;
+      })
+    );
+
+    const feedSignals = pickTopStrings([
+      ...missingDataNotes.filter((note) => note.includes("feed entry")),
+      ...sortNewestFirst(context.feedEntries).map(
+        (item) => `${item.pondId} logged ${item.feedType} ${item.quantityKg}kg at ${item.fedAt}.`
+      )
+    ]);
+
+    return {
+      taskLabel: "dashboard_assistant_query",
+      question: input.question,
+      scopeLabel: input.pondId ? `Pond ${context.ponds[0]?.name ?? input.pondId}` : "Farm-wide dashboard assistant",
+      timeWindowLabel:
+        window.from && window.to ? `${window.from} to ${window.to}` : "current operational window",
+      pondsNeedingAttention: attentionItems,
+      openAlerts: {
+        total: context.alerts.length,
+        critical: context.alerts.filter((item) => item.severity === "critical").length,
+        items: pickTopStrings(context.alerts.map((item) => `${item.severity} ${item.title}`))
+      },
+      pendingTasks: {
+        total: context.tasks.filter((item) => item.status !== "done" && item.status !== "cancelled").length,
+        items: pickTopStrings(
+          context.tasks
+            .filter((item) => item.status !== "done" && item.status !== "cancelled")
+            .map((item) => item.title)
+        )
+      },
+      waterQualityRisks,
+      staleOrMissingUpdates: pickTopStrings(missingDataNotes),
+      feedSignals
+    };
+  }
+
   private buildDailySummaryFallback(
     generatedAt: string,
     attentionItems: AiOperatorAttentionItem[],
@@ -615,6 +791,231 @@ export class OperatorAssistanceService {
     };
   }
 
+  private buildDashboardFallback(
+    input: AiDashboardQueryRequest,
+    generatedAt: string,
+    context: DomainContextSnapshot,
+    attentionItems: AiOperatorAttentionItem[],
+    missingDataNotes: readonly string[],
+    promptPayload: DashboardAssistantPromptPayload
+  ): AiDashboardQueryResponse {
+    const question = input.question.trim().toLowerCase();
+    const pondNameById = new Map(context.ponds.map((pond) => [pond.id, pond.name]));
+    const latestReadingByPond = buildLatestReadingByPond(context.waterQuality);
+    const pendingTasks = context.tasks.filter((item) => item.status !== "done" && item.status !== "cancelled");
+    const openCriticalAlerts = context.alerts.filter((item) => item.status === "open" && item.severity === "critical");
+    const staleUpdatePonds = context.ponds.filter((pond) => !latestReadingByPond.has(pond.id));
+    const waterQualityRiskItems = context.ponds.flatMap((pond) => {
+      const latest = latestReadingByPond.get(pond.id);
+      if (!latest) {
+        return [];
+      }
+
+      const details: AiDashboardPriorityItem[] = [];
+      if (latest.temperatureC !== undefined && (latest.temperatureC < 24 || latest.temperatureC > 31)) {
+        details.push({
+          pondId: pond.id,
+          pondName: pond.name,
+          label: `${pond.name} temperature risk`,
+          detail: `Latest recorded temperature is ${latest.temperatureC}C at ${latest.recordedAt}.`,
+          priority: "high"
+        });
+      }
+      if (latest.ph !== undefined && (latest.ph < 6.5 || latest.ph > 8.5)) {
+        details.push({
+          pondId: pond.id,
+          pondName: pond.name,
+          label: `${pond.name} pH risk`,
+          detail: `Latest recorded pH is ${latest.ph} at ${latest.recordedAt}.`,
+          priority: "high"
+        });
+      }
+      if (latest.temperatureC === undefined || latest.ph === undefined) {
+        details.push({
+          pondId: pond.id,
+          pondName: pond.name,
+          label: `${pond.name} incomplete reading`,
+          detail: `Recent water-quality data is incomplete at ${latest.recordedAt}.`,
+          priority: "medium"
+        });
+      }
+      return details;
+    });
+
+    let headline = "Dashboard assistant: bounded operational read-only answer";
+    let directAnswer = `Start with ${attentionItems[0]?.pondName ?? "the open operational queue"} and review the highest-priority alert and pending task first.`;
+    let priorityItems: AiDashboardPriorityItem[] = attentionItems.map((item) => ({
+      pondId: item.pondId,
+      pondName: item.pondName,
+      label: `${item.pondName} needs attention`,
+      detail: item.reason,
+      priority: item.priority
+    }));
+    let supportingFacts: AiDashboardSupportingFact[] = [
+      {
+        label: "Open alerts",
+        detail: `${context.alerts.length} open alerts are in scope for this answer.`,
+        severity: context.alerts.some((item) => item.severity === "critical") ? "high" : "medium"
+      },
+      {
+        label: "Pending tasks",
+        detail: `${pendingTasks.length} pending tasks remain in scope.`,
+        severity: pendingTasks.length > 0 ? "medium" : "low"
+      }
+    ];
+    let recommendedNextChecks = pickTopStrings([
+      "Review the highest-severity open alert and confirm whether fresh readings are already available.",
+      "Confirm pending tasks on the highest-priority ponds before the next round.",
+      ...missingDataNotes
+    ]);
+    let missingInformationNote: string | undefined;
+
+    if (question.includes("missed updates")) {
+      headline = "Ponds missing recent updates";
+      directAnswer =
+        staleUpdatePonds.length > 0
+          ? `${staleUpdatePonds.map((pond) => pond.name).join(", ")} missed recent water-quality updates in the selected window.`
+          : "No active ponds are missing recent water-quality updates in the selected window.";
+      priorityItems = staleUpdatePonds.map((pond) => ({
+        pondId: pond.id,
+        pondName: pond.name,
+        label: `${pond.name} missing update`,
+        detail: "No recent water-quality reading was available in the selected window.",
+        priority: "high"
+      }));
+      supportingFacts = staleUpdatePonds.map((pond) => ({
+        pondId: pond.id,
+        pondName: pond.name,
+        label: "Missing water-quality update",
+        detail: `${pond.name} has no recent water-quality reading in scope.`,
+        severity: "high"
+      }));
+      recommendedNextChecks = pickTopStrings([
+        "Confirm whether a fresh water-quality reading should have been logged today.",
+        "Check whether the pond also missed its feed record for the same window.",
+        ...missingDataNotes
+      ]);
+    } else if (question.includes("critical alert")) {
+      headline = "Ponds with open critical alerts";
+      directAnswer =
+        openCriticalAlerts.length > 0
+          ? `Open critical alerts are currently affecting ${openCriticalAlerts.map((item) => pondNameById.get(item.pondId ?? "") ?? item.title).join(", ")}.`
+          : "No open critical alerts were found in the bounded dashboard context.";
+      priorityItems = openCriticalAlerts.map((alert) => ({
+        pondId: alert.pondId,
+        pondName: alert.pondId ? pondNameById.get(alert.pondId) : undefined,
+        label: alert.title,
+        detail: `${alert.source} alert remains open at ${alert.updatedAt}.`,
+        priority: "high"
+      }));
+      supportingFacts = context.alerts.map((alert) => ({
+        pondId: alert.pondId,
+        pondName: alert.pondId ? pondNameById.get(alert.pondId) : undefined,
+        label: `${alert.severity} alert`,
+        detail: `${alert.title} is still ${alert.status}.`,
+        severity: alert.severity === "critical" || alert.severity === "high" ? "high" : "medium"
+      }));
+      recommendedNextChecks = pickTopStrings([
+        "Verify whether the latest alert condition still holds with a fresh manual check.",
+        "Review linked pending tasks before the next operator round."
+      ]);
+    } else if (question.includes("pending task")) {
+      headline = "Pending operator tasks";
+      directAnswer =
+        pendingTasks.length > 0
+          ? `${pendingTasks.length} pending tasks still require follow-up, led by ${pendingTasks[0]?.title}.`
+          : "No pending tasks are currently open in the bounded dashboard context.";
+      priorityItems = pendingTasks.map((task) => ({
+        pondId: task.pondId,
+        pondName: task.pondId ? pondNameById.get(task.pondId) : undefined,
+        label: task.title,
+        detail: `Task status is ${task.status}.`,
+        priority: task.status === "in_progress" ? "high" : "medium"
+      }));
+      supportingFacts = pendingTasks.map((task) => ({
+        pondId: task.pondId,
+        pondName: task.pondId ? pondNameById.get(task.pondId) : undefined,
+        label: "Pending task",
+        detail: `${task.title} is still ${task.status}.`,
+        severity: task.status === "in_progress" ? "high" : "medium"
+      }));
+      recommendedNextChecks = pickTopStrings([
+        "Confirm whether any pending task overlaps with an open alert.",
+        "Prioritize tasks tied to ponds already flagged for attention."
+      ]);
+    } else if (
+      question.includes("low do") ||
+      question.includes("poor reading") ||
+      question.includes("poor readings")
+    ) {
+      headline = "Recent water-quality risk signals";
+      directAnswer =
+        waterQualityRiskItems.length > 0
+          ? `${waterQualityRiskItems[0]?.pondName ?? "One pond"} has the strongest recent water-quality risk signal in the selected window.`
+          : "No strong pH or temperature anomalies were found in the bounded dashboard context.";
+      priorityItems = waterQualityRiskItems;
+      supportingFacts = waterQualityRiskItems.map((item) => ({
+        pondId: item.pondId,
+        pondName: item.pondName,
+        label: item.label,
+        detail: item.detail,
+        severity: item.priority
+      }));
+      recommendedNextChecks = pickTopStrings([
+        "Repeat the latest reading on the highest-risk pond before taking any operational action.",
+        "Check whether the same pond also has open alerts or pending tasks."
+      ]);
+      if (question.includes("low do")) {
+        missingInformationNote =
+          "Dissolved oxygen is not part of the bounded v1 dashboard assistant context yet, so this answer used available temperature, pH, alert, and task signals only.";
+      }
+    } else if (question.includes("summarize")) {
+      headline = "Important operational issues today";
+      directAnswer = `The main issues today are ${context.alerts.length} open alerts, ${pendingTasks.length} pending tasks, and ${attentionItems.length} ponds needing attention.`;
+      supportingFacts = [
+        ...context.alerts.map((alert) => ({
+          pondId: alert.pondId,
+          pondName: alert.pondId ? pondNameById.get(alert.pondId) : undefined,
+          label: `${alert.severity} alert`,
+          detail: alert.title,
+          severity:
+            alert.severity === "critical" || alert.severity === "high"
+              ? ("high" as const)
+              : ("medium" as const)
+        })),
+        ...missingDataNotes.map((note) => ({
+          label: "Missing data signal",
+          detail: note,
+          severity: "medium" as const
+        }))
+      ].slice(0, MAX_CONTEXT_ITEMS);
+    }
+
+    priorityItems = priorityItems.slice(0, MAX_CONTEXT_ITEMS);
+    supportingFacts = supportingFacts.slice(0, MAX_CONTEXT_ITEMS);
+    const relatedMetrics = pickTopStrings([
+      "open_alerts",
+      openCriticalAlerts.length > 0 ? "critical_alerts" : "",
+      pendingTasks.length > 0 ? "pending_tasks" : "",
+      staleUpdatePonds.length > 0 ? "ponds_missing_updates" : "",
+      waterQualityRiskItems.length > 0 ? "water_quality_risk_signals" : "",
+      promptPayload.feedSignals.some((item) => item.includes("no recent feed entry")) ? "feed_missing_entries" : ""
+    ]);
+
+    return {
+      headline,
+      directAnswer,
+      priorityItems,
+      supportingFacts,
+      recommendedNextChecks,
+      missingInformationNote,
+      answer: directAnswer,
+      relatedMetrics,
+      metadata: buildDashboardMetadata(generatedAt, this.runtime.modelLabel, false),
+      audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
+    };
+  }
+
   private buildAuditMetadata(
     generatedAt: string,
     requestId: string,
@@ -648,7 +1049,7 @@ export class OperatorAssistanceService {
   private async logResponse(
     requestId: string,
     modelLabel: string,
-    payload: AiPondsSummarizeResponse | AiHandoverGenerateResponse
+    payload: AiPondsSummarizeResponse | AiHandoverGenerateResponse | AiDashboardQueryResponse
   ): Promise<AiResponseRecord> {
     const generatedAt = new Date().toISOString();
     return this.aiRepository.saveResponseRecord({

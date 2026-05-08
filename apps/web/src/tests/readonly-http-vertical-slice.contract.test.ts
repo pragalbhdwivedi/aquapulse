@@ -48,6 +48,7 @@ describe("Readonly HTTP vertical slice", () => {
     expect(dashboard.ponds.items[0]?.id).toBe("pond-1");
     expect(dashboard.alerts.items[0]?.id).toBe("alert-1");
     expect(dashboard.tasks.items[0]?.id).toBe("task-1");
-    expect(dashboard.answer.answer).toContain("Placeholder");
+    expect(dashboard.answer.answer).toBe(dashboard.answer.directAnswer);
+    expect(dashboard.answer.metadata.taskLabel).toBe("dashboard_assistant_query");
   });
 });

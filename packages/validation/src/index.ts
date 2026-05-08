@@ -150,11 +150,16 @@ export const alertExplanationAttachmentSchema = z.object({
 });
 
 export const aiDashboardQueryRequestSchema = z.object({
-  question: z.string().min(3)
+  question: z.string().min(3),
+  pondId: z.string().min(1).optional(),
+  dateRange: z.object({
+    from: z.string().min(1).optional(),
+    to: z.string().min(1).optional()
+  }).optional()
 });
 
 const aiOperatorAssistanceMetadataSchema = z.object({
-  taskLabel: z.enum(["daily_farm_summary", "shift_handover_generate"]),
+  taskLabel: z.enum(["daily_farm_summary", "shift_handover_generate", "dashboard_assistant_query"]),
   advisoryOnly: z.literal(true),
   mode: z.enum(["fallback", "openai_nano"]),
   generatedAt: z.string().min(1),
@@ -177,6 +182,22 @@ const aiOperatorAttentionItemSchema = z.object({
   pondName: z.string().min(1),
   reason: z.string().min(1),
   priority: z.enum(["low", "medium", "high"])
+});
+
+const aiDashboardPriorityItemSchema = z.object({
+  label: z.string().min(1),
+  detail: z.string().min(1),
+  priority: z.enum(["low", "medium", "high"]),
+  pondId: z.string().min(1).optional(),
+  pondName: z.string().min(1).optional()
+});
+
+const aiDashboardSupportingFactSchema = z.object({
+  label: z.string().min(1),
+  detail: z.string().min(1),
+  pondId: z.string().min(1).optional(),
+  pondName: z.string().min(1).optional(),
+  severity: z.enum(["low", "medium", "high"]).optional()
 });
 
 export const aiDailyFarmSummaryRequestSchema = z.object({
@@ -223,6 +244,21 @@ export const aiShiftHandoverResponseSchema = z.object({
   nextShiftNote: z.string().min(1),
   metadata: aiOperatorAssistanceMetadataSchema.extend({
     taskLabel: z.literal("shift_handover_generate")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});
+
+export const aiDashboardAssistantResponseSchema = z.object({
+  headline: z.string().min(1),
+  directAnswer: z.string().min(1),
+  priorityItems: z.array(aiDashboardPriorityItemSchema),
+  supportingFacts: z.array(aiDashboardSupportingFactSchema),
+  recommendedNextChecks: z.array(z.string().min(1)),
+  missingInformationNote: z.string().min(1).optional(),
+  answer: z.string().min(1),
+  relatedMetrics: z.array(z.string().min(1)),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("dashboard_assistant_query")
   }),
   audit: aiOperatorAssistanceAuditMetadataSchema
 });

@@ -69,7 +69,7 @@ const aiRequestList: ListResponse<AiRequestRecord> = {
     id: "ai-request-1",
     createdAt: "2026-04-13T00:00:00.000Z",
     updatedAt: "2026-04-13T00:00:00.000Z",
-    requestType: "dashboard_query",
+    requestType: "dashboard_assistant_query",
     requestedBy: "user-1",
     inputPayload: { question: "What needs attention today?" },
     status: "completed"
@@ -241,14 +241,37 @@ describe("AI contracts", () => {
       explanation: "AI explanation"
     });
     const dashboard = toAiDashboardQueryResponse({
+      headline: "Dashboard assistant headline",
+      directAnswer: "Everything looks stable.",
+      priorityItems: [],
+      supportingFacts: [],
+      recommendedNextChecks: ["Check the open queue."],
       answer: "Everything looks stable.",
-      relatedMetrics: ["active_ponds"]
+      relatedMetrics: ["active_ponds"],
+      metadata: {
+        taskLabel: "dashboard_assistant_query",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T00:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "test",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "request-1",
+        responseId: "response-1",
+        requestLoggedAt: "2026-05-08T00:00:00.000Z",
+        responseLoggedAt: "2026-05-08T00:00:00.000Z",
+        fallbackUsed: true
+      }
     });
 
     expect(toAiItemResponse(aiRecord).data.requestId).toBe("ai-request-1");
     expect(toAiListResponse(aiList).data.items).toHaveLength(1);
     expect(explain.data.recommendations[0]).toContain("Inspect");
     expect(dashboard.data.relatedMetrics[0]).toBe("active_ponds");
+    expect(dashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
 
     expectTypeOf<typeof explain>().toEqualTypeOf<ApiSuccessEnvelope<AiAlertsExplainResponse>>();
     expectTypeOf<typeof dashboard>().toEqualTypeOf<ApiSuccessEnvelope<AiDashboardQueryResponse>>();

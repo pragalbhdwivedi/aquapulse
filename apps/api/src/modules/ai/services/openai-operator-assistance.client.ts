@@ -1,8 +1,10 @@
 import type {
+  AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
   AiPondsSummarizeResponse
 } from "@aquapulse/types";
 import {
+  aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
@@ -14,6 +16,11 @@ const aiDailyFarmSummaryContentSchema = aiDailyFarmSummaryResponseSchema.omit({
 });
 
 const aiShiftHandoverContentSchema = aiShiftHandoverResponseSchema.omit({
+  metadata: true,
+  audit: true
+});
+
+const aiDashboardAssistantContentSchema = aiDashboardAssistantResponseSchema.omit({
   metadata: true,
   audit: true
 });
@@ -65,6 +72,31 @@ export interface ShiftHandoverPromptPayload {
   }>;
   readonly watchItems: string[];
   readonly openIssues: string[];
+}
+
+export interface DashboardAssistantPromptPayload {
+  readonly taskLabel: "dashboard_assistant_query";
+  readonly question: string;
+  readonly scopeLabel: string;
+  readonly timeWindowLabel: string;
+  readonly pondsNeedingAttention: Array<{
+    readonly pondId?: string;
+    readonly pondName: string;
+    readonly priority: "low" | "medium" | "high";
+    readonly reason: string;
+  }>;
+  readonly openAlerts: {
+    readonly total: number;
+    readonly critical: number;
+    readonly items: string[];
+  };
+  readonly pendingTasks: {
+    readonly total: number;
+    readonly items: string[];
+  };
+  readonly waterQualityRisks: string[];
+  readonly staleOrMissingUpdates: string[];
+  readonly feedSignals: string[];
 }
 
 interface OpenAiOperatorAssistanceClientOptions {
@@ -143,9 +175,20 @@ export class OpenAiOperatorAssistanceClient {
     return aiShiftHandoverContentSchema.parse(parsed);
   }
 
+  async generateDashboardAssistant(
+    context: DashboardAssistantPromptPayload
+  ): Promise<Omit<AiDashboardQueryResponse, "metadata" | "audit"> | null> {
+    const parsed = await this.execute("dashboard_assistant_query", context);
+    if (!parsed) {
+      return null;
+    }
+
+    return aiDashboardAssistantContentSchema.parse(parsed);
+  }
+
   private async execute(
-    taskLabel: "daily_farm_summary" | "shift_handover_generate",
-    payload: DailyFarmSummaryPromptPayload | ShiftHandoverPromptPayload
+    taskLabel: "daily_farm_summary" | "shift_handover_generate" | "dashboard_assistant_query",
+    payload: DailyFarmSummaryPromptPayload | ShiftHandoverPromptPayload | DashboardAssistantPromptPayload
   ): Promise<Record<string, unknown> | null> {
     if (!this.config.configured || !this.config.apiKey) {
       return null;

@@ -148,7 +148,35 @@ describe("HTTP route-handler parity", () => {
       summarizePond: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", highlights: [] } }),
       generateHandover: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", actionItems: [] } }),
       rewriteText: vi.fn().mockResolvedValue({ ok: true, data: { rewrittenText: "Placeholder" } }),
-      queryDashboard: vi.fn().mockResolvedValue({ ok: true, data: { answer: "Placeholder", relatedMetrics: [] } }),
+      queryDashboard: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder dashboard assistant headline",
+          directAnswer: "Placeholder dashboard assistant answer",
+          priorityItems: [],
+          supportingFacts: [],
+          recommendedNextChecks: [],
+          answer: "Placeholder dashboard assistant answer",
+          relatedMetrics: [],
+          metadata: {
+            taskLabel: "dashboard_assistant_query",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-1",
+            responseId: "response-1",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
       draftIncident: vi.fn().mockResolvedValue({ ok: true, data: { draftTitle: "Placeholder", draftBody: "Placeholder" } })
     } as never);
 
@@ -162,6 +190,7 @@ describe("HTTP route-handler parity", () => {
     expect(detail.data.id).toBe("ai-response-1");
     expect(explain.data.explanation).toContain("Placeholder");
     expect(dashboard.data.answer).toContain("Placeholder");
+    expect(dashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
   });
 
   it("keeps the current-session endpoint on an item-style success envelope", async () => {
