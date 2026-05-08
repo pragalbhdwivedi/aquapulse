@@ -8,8 +8,10 @@ export interface AiRequestLogQueryContract extends ListQueryRequest {
     | "ponds_summarize"
     | "handover_generate"
     | "text_rewrite"
+    | "incident_rewrite"
     | "dashboard_query"
     | "dashboard_assistant_query"
+    | "approval_note_draft"
     | "incident_draft"
     | "daily_farm_summary"
     | "shift_handover_generate";

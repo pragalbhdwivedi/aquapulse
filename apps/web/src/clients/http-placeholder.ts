@@ -131,7 +131,8 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
       generateHandover: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.generateHandover, execute),
       rewriteText: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.rewriteText, execute),
       queryDashboard: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.queryDashboard, execute),
-      draftIncident: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftIncident, execute)
+      draftIncident: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftIncident, execute),
+      draftApprovalNote: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftApprovalNote, execute)
     }
   };
 }

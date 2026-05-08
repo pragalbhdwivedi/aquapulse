@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type {
+  AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
   AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
@@ -13,6 +14,7 @@ import type {
 } from "@aquapulse/types";
 import type {
   CreateAiDto,
+  ApprovalNoteDraftDto,
   DashboardQueryDto,
   DraftIncidentDto,
   AlertExplanationFeedbackDto,
@@ -166,7 +168,45 @@ export class AiApplicationService {
       }
     };
   }
-  async rewriteText(input: RewriteTextDto): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>> { return { ok: true, data: { rewrittenText: `[placeholder] ${input.text}` } }; }
+  async rewriteText(input: RewriteTextDto): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.rewriteIncident(input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        originalText: input.originalText,
+        rewrittenEnglish: input.originalText.trim(),
+        rewrittenHindi:
+          input.outputMode === "bilingual"
+            ? `हिंदी मसौदा: ${input.originalText.trim()}`
+            : undefined,
+        tone: input.tone,
+        missingInformationNote:
+          input.originalText.trim().length < 12
+            ? "The source note is very short, so the rewrite may still need manual clarification."
+            : undefined,
+        metadata: {
+          taskLabel: "incident_rewrite",
+          advisoryOnly: true,
+          generatedAt: "2026-05-08T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback"
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-08T00:00:00.000Z",
+          responseLoggedAt: "2026-05-08T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
   async queryDashboard(_input: DashboardQueryDto): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>> {
     if (this.operatorAssistanceService) {
       return { ok: true, data: await this.operatorAssistanceService.generateDashboardAssistant(_input) };
@@ -205,4 +245,44 @@ export class AiApplicationService {
     };
   }
   async draftIncident(_input: DraftIncidentDto): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>> { return { ok: true, data: { draftTitle: "Placeholder incident draft", draftBody: "This is a placeholder incident draft." } }; }
+  async draftApprovalNote(
+    input: ApprovalNoteDraftDto
+  ): Promise<ApiSuccessEnvelope<AiApprovalNoteDraftResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.generateApprovalNoteDraft(input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        headline: "Fallback approval note draft is available, but no operator assistance service was attached.",
+        draftNote:
+          "Pending manual review. Verify the linked operational context before using this draft in any approval or escalation workflow.",
+        draftNoteHindi:
+          input.outputMode === "bilingual"
+            ? "मैनुअल समीक्षा लंबित है। किसी भी अनुमोदन या एस्केलेशन उपयोग से पहले संबंधित संदर्भ की पुष्टि करें।"
+            : undefined,
+        rationaleSummary: "No operator assistance service was attached, so the bounded fallback draft stayed active.",
+        suggestedNextChecks: ["Review the linked record manually.", "Confirm the latest status before using this draft."],
+        reviewRequired: true,
+        metadata: {
+          taskLabel: "approval_note_draft",
+          advisoryOnly: true,
+          generatedAt: "2026-05-08T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback"
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-08T00:00:00.000Z",
+          responseLoggedAt: "2026-05-08T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
 }

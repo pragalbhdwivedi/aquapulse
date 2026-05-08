@@ -84,7 +84,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiOperatorAssistance?.supportedTasks).toEqual([
       "daily_farm_summary",
       "shift_handover_generate",
-      "dashboard_assistant_query"
+      "dashboard_assistant_query",
+      "incident_rewrite",
+      "approval_note_draft"
     ]);
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");

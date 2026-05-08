@@ -1,9 +1,11 @@
 import type {
   AlertsListQueryRequest,
   AlertQueueSummary,
+  AiApprovalNoteDraftResponse,
   AiDashboardQueryResponse,
   AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
+  AiTextRewriteResponse,
   AlertSummary,
   ApiSuccessEnvelope,
   AuditEvent,
@@ -270,19 +272,37 @@ export async function getReportsPageData(): Promise<{
   alerts: ListResponse<AlertSummary>;
   dailySummary: AiPondsSummarizeResponse;
   handover: AiHandoverGenerateResponse;
+  incidentRewrite: AiTextRewriteResponse;
+  approvalNote: AiApprovalNoteDraftResponse;
 }> {
-  const [ponds, alerts, dailySummary, handover] = await Promise.all([
+  const [ponds, alerts, dailySummary, handover, incidentRewrite, approvalNote] = await Promise.all([
     pondsRepository.list(defaultPondsQuery),
     alertsRepository.list(defaultAlertsQuery),
     pondsRepository.summarize({ generatedForDate: "2026-04-13T00:00:00.000Z", includeMissingDataSignals: true }),
-    aiRepository.generateHandover({ shiftDate: "2026-04-13T00:00:00.000Z" })
+    aiRepository.generateHandover({ shiftDate: "2026-04-13T00:00:00.000Z" }),
+    aiRepository.rewriteText({
+      originalText: "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
+      tone: "operator",
+      outputMode: "bilingual",
+      linkedRecordType: "alert",
+      linkedRecordId: "alert-1"
+    }),
+    aiRepository.draftApprovalNote({
+      recordType: "alert",
+      recordId: "alert-1",
+      mode: "needs_review",
+      promptNote: "Need wording for supervisor follow-up before approval.",
+      outputMode: "english_only"
+    })
   ]);
 
   return {
     ponds: ponds.data,
     alerts: alerts.data,
     dailySummary: dailySummary.data,
-    handover: handover.data
+    handover: handover.data,
+    incidentRewrite: incidentRewrite.data,
+    approvalNote: approvalNote.data
   };
 }
 

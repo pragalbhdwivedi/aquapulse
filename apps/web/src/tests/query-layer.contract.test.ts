@@ -97,6 +97,10 @@ describe("Frontend query layer", () => {
     expect(reports.dailySummary.pendingActions.length).toBeGreaterThan(0);
     expect(reports.handover.metadata.taskLabel).toBe("shift_handover_generate");
     expect(reports.handover.nextShiftNote).toBeTruthy();
+    expect(reports.incidentRewrite.metadata.taskLabel).toBe("incident_rewrite");
+    expect(reports.incidentRewrite.rewrittenEnglish).toBeTruthy();
+    expect(reports.approvalNote.metadata.taskLabel).toBe("approval_note_draft");
+    expect(reports.approvalNote.reviewRequired).toBe(true);
   });
 
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {

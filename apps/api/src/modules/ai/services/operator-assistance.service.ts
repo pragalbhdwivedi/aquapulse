@@ -1,12 +1,16 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type {
+  AiApprovalNoteDraftRequest,
+  AiApprovalNoteDraftResponse,
   AiDashboardPriorityItem,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
   AiDashboardSupportingFact,
   AiHandoverGenerateRequest,
   AiHandoverGenerateResponse,
+  AiIncidentRewriteRequest,
+  AiIncidentRewriteResponse,
   AiOperatorAttentionItem,
   AiOperatorAssistanceAuditMetadata,
   AiOperatorAssistanceMetadata,
@@ -21,8 +25,10 @@ import type {
   WaterQualityReading
 } from "@aquapulse/types";
 import {
+  aiApprovalNoteDraftResponseSchema,
   aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
+  aiIncidentRewriteResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
@@ -33,7 +39,9 @@ import { WaterQualityApplicationService } from "../../water-quality/application/
 import { readOperatorAssistanceRuntimeConfig } from "../config/operator-assistance.config";
 import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.port";
 import {
+  type ApprovalNoteDraftPromptPayload,
   type DashboardAssistantPromptPayload,
+  type IncidentRewritePromptPayload,
   OpenAiOperatorAssistanceClient,
   type DailyFarmSummaryPromptPayload,
   type ShiftHandoverPromptPayload
@@ -249,6 +257,40 @@ function buildDashboardMetadata(
   };
 }
 
+function buildIncidentRewriteMetadata(
+  generatedAt: string,
+  modelLabel: string,
+  usedLiveOpenAi: boolean
+): AiOperatorAssistanceMetadata {
+  return {
+    taskLabel: "incident_rewrite",
+    advisoryOnly: true,
+    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
+    generatedAt,
+    modelLabel,
+    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
+    usedLiveOpenAi,
+    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
+  };
+}
+
+function buildApprovalNoteMetadata(
+  generatedAt: string,
+  modelLabel: string,
+  usedLiveOpenAi: boolean
+): AiOperatorAssistanceMetadata {
+  return {
+    taskLabel: "approval_note_draft",
+    advisoryOnly: true,
+    mode: usedLiveOpenAi ? "openai_nano" : "fallback",
+    generatedAt,
+    modelLabel,
+    sourceLabel: usedLiveOpenAi ? "openai_operator_assistance" : "deterministic_operator_assistance_fallback",
+    usedLiveOpenAi,
+    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback"
+  };
+}
+
 function buildLatestReadingByPond(
   waterQuality: readonly WaterQualityReading[]
 ): Map<string, WaterQualityReading> {
@@ -261,6 +303,19 @@ function buildLatestReadingByPond(
   }
 
   return latestReadingByPond;
+}
+
+function normalizeOperatorText(input: string): string {
+  const collapsed = input.replace(/\s+/g, " ").trim();
+  if (collapsed.length === 0) {
+    return "";
+  }
+
+  return collapsed.charAt(0).toUpperCase() + collapsed.slice(1);
+}
+
+function buildHindiFallbackLine(englishText: string): string {
+  return `हिंदी मसौदा: ${englishText}`;
 }
 
 @Injectable()
@@ -288,7 +343,13 @@ export class OperatorAssistanceService {
       modelLabel: this.runtime.modelLabel,
       providerPath: this.runtime.configured ? "openai_responses_api" as const : "deterministic_fallback" as const,
       fallbackActive: !this.runtime.configured,
-      supportedTasks: ["daily_farm_summary", "shift_handover_generate", "dashboard_assistant_query"] as const,
+      supportedTasks: [
+        "daily_farm_summary",
+        "shift_handover_generate",
+        "dashboard_assistant_query",
+        "incident_rewrite",
+        "approval_note_draft"
+      ] as const,
       warnings: this.runtime.warnings
     };
   }
@@ -459,6 +520,88 @@ export class OperatorAssistanceService {
     };
 
     return aiDashboardAssistantResponseSchema.parse(withAudit);
+  }
+
+  async rewriteIncident(
+    input: AiIncidentRewriteRequest
+  ): Promise<AiIncidentRewriteResponse> {
+    const generatedAt = new Date().toISOString();
+    const requestRecord = await this.logRequest("incident_rewrite", {
+      ...input,
+      generatedAt
+    });
+    const promptPayload = this.buildIncidentRewritePromptPayload(input);
+
+    let response = this.buildIncidentRewriteFallback(generatedAt, input, promptPayload);
+
+    if (this.runtime.configured) {
+      try {
+        const openAiResponse = await this.openAiClient.generateIncidentRewrite(promptPayload);
+        if (openAiResponse) {
+          response = {
+            ...openAiResponse,
+            metadata: buildIncidentRewriteMetadata(generatedAt, this.runtime.modelLabel, true),
+            audit: response.audit
+          };
+        }
+      } catch {
+        // Stay on the deterministic fallback path.
+      }
+    }
+
+    const responseRecord = await this.logResponse(requestRecord.id, this.runtime.modelLabel, response);
+    const withAudit = {
+      ...response,
+      audit: this.buildAuditMetadata(
+        generatedAt,
+        requestRecord.id,
+        responseRecord.id,
+        !this.runtime.configured || response.metadata.mode === "fallback"
+      )
+    };
+
+    return aiIncidentRewriteResponseSchema.parse(withAudit);
+  }
+
+  async generateApprovalNoteDraft(
+    input: AiApprovalNoteDraftRequest
+  ): Promise<AiApprovalNoteDraftResponse> {
+    const generatedAt = new Date().toISOString();
+    const requestRecord = await this.logRequest("approval_note_draft", {
+      ...input,
+      generatedAt
+    });
+    const promptPayload = await this.buildApprovalNotePromptPayload(input);
+
+    let response = this.buildApprovalNoteDraftFallback(generatedAt, input, promptPayload);
+
+    if (this.runtime.configured) {
+      try {
+        const openAiResponse = await this.openAiClient.generateApprovalNoteDraft(promptPayload);
+        if (openAiResponse) {
+          response = {
+            ...openAiResponse,
+            metadata: buildApprovalNoteMetadata(generatedAt, this.runtime.modelLabel, true),
+            audit: response.audit
+          };
+        }
+      } catch {
+        // Stay on the deterministic fallback path.
+      }
+    }
+
+    const responseRecord = await this.logResponse(requestRecord.id, this.runtime.modelLabel, response);
+    const withAudit = {
+      ...response,
+      audit: this.buildAuditMetadata(
+        generatedAt,
+        requestRecord.id,
+        responseRecord.id,
+        !this.runtime.configured || response.metadata.mode === "fallback"
+      )
+    };
+
+    return aiApprovalNoteDraftResponseSchema.parse(withAudit);
   }
 
   private async loadContext(input: {
@@ -711,6 +854,70 @@ export class OperatorAssistanceService {
       waterQualityRisks,
       staleOrMissingUpdates: pickTopStrings(missingDataNotes),
       feedSignals
+    };
+  }
+
+  private buildIncidentRewritePromptPayload(
+    input: AiIncidentRewriteRequest
+  ): IncidentRewritePromptPayload {
+    return {
+      taskLabel: "incident_rewrite",
+      originalText: input.originalText,
+      tone: input.tone,
+      outputMode: input.outputMode ?? "english_only",
+      linkedRecordLabel:
+        input.linkedRecordType && input.linkedRecordId
+          ? `${input.linkedRecordType}:${input.linkedRecordId}`
+          : undefined
+    };
+  }
+
+  private async buildApprovalNotePromptPayload(
+    input: AiApprovalNoteDraftRequest
+  ): Promise<ApprovalNoteDraftPromptPayload> {
+    let recordLabel: string = input.recordType;
+    let statusLabel: string | undefined;
+    let severityLabel: string | undefined;
+    const recentTimeline: string[] = [];
+
+    if (input.recordType === "alert" && input.recordId) {
+      const alert = (await this.alertsApplicationService.getById(input.recordId)).data;
+      recordLabel = `${alert.title}`;
+      statusLabel = alert.status;
+      severityLabel = alert.severity;
+      recentTimeline.push(
+        ...pickTopStrings([
+          alert.latestNote ? `Latest note: ${alert.latestNote}` : "",
+          ...(alert.actionHistory ?? []).slice(-3).map((entry) => `${entry.action} at ${entry.timestamp}`)
+        ])
+      );
+    }
+
+    if (input.recordType === "task" && input.recordId) {
+      const task = (await this.tasksApplicationService.getById(input.recordId)).data;
+      recordLabel = task.title;
+      statusLabel = task.status;
+      recentTimeline.push(`Task updated at ${task.updatedAt}`);
+      if (task.pondId) {
+        recentTimeline.push(`Linked pond: ${task.pondId}`);
+      }
+    }
+
+    if (input.recordType === "incident" && input.recordId) {
+      recordLabel = `incident:${input.recordId}`;
+    }
+
+    return {
+      taskLabel: "approval_note_draft",
+      recordType: input.recordType,
+      recordId: input.recordId,
+      recordLabel,
+      mode: input.mode,
+      outputMode: input.outputMode ?? "english_only",
+      statusLabel,
+      severityLabel,
+      promptNote: input.promptNote?.trim(),
+      recentTimeline: pickTopStrings(recentTimeline)
     };
   }
 
@@ -1016,6 +1223,109 @@ export class OperatorAssistanceService {
     };
   }
 
+  private buildIncidentRewriteFallback(
+    generatedAt: string,
+    input: AiIncidentRewriteRequest,
+    promptPayload: IncidentRewritePromptPayload
+  ): AiIncidentRewriteResponse {
+    const normalized = normalizeOperatorText(input.originalText);
+    const rewrittenEnglish = (() => {
+      if (!normalized) {
+        return "No operator note was supplied, so there is nothing to rewrite yet.";
+      }
+
+      switch (input.tone) {
+        case "audit":
+          return `Audit note: ${normalized.endsWith(".") ? normalized : `${normalized}.`} Verification is still required before this note is used in any critical workflow.`;
+        case "management":
+          return `Management summary: ${normalized.endsWith(".") ? normalized : `${normalized}.`} This wording should be reviewed before any approval or escalation decision.`;
+        case "formal":
+          return normalized.endsWith(".") ? normalized : `${normalized}.`;
+        case "operator":
+        default:
+          return `Operator note: ${normalized.endsWith(".") ? normalized : `${normalized}.`}`;
+      }
+    })();
+
+    const clarificationNote =
+      promptPayload.originalText.trim().length < 24
+        ? "The source note is brief. Keep the rewritten wording tied to verified facts only."
+        : undefined;
+    const missingInformationNote =
+      normalized.length === 0
+        ? "A longer source note is needed before the rewrite can become more specific."
+        : undefined;
+
+    return {
+      originalText: input.originalText,
+      rewrittenEnglish,
+      rewrittenHindi:
+        (input.outputMode ?? "english_only") === "bilingual"
+          ? buildHindiFallbackLine(rewrittenEnglish)
+          : undefined,
+      tone: input.tone,
+      clarificationNote,
+      missingInformationNote,
+      metadata: buildIncidentRewriteMetadata(generatedAt, this.runtime.modelLabel, false),
+      audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
+    };
+  }
+
+  private buildApprovalNoteDraftFallback(
+    generatedAt: string,
+    input: AiApprovalNoteDraftRequest,
+    promptPayload: ApprovalNoteDraftPromptPayload
+  ): AiApprovalNoteDraftResponse {
+    const modeLabelByType: Record<AiApprovalNoteDraftRequest["mode"], string> = {
+      closure_note: "Closure note draft",
+      escalation_justification: "Escalation note draft",
+      needs_review: "Needs-review note draft",
+      pending_verification: "Pending-verification note draft"
+    };
+    const subject = promptPayload.recordLabel || input.recordType;
+    const statusFragment = promptPayload.statusLabel ? ` Current status: ${promptPayload.statusLabel}.` : "";
+    const severityFragment = promptPayload.severityLabel ? ` Severity: ${promptPayload.severityLabel}.` : "";
+    const promptFragment = input.promptNote?.trim() ? ` Operator prompt: ${input.promptNote.trim()}.` : "";
+    const draftCoreByMode: Record<AiApprovalNoteDraftRequest["mode"], string> = {
+      closure_note:
+        "Closure wording remains advisory only and should only be used after the operator confirms that the underlying condition is resolved and documented.",
+      escalation_justification:
+        "Escalation wording remains advisory only and should be reviewed alongside the latest evidence before any approval or supervisory action.",
+      needs_review:
+        "This matter still needs supervisor review before any approval-related step is taken.",
+      pending_verification:
+        "Verification is still pending, so this note should not be treated as an approval or final decision."
+    };
+    const draftNote = `${subject}: ${draftCoreByMode[input.mode]}${statusFragment}${severityFragment}${promptFragment}`.trim();
+    const reviewRequired = input.mode !== "closure_note" || input.recordType === "incident";
+    const missingInformationNote =
+      !input.recordId && !input.promptNote?.trim()
+        ? "No linked record or prompt note was supplied, so this draft stayed general."
+        : undefined;
+
+    return {
+      headline: `${modeLabelByType[input.mode]} for ${subject}`,
+      draftNote,
+      draftNoteHindi:
+        (input.outputMode ?? "english_only") === "bilingual"
+          ? buildHindiFallbackLine(draftNote)
+          : undefined,
+      rationaleSummary:
+        "The draft was built from bounded linked-record context and remains advisory-only. It does not approve, close, or mutate any operational record.",
+      suggestedNextChecks: pickTopStrings([
+        "Confirm the latest record status and supporting evidence before using this wording.",
+        input.mode === "closure_note"
+          ? "Verify that the underlying issue is actually resolved and documented."
+          : "Verify that the linked issue still requires review or escalation.",
+        ...promptPayload.recentTimeline
+      ]),
+      reviewRequired,
+      missingInformationNote,
+      metadata: buildApprovalNoteMetadata(generatedAt, this.runtime.modelLabel, false),
+      audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
+    };
+  }
+
   private buildAuditMetadata(
     generatedAt: string,
     requestId: string,
@@ -1049,7 +1359,12 @@ export class OperatorAssistanceService {
   private async logResponse(
     requestId: string,
     modelLabel: string,
-    payload: AiPondsSummarizeResponse | AiHandoverGenerateResponse | AiDashboardQueryResponse
+    payload:
+      | AiPondsSummarizeResponse
+      | AiHandoverGenerateResponse
+      | AiDashboardQueryResponse
+      | AiIncidentRewriteResponse
+      | AiApprovalNoteDraftResponse
   ): Promise<AiResponseRecord> {
     const generatedAt = new Date().toISOString();
     return this.aiRepository.saveResponseRecord({

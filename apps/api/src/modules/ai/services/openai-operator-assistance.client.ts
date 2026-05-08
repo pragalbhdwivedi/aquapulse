@@ -1,11 +1,15 @@
 import type {
+  AiApprovalNoteDraftResponse,
   AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
+  AiIncidentRewriteResponse,
   AiPondsSummarizeResponse
 } from "@aquapulse/types";
 import {
+  aiApprovalNoteDraftResponseSchema,
   aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
+  aiIncidentRewriteResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
 import type { OperatorAssistanceRuntimeConfig } from "../config/operator-assistance.config";
@@ -21,6 +25,16 @@ const aiShiftHandoverContentSchema = aiShiftHandoverResponseSchema.omit({
 });
 
 const aiDashboardAssistantContentSchema = aiDashboardAssistantResponseSchema.omit({
+  metadata: true,
+  audit: true
+});
+
+const aiIncidentRewriteContentSchema = aiIncidentRewriteResponseSchema.omit({
+  metadata: true,
+  audit: true
+});
+
+const aiApprovalNoteDraftContentSchema = aiApprovalNoteDraftResponseSchema.omit({
   metadata: true,
   audit: true
 });
@@ -97,6 +111,27 @@ export interface DashboardAssistantPromptPayload {
   readonly waterQualityRisks: string[];
   readonly staleOrMissingUpdates: string[];
   readonly feedSignals: string[];
+}
+
+export interface IncidentRewritePromptPayload {
+  readonly taskLabel: "incident_rewrite";
+  readonly originalText: string;
+  readonly tone: "operator" | "formal" | "management" | "audit";
+  readonly outputMode: "english_only" | "bilingual";
+  readonly linkedRecordLabel?: string;
+}
+
+export interface ApprovalNoteDraftPromptPayload {
+  readonly taskLabel: "approval_note_draft";
+  readonly recordType: "alert" | "task" | "incident";
+  readonly recordId?: string;
+  readonly recordLabel: string;
+  readonly mode: "closure_note" | "escalation_justification" | "needs_review" | "pending_verification";
+  readonly outputMode: "english_only" | "bilingual";
+  readonly statusLabel?: string;
+  readonly severityLabel?: string;
+  readonly promptNote?: string;
+  readonly recentTimeline: string[];
 }
 
 interface OpenAiOperatorAssistanceClientOptions {
@@ -186,9 +221,41 @@ export class OpenAiOperatorAssistanceClient {
     return aiDashboardAssistantContentSchema.parse(parsed);
   }
 
+  async generateIncidentRewrite(
+    context: IncidentRewritePromptPayload
+  ): Promise<Omit<AiIncidentRewriteResponse, "metadata" | "audit"> | null> {
+    const parsed = await this.execute("incident_rewrite", context);
+    if (!parsed) {
+      return null;
+    }
+
+    return aiIncidentRewriteContentSchema.parse(parsed);
+  }
+
+  async generateApprovalNoteDraft(
+    context: ApprovalNoteDraftPromptPayload
+  ): Promise<Omit<AiApprovalNoteDraftResponse, "metadata" | "audit"> | null> {
+    const parsed = await this.execute("approval_note_draft", context);
+    if (!parsed) {
+      return null;
+    }
+
+    return aiApprovalNoteDraftContentSchema.parse(parsed);
+  }
+
   private async execute(
-    taskLabel: "daily_farm_summary" | "shift_handover_generate" | "dashboard_assistant_query",
-    payload: DailyFarmSummaryPromptPayload | ShiftHandoverPromptPayload | DashboardAssistantPromptPayload
+    taskLabel:
+      | "daily_farm_summary"
+      | "shift_handover_generate"
+      | "dashboard_assistant_query"
+      | "incident_rewrite"
+      | "approval_note_draft",
+    payload:
+      | DailyFarmSummaryPromptPayload
+      | ShiftHandoverPromptPayload
+      | DashboardAssistantPromptPayload
+      | IncidentRewritePromptPayload
+      | ApprovalNoteDraftPromptPayload
   ): Promise<Record<string, unknown> | null> {
     if (!this.config.configured || !this.config.apiKey) {
       return null;

@@ -225,6 +225,7 @@ export interface AquaPulseEndpointHandlers {
     rewriteText: EndpointHandler<EndpointCatalog["ai"]["rewriteText"]>;
     queryDashboard: EndpointHandler<EndpointCatalog["ai"]["queryDashboard"]>;
     draftIncident: EndpointHandler<EndpointCatalog["ai"]["draftIncident"]>;
+    draftApprovalNote: EndpointHandler<EndpointCatalog["ai"]["draftApprovalNote"]>;
   };
 }
 
@@ -565,7 +566,8 @@ export function createEndpointHandlersFromClients(
       generateHandover: async (request) => clients.ai.generateHandover(request),
       rewriteText: async (request) => clients.ai.rewriteText(request),
       queryDashboard: async (request) => clients.ai.queryDashboard(request),
-      draftIncident: async (request) => clients.ai.draftIncident(request)
+      draftIncident: async (request) => clients.ai.draftIncident(request),
+      draftApprovalNote: async (request) => clients.ai.draftApprovalNote(request)
     }
   };
 }
@@ -638,7 +640,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       rewriteText: (input) => handlers.ai.rewriteText(input),
       queryDashboard: (input) => handlers.ai.queryDashboard(input),
       generateHandover: (input) => handlers.ai.generateHandover(input),
-      draftIncident: (input) => handlers.ai.draftIncident(input)
+      draftIncident: (input) => handlers.ai.draftIncident(input),
+      draftApprovalNote: (input) => handlers.ai.draftApprovalNote(input)
     }
   };
 }

@@ -549,7 +549,13 @@ export class RuntimeDiagnosticsService {
           ? "openai_responses_api"
           : "deterministic_fallback",
         fallbackActive: !operatorAssistanceRuntime.configured,
-        supportedTasks: ["daily_farm_summary", "shift_handover_generate", "dashboard_assistant_query"],
+        supportedTasks: [
+          "daily_farm_summary",
+          "shift_handover_generate",
+          "dashboard_assistant_query",
+          "incident_rewrite",
+          "approval_note_draft"
+        ],
         warnings: operatorAssistanceRuntime.warnings
       },
       alerts: {

@@ -1,4 +1,5 @@
 import type {
+  AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
   AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
@@ -11,6 +12,7 @@ import type {
   ListResponse
 } from "@aquapulse/types";
 import type {
+  ApprovalNoteDraftDto,
   CreateAiDto,
   DashboardQueryDto,
   DraftIncidentDto,
@@ -64,6 +66,10 @@ export function toRewriteTextInput(input: RewriteTextDto): RewriteTextDto {
   return input;
 }
 
+export function toDraftApprovalNoteInput(input: ApprovalNoteDraftDto): ApprovalNoteDraftDto {
+  return input;
+}
+
 export function toDashboardQueryInput(input: DashboardQueryDto): DashboardQueryDto {
   return input;
 }
@@ -105,6 +111,12 @@ export function toAiHandoverGenerateResponse(
 }
 
 export function toAiTextRewriteResponse(item: AiTextRewriteResponse): ApiSuccessEnvelope<AiTextRewriteResponse> {
+  return createItemResponse(item);
+}
+
+export function toAiApprovalNoteDraftResponse(
+  item: AiApprovalNoteDraftResponse
+): ApiSuccessEnvelope<AiApprovalNoteDraftResponse> {
   return createItemResponse(item);
 }
 

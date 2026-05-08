@@ -147,7 +147,31 @@ describe("HTTP route-handler parity", () => {
       }),
       summarizePond: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", highlights: [] } }),
       generateHandover: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", actionItems: [] } }),
-      rewriteText: vi.fn().mockResolvedValue({ ok: true, data: { rewrittenText: "Placeholder" } }),
+      rewriteText: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          originalText: "Placeholder source",
+          rewrittenEnglish: "Placeholder rewrite",
+          tone: "operator",
+          metadata: {
+            taskLabel: "incident_rewrite",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-rewrite",
+            responseId: "response-rewrite",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
       queryDashboard: vi.fn().mockResolvedValue({
         ok: true,
         data: {
@@ -177,13 +201,41 @@ describe("HTTP route-handler parity", () => {
           }
         }
       }),
-      draftIncident: vi.fn().mockResolvedValue({ ok: true, data: { draftTitle: "Placeholder", draftBody: "Placeholder" } })
+      draftIncident: vi.fn().mockResolvedValue({ ok: true, data: { draftTitle: "Placeholder", draftBody: "Placeholder" } }),
+      draftApprovalNote: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder approval note draft",
+          draftNote: "Placeholder approval note body",
+          rationaleSummary: "Placeholder rationale",
+          suggestedNextChecks: [],
+          reviewRequired: true,
+          metadata: {
+            taskLabel: "approval_note_draft",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-2",
+            responseId: "response-2",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      })
     } as never);
 
-    const [detail, explain, dashboard] = await Promise.all([
+    const [detail, explain, dashboard, approvalNote] = await Promise.all([
       aiController.getById("ai-response-1"),
       aiController.explainAlert({ alertId: "alert-1" } as never),
-      aiController.queryDashboard({ question: "What needs attention?" } as never)
+      aiController.queryDashboard({ question: "What needs attention?" } as never),
+      aiController.draftApprovalNote({ recordType: "alert", mode: "needs_review" } as never)
     ]);
 
     expect(detail.ok).toBe(true);
@@ -191,6 +243,7 @@ describe("HTTP route-handler parity", () => {
     expect(explain.data.explanation).toContain("Placeholder");
     expect(dashboard.data.answer).toContain("Placeholder");
     expect(dashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
+    expect(approvalNote.data.metadata.taskLabel).toBe("approval_note_draft");
   });
 
   it("keeps the current-session endpoint on an item-style success envelope", async () => {

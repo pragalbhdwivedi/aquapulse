@@ -114,8 +114,11 @@ export const attachmentMetadataCreateSchema = z.object({
 });
 
 export const aiTextRewriteRequestSchema = z.object({
-  text: z.string().min(1),
-  tone: z.enum(["concise", "formal", "friendly"])
+  originalText: z.string().min(1),
+  tone: z.enum(["operator", "formal", "management", "audit"]),
+  outputMode: z.enum(["english_only", "bilingual"]).optional(),
+  linkedRecordType: z.enum(["alert", "task", "incident"]).optional(),
+  linkedRecordId: z.string().min(1).optional()
 });
 
 export const aiAlertExplanationRequestSchema = z.object({
@@ -159,7 +162,13 @@ export const aiDashboardQueryRequestSchema = z.object({
 });
 
 const aiOperatorAssistanceMetadataSchema = z.object({
-  taskLabel: z.enum(["daily_farm_summary", "shift_handover_generate", "dashboard_assistant_query"]),
+  taskLabel: z.enum([
+    "daily_farm_summary",
+    "shift_handover_generate",
+    "dashboard_assistant_query",
+    "incident_rewrite",
+    "approval_note_draft"
+  ]),
   advisoryOnly: z.literal(true),
   mode: z.enum(["fallback", "openai_nano"]),
   generatedAt: z.string().min(1),
@@ -259,6 +268,41 @@ export const aiDashboardAssistantResponseSchema = z.object({
   relatedMetrics: z.array(z.string().min(1)),
   metadata: aiOperatorAssistanceMetadataSchema.extend({
     taskLabel: z.literal("dashboard_assistant_query")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});
+
+export const aiIncidentRewriteResponseSchema = z.object({
+  originalText: z.string().min(1),
+  rewrittenEnglish: z.string().min(1),
+  rewrittenHindi: z.string().min(1).optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]),
+  clarificationNote: z.string().min(1).optional(),
+  missingInformationNote: z.string().min(1).optional(),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("incident_rewrite")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});
+
+export const aiApprovalNoteDraftRequestSchema = z.object({
+  recordType: z.enum(["alert", "task", "incident"]),
+  recordId: z.string().min(1).optional(),
+  mode: z.enum(["closure_note", "escalation_justification", "needs_review", "pending_verification"]),
+  promptNote: z.string().min(1).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional()
+});
+
+export const aiApprovalNoteDraftResponseSchema = z.object({
+  headline: z.string().min(1),
+  draftNote: z.string().min(1),
+  draftNoteHindi: z.string().min(1).optional(),
+  rationaleSummary: z.string().min(1),
+  suggestedNextChecks: z.array(z.string().min(1)),
+  reviewRequired: z.boolean(),
+  missingInformationNote: z.string().min(1).optional(),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("approval_note_draft")
   }),
   audit: aiOperatorAssistanceAuditMetadataSchema
 });

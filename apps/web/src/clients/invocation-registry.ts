@@ -126,7 +126,8 @@ export const endpointInvocationRegistry = {
     generateHandover: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.generateHandover),
     rewriteText: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.rewriteText),
     queryDashboard: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.queryDashboard),
-    draftIncident: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftIncident)
+    draftIncident: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftIncident),
+    draftApprovalNote: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftApprovalNote)
   }
 } as const;
 
@@ -193,6 +194,7 @@ export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRe
     [registry.ai.generateHandover.endpointId]: registry.ai.generateHandover,
     [registry.ai.rewriteText.endpointId]: registry.ai.rewriteText,
     [registry.ai.queryDashboard.endpointId]: registry.ai.queryDashboard,
-    [registry.ai.draftIncident.endpointId]: registry.ai.draftIncident
+    [registry.ai.draftIncident.endpointId]: registry.ai.draftIncident,
+    [registry.ai.draftApprovalNote.endpointId]: registry.ai.draftApprovalNote
   } as const;
 }

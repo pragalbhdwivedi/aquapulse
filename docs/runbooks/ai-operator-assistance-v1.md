@@ -5,6 +5,8 @@ This branch adds the first broader backend-controlled AI operator-assistance sur
 - daily farm summary via `POST /api/ai/ponds/summarize`
 - shift handover via `POST /api/ai/handover/generate`
 - dashboard assistant via `POST /api/ai/dashboard/query`
+- incident rewrite via `POST /api/ai/text/rewrite`
+- approval note draft via `POST /api/ai/approvals/draft-note`
 
 Both flows are advisory-only. They do not:
 
@@ -82,6 +84,22 @@ Intended bounded question categories:
 
 The assistant remains advisory-only and schema-driven. It does not become a general free-form chat surface in this branch.
 
+Incident rewrite uses mostly user-provided text plus optional linked-record labels. It:
+
+- rewrites rough operator wording into clearer operational English
+- supports bounded tones such as `operator`, `formal`, `management`, and `audit`
+- can return a fallback Hindi draft when bilingual output is requested
+- stays factual and advisory-only
+
+Approval note draft uses bounded linked-record context when available, such as:
+
+- linked alert or task identity
+- current status and severity
+- short recent note/timeline fragments
+- short user prompt notes
+
+It remains advisory-only and does not approve, close, or mutate any record directly.
+
 ## Runtime diagnostics
 
 Backend runtime diagnostics now expose `aiOperatorAssistance` with:
@@ -100,6 +118,7 @@ Recommended checks:
 - `corepack pnpm test:contracts`
 - open the dashboard page and confirm the bounded dashboard assistant answer renders
 - open the reports page and confirm daily summary plus shift handover render
+- confirm the reports page now shows incident rewrite plus approval note draft cards
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
 
 ## Intentionally deferred
@@ -107,6 +126,5 @@ Recommended checks:
 Still deferred for later AI branches:
 
 - incident drafting expansion
-- approval-note drafting
 - broader AI chat
 - any AI-driven critical write authority

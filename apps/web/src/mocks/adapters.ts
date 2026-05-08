@@ -20,6 +20,7 @@ import type {
   AlertSavedViewCreateRequest,
   AlertSavedViewDefinition,
   AiAlertsExplainRequest,
+  AiApprovalNoteDraftRequest,
   AiDashboardQueryRequest,
   AiHandoverGenerateRequest,
   AiIncidentsDraftRequest,
@@ -817,7 +818,42 @@ export const aiMockAdapter: AiApiClient = {
     return ok(list(items, normalizedQuery));
   },
   async getById(id: string) { return ok(mockAiResponses.find((item) => item.id === id) ?? mockAiResponses[0]); },
-  async rewriteText(input: AiTextRewriteRequest) { return ok({ rewrittenText: `[placeholder] ${input.text}` }); },
+  async rewriteText(input: AiTextRewriteRequest) {
+    const rewrittenEnglish =
+      input.tone === "audit"
+        ? `Audit note: ${input.originalText.trim()}`
+        : `Operator note: ${input.originalText.trim()}`;
+    return ok({
+      originalText: input.originalText,
+      rewrittenEnglish,
+      rewrittenHindi:
+        input.outputMode === "bilingual"
+          ? `हिंदी मसौदा: ${rewrittenEnglish}`
+          : undefined,
+      tone: input.tone,
+      clarificationNote:
+        input.originalText.trim().length < 24
+          ? "The source note is brief. Keep the rewritten wording tied to verified facts only."
+          : undefined,
+      metadata: {
+        taskLabel: "incident_rewrite",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T10:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "mock-incident-rewrite-request",
+        responseId: "mock-incident-rewrite-response",
+        requestLoggedAt: "2026-05-08T10:00:00.000Z",
+        responseLoggedAt: "2026-05-08T10:00:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  },
   async queryDashboard(input: AiDashboardQueryRequest) {
     const headline = "Dashboard assistant: bounded operational read-only answer";
     const directAnswer = input.question.toLowerCase().includes("missed updates")
@@ -910,4 +946,40 @@ export const aiMockAdapter: AiApiClient = {
     });
   },
   async draftIncident(_input: AiIncidentsDraftRequest) { return ok({ draftTitle: "Placeholder incident draft", draftBody: "Placeholder incident body." }); }
+  ,
+  async draftApprovalNote(input: AiApprovalNoteDraftRequest) {
+    const draftNote = `${input.recordType}: Verify the latest evidence before using this advisory draft in any approval workflow.`;
+    return ok({
+      headline: `Approval note draft for ${input.recordType}`,
+      draftNote,
+      draftNoteHindi:
+        input.outputMode === "bilingual"
+          ? `हिंदी मसौदा: ${draftNote}`
+          : undefined,
+      rationaleSummary:
+        "This mock draft stays advisory-only and does not approve, close, or mutate any operational record.",
+      suggestedNextChecks: [
+        "Confirm the latest record status manually.",
+        "Review the linked note history before using this draft."
+      ],
+      reviewRequired: true,
+      metadata: {
+        taskLabel: "approval_note_draft",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T10:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "mock-approval-note-request",
+        responseId: "mock-approval-note-response",
+        requestLoggedAt: "2026-05-08T10:00:00.000Z",
+        responseLoggedAt: "2026-05-08T10:00:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  }
 };

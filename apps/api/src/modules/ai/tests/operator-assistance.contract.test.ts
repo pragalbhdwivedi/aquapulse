@@ -67,6 +67,20 @@ describe("Operator assistance service", () => {
       })
     };
     const alerts = {
+      getById: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          id: "alert-1",
+          createdAt: "2026-05-08T07:10:00.000Z",
+          updatedAt: "2026-05-08T07:10:00.000Z",
+          title: "Low dissolved oxygen warning",
+          severity: "high",
+          source: "water-quality",
+          pondId: "pond-1",
+          status: "open",
+          latestNote: "Repeat sample is pending."
+        }
+      }),
       list: vi.fn().mockResolvedValue({
         ok: true,
         data: {
@@ -106,6 +120,17 @@ describe("Operator assistance service", () => {
       })
     };
     const tasks = {
+      getById: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          id: "task-1",
+          createdAt: "2026-05-08T06:30:00.000Z",
+          updatedAt: "2026-05-08T06:30:00.000Z",
+          title: "Repeat dissolved oxygen reading",
+          status: "todo",
+          pondId: "pond-1"
+        }
+      }),
       list: vi.fn().mockResolvedValue({
         ok: true,
         data: {
@@ -193,6 +218,59 @@ describe("Operator assistance service", () => {
     expect(waterQuality.list).toHaveBeenCalled();
   });
 
+  it("returns a deterministic bounded incident rewrite with optional bilingual output", async () => {
+    const { service, aiRepository } = createService();
+
+    const rewrite = await service.rewriteIncident({
+      originalText: "oxygen low north pond rechecked aerator and sample taken",
+      tone: "audit",
+      outputMode: "bilingual",
+      linkedRecordType: "alert",
+      linkedRecordId: "alert-1"
+    });
+
+    expect(rewrite.metadata.taskLabel).toBe("incident_rewrite");
+    expect(rewrite.metadata.mode).toBe("fallback");
+    expect(rewrite.rewrittenEnglish).toContain("Audit note:");
+    expect(rewrite.rewrittenHindi).toBeTruthy();
+    expect(rewrite.audit.fallbackUsed).toBe(true);
+    expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);
+    expect(aiRepository.saveResponseRecord).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns a deterministic bounded approval note draft using linked alert context", async () => {
+    const { service, alerts, aiRepository } = createService();
+    alerts.getById = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        id: "alert-1",
+        createdAt: "2026-05-08T07:10:00.000Z",
+        updatedAt: "2026-05-08T07:10:00.000Z",
+        title: "Low dissolved oxygen warning",
+        severity: "high",
+        source: "water-quality",
+        pondId: "pond-1",
+        status: "open",
+        latestNote: "Repeat sample is pending."
+      }
+    });
+
+    const approvalNote = await service.generateApprovalNoteDraft({
+      recordType: "alert",
+      recordId: "alert-1",
+      mode: "needs_review",
+      promptNote: "Supervisor note requested."
+    });
+
+    expect(approvalNote.metadata.taskLabel).toBe("approval_note_draft");
+    expect(approvalNote.metadata.mode).toBe("fallback");
+    expect(approvalNote.reviewRequired).toBe(true);
+    expect(approvalNote.draftNote).toContain("Low dissolved oxygen warning");
+    expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);
+    expect(aiRepository.saveResponseRecord).toHaveBeenCalledTimes(1);
+    expect(alerts.getById).toHaveBeenCalledWith("alert-1");
+  });
+
   it("keeps openai mode config-safe when credentials are missing", () => {
     process.env.AQUAPULSE_AI_OPERATOR_ASSISTANCE_MODE = "openai";
 
@@ -202,6 +280,8 @@ describe("Operator assistance service", () => {
     expect(runtime.mode).toBe("fallback");
     expect(runtime.configured).toBe(false);
     expect(runtime.supportedTasks).toContain("dashboard_assistant_query");
+    expect(runtime.supportedTasks).toContain("incident_rewrite");
+    expect(runtime.supportedTasks).toContain("approval_note_draft");
     expect(runtime.warnings.map((warning) => warning.code)).toContain("OPENAI_API_KEY_MISSING");
   });
 });

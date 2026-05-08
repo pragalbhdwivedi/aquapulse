@@ -342,8 +342,10 @@ export interface AiRequestRecord extends BaseEntity {
     | "ponds_summarize"
     | "handover_generate"
     | "text_rewrite"
+    | "incident_rewrite"
     | "dashboard_query"
     | "dashboard_assistant_query"
+    | "approval_note_draft"
     | "incident_draft"
     | "daily_farm_summary"
     | "shift_handover_generate";
@@ -464,7 +466,9 @@ export interface AlertExplanationAttachmentRequest {
 export type AiOperatorAssistanceTaskLabel =
   | "daily_farm_summary"
   | "shift_handover_generate"
-  | "dashboard_assistant_query";
+  | "dashboard_assistant_query"
+  | "incident_rewrite"
+  | "approval_note_draft";
 
 export interface AiOperatorAssistanceMetadata {
   readonly taskLabel: AiOperatorAssistanceTaskLabel;
@@ -549,13 +553,27 @@ export interface AiDashboardPriorityItem {
   readonly pondName?: string;
 }
 
-export interface AiTextRewriteRequest {
-  readonly text: string;
-  readonly tone: "concise" | "formal" | "friendly";
+export type AiIncidentRewriteTone = "operator" | "formal" | "management" | "audit";
+export type AiStructuredOutputMode = "english_only" | "bilingual";
+export type AiLinkedRecordType = "alert" | "task" | "incident";
+
+export interface AiIncidentRewriteRequest {
+  readonly originalText: string;
+  readonly tone: AiIncidentRewriteTone;
+  readonly outputMode?: AiStructuredOutputMode;
+  readonly linkedRecordType?: AiLinkedRecordType;
+  readonly linkedRecordId?: EntityId;
 }
 
-export interface AiTextRewriteResponse {
-  readonly rewrittenText: string;
+export interface AiIncidentRewriteResponse {
+  readonly originalText: string;
+  readonly rewrittenEnglish: string;
+  readonly rewrittenHindi?: string;
+  readonly tone: AiIncidentRewriteTone;
+  readonly clarificationNote?: string;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface AiDashboardQueryRequest {
@@ -576,6 +594,35 @@ export interface AiDashboardQueryResponse {
   readonly metadata: AiOperatorAssistanceMetadata;
   readonly audit: AiOperatorAssistanceAuditMetadata;
 }
+
+export type AiApprovalNoteDraftMode =
+  | "closure_note"
+  | "escalation_justification"
+  | "needs_review"
+  | "pending_verification";
+
+export interface AiApprovalNoteDraftRequest {
+  readonly recordType: AiLinkedRecordType;
+  readonly recordId?: EntityId;
+  readonly mode: AiApprovalNoteDraftMode;
+  readonly promptNote?: string;
+  readonly outputMode?: AiStructuredOutputMode;
+}
+
+export interface AiApprovalNoteDraftResponse {
+  readonly headline: string;
+  readonly draftNote: string;
+  readonly draftNoteHindi?: string;
+  readonly rationaleSummary: string;
+  readonly suggestedNextChecks: string[];
+  readonly reviewRequired: boolean;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
+}
+
+export type AiTextRewriteRequest = AiIncidentRewriteRequest;
+export type AiTextRewriteResponse = AiIncidentRewriteResponse;
 
 export interface AiIncidentsDraftRequest {
   readonly incidentSummary: string;
@@ -1124,6 +1171,12 @@ export const aquaPulseEndpointCatalog = {
       id: "ai.draftIncident",
       method: "POST",
       path: "/api/ai/incidents/draft",
+      semantics: "action"
+    }),
+    draftApprovalNote: defineEndpoint<AiApprovalNoteDraftRequest, ApiSuccessEnvelope<AiApprovalNoteDraftResponse>>({
+      id: "ai.draftApprovalNote",
+      method: "POST",
+      path: "/api/ai/approvals/draft-note",
       semantics: "action"
     })
   }

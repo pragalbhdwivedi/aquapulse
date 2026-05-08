@@ -16,6 +16,8 @@ import type {
   AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AiApprovalNoteDraftRequest,
+  AiApprovalNoteDraftResponse,
   CurrentSessionPayload,
   AiResponseLogListQueryRequest,
   AiDashboardQueryRequest,
@@ -160,4 +162,5 @@ export interface AiApiClient {
   queryDashboard(input: AiDashboardQueryRequest): ApiItemContract<AiDashboardQueryResponse>;
   generateHandover(input: AiHandoverGenerateRequest): ApiItemContract<AiHandoverGenerateResponse>;
   draftIncident(input: AiIncidentsDraftRequest): ApiItemContract<AiIncidentsDraftResponse>;
+  draftApprovalNote(input: AiApprovalNoteDraftRequest): ApiItemContract<AiApprovalNoteDraftResponse>;
 }

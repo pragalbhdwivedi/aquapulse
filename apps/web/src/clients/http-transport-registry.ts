@@ -70,7 +70,8 @@ export function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
     [endpointInvocationRegistry.ai.generateHandover.endpointId]: handlers.ai.generateHandover,
     [endpointInvocationRegistry.ai.rewriteText.endpointId]: handlers.ai.rewriteText,
     [endpointInvocationRegistry.ai.queryDashboard.endpointId]: handlers.ai.queryDashboard,
-    [endpointInvocationRegistry.ai.draftIncident.endpointId]: handlers.ai.draftIncident
+    [endpointInvocationRegistry.ai.draftIncident.endpointId]: handlers.ai.draftIncident,
+    [endpointInvocationRegistry.ai.draftApprovalNote.endpointId]: handlers.ai.draftApprovalNote
   } as const;
 }
 

@@ -7,10 +7,11 @@ import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
 import { delegateAction, delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AiApplicationService } from "./application/ai.application-service";
 import { AiService } from "./ai.service";
-import { AlertExplanationFeedbackDto, CreateAiDto, DashboardQueryDto, DraftIncidentDto, ExplainAlertDto, GenerateHandoverDto, QueryAiDto, RewriteTextDto, SummarizePondDto, UpdateAiDto } from "./dto";
+import { AlertExplanationFeedbackDto, ApprovalNoteDraftDto, CreateAiDto, DashboardQueryDto, DraftIncidentDto, ExplainAlertDto, GenerateHandoverDto, QueryAiDto, RewriteTextDto, SummarizePondDto, UpdateAiDto } from "./dto";
 import {
   toAlertExplanationFeedbackInput,
   toAlertExplanationFeedbackResponse,
+  toAiApprovalNoteDraftResponse,
   toAiAlertsExplainResponse,
   toAiDashboardQueryResponse,
   toAiHandoverGenerateResponse,
@@ -21,6 +22,7 @@ import {
   toAiTextRewriteResponse,
   toCreateAiInput,
   toDashboardQueryInput,
+  toDraftApprovalNoteInput,
   toDraftIncidentInput,
   toExplainAlertInput,
   toGenerateHandoverInput,
@@ -169,6 +171,18 @@ export class AiController {
       toDraftIncidentInput,
       (mappedInput) => this.aiApplicationService.draftIncident(mappedInput),
       toAiIncidentsDraftResponse
+    );
+  }
+
+  @Post("approvals/draft-note")
+  async draftApprovalNote(
+    @Body() input: ApprovalNoteDraftDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ai.draftApprovalNote>> {
+    return delegateAction(
+      input,
+      toDraftApprovalNoteInput,
+      (mappedInput) => this.aiApplicationService.draftApprovalNote(mappedInput),
+      toAiApprovalNoteDraftResponse
     );
   }
 }

@@ -14,6 +14,8 @@ import type {
   AlertSavedViewDefinition,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AiApprovalNoteDraftRequest,
+  AiApprovalNoteDraftResponse,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
   AiHandoverGenerateRequest,
@@ -134,6 +136,7 @@ export interface AiRepository {
   queryDashboard(input: AiDashboardQueryRequest): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>>;
   generateHandover(input: AiHandoverGenerateRequest): Promise<ApiSuccessEnvelope<AiHandoverGenerateResponse>>;
   draftIncident(input: AiIncidentsDraftRequest): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>>;
+  draftApprovalNote(input: AiApprovalNoteDraftRequest): Promise<ApiSuccessEnvelope<AiApprovalNoteDraftResponse>>;
 }
 
 export interface AquaPulseRepositories {
@@ -289,6 +292,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       draftIncident(input: AiIncidentsDraftRequest) {
         return clients.ai.draftIncident(input);
+      },
+      draftApprovalNote(input: AiApprovalNoteDraftRequest) {
+        return clients.ai.draftApprovalNote(input);
       }
     }
   };
