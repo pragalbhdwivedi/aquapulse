@@ -28,6 +28,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.tertiaryProtectedSliceLabel).toBe("alerts_bulk_actions");
     expect(diagnostics.auth.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(diagnostics.auth.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
+    expect(diagnostics.auth.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(diagnostics.auth.nonAlertsProtectedReadSliceLabel).toBe("water_quality_detail_read");
     expect(diagnostics.auth.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
@@ -45,6 +47,10 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.session.protectedOperatorUiState).toBe("bypassed");
     expect(diagnostics.session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(diagnostics.session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
+    expect(diagnostics.session.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(diagnostics.session.nonAlertsReadAccessSummaryEnforced).toBe(false);
+    expect(diagnostics.session.nonAlertsReadGuardedSliceLabel).toBe("water_quality_detail_read");
+    expect(diagnostics.session.nonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -108,6 +114,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.tertiaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.quaternaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.auth.nonAlertsReadAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.auth.nonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);

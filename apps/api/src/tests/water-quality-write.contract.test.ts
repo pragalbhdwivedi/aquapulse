@@ -51,6 +51,22 @@ describe("Water-quality write vertical slice", () => {
     expect(response.data.recordedAt).toBe("2026-04-14T09:00:00.000Z");
   });
 
+  it("keeps controller -> service -> envelope delegation stable for detail reads", async () => {
+    const repository = new InMemoryWaterQualityRepository();
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const applicationService = new WaterQualityApplicationService(repository, alerts);
+    const controller = new WaterQualityController(
+      { getPlaceholder: async () => ({ ok: true }) } as never,
+      applicationService
+    );
+
+    const response = await controller.getById("wq-1");
+
+    expect(response.ok).toBe(true);
+    expect(response.data.id).toBe("wq-1");
+    expect(response.data.pondId).toBe("pond-1");
+  });
+
   it("triggers a deterministic operational alert for threshold breaches", async () => {
     const waterQualityRepository = new InMemoryWaterQualityRepository();
     const alertsRepository = new InMemoryAlertsRepository();

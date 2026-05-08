@@ -56,6 +56,10 @@ describe("Backend-backed frontend auth session resolution", () => {
               quaternaryProtectedSliceEnforced: true,
               nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_update_access",
               nonAlertsOperatorAccessSummaryEnforced: true,
+              nonAlertsReadAccessSummaryLabel: "non_alert_read_access",
+              nonAlertsReadAccessSummaryEnforced: true,
+              nonAlertsProtectedReadSliceLabel: "water_quality_detail_read",
+              nonAlertsProtectedReadSliceEnforced: true,
               nonAlertsProtectedSliceLabel: "tasks_update",
               nonAlertsProtectedSliceEnforced: true,
               secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -92,6 +96,10 @@ describe("Backend-backed frontend auth session resolution", () => {
     expect(diagnostics.session.quaternaryGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(diagnostics.session.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.session.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(diagnostics.session.nonAlertsReadAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.session.nonAlertsReadGuardedSliceLabel).toBe("water_quality_detail_read");
+    expect(diagnostics.session.nonAlertsReadGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");

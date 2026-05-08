@@ -4,6 +4,7 @@ import type {
 } from "@aquapulse/types";
 import { describeAlertsLiveUpdatesState } from "@web/features/alerts-live-updates";
 import {
+  deriveNonAlertReadAccessSummary,
   deriveNonAlertOperatorAccessSummary,
   deriveProtectedOperatorUiGuard,
   deriveProtectedReadUiGuard,
@@ -89,6 +90,7 @@ export function RuntimeDiagnosticsCard({
     session: diagnostics.session
   });
   const nonAlertOperatorSummary = deriveNonAlertOperatorAccessSummary(diagnostics.session);
+  const nonAlertReadSummary = deriveNonAlertReadAccessSummary(diagnostics.session);
 
   return (
     <section
@@ -189,8 +191,20 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.nonAlertsOperatorAccessSummaryEnforced || diagnostics.session.nonAlertsOperatorAccessSummaryEnforced ? "yes" : "no"}
         </span>
         <span>
+          Non-alert read summary: {diagnostics.auth.nonAlertsReadAccessSummaryLabel ?? diagnostics.session.nonAlertsReadAccessSummaryLabel ?? "none"} / Enforced:{" "}
+          {(diagnostics.auth.nonAlertsReadAccessSummaryEnforced ?? diagnostics.session.nonAlertsReadAccessSummaryEnforced) ? "yes" : "no"}
+        </span>
+        <span>
           Non-alert operator shared state: {nonAlertOperatorSummary.accessState} / Current-session sufficient:{" "}
           {nonAlertOperatorSummary.currentSessionSufficient ? "yes" : "no"} / Forwarding: {nonAlertOperatorSummary.forwardingState}
+        </span>
+        <span>
+          Non-alert read shared state: {nonAlertReadSummary.accessState} / Current-session sufficient:{" "}
+          {nonAlertReadSummary.currentSessionSufficient ? "yes" : "no"} / Forwarding: {nonAlertReadSummary.forwardingState}
+        </span>
+        <span>
+          Non-alert protected read slice: {diagnostics.auth.nonAlertsProtectedReadSliceLabel ?? diagnostics.session.nonAlertsReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {(diagnostics.auth.nonAlertsProtectedReadSliceEnforced ?? diagnostics.session.nonAlertsReadGuardedSliceEnforced) ? "yes" : "no"}
         </span>
         <span>
           Non-alert protected slice: {diagnostics.auth.nonAlertsProtectedSliceLabel ?? diagnostics.session.nonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
@@ -368,6 +382,18 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend non-alert operator summary: {backendProbe.runtime.auth.nonAlertsOperatorAccessSummaryLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.nonAlertsOperatorAccessSummaryEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend non-alert read summary: {backendProbe.runtime.auth.nonAlertsReadAccessSummaryLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.nonAlertsReadAccessSummaryEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend non-alert protected read slice: {backendProbe.runtime.auth.nonAlertsProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.nonAlertsProtectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (

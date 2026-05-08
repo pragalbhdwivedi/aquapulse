@@ -33,6 +33,10 @@ describe("Current session surface", () => {
     expect(session.quaternaryProtectedSliceEnforced).toBe(false);
     expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(session.nonAlertsReadAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsProtectedReadSliceLabel).toBe("water_quality_detail_read");
+    expect(session.nonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
@@ -82,6 +86,8 @@ describe("Current session surface", () => {
     expect(session.tertiaryProtectedSliceEnforced).toBe(false);
     expect(session.quaternaryProtectedSliceEnforced).toBe(false);
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsReadAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(false);
@@ -151,6 +157,8 @@ describe("Current session surface", () => {
     expect(session.tertiaryProtectedSliceEnforced).toBe(true);
     expect(session.quaternaryProtectedSliceEnforced).toBe(true);
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
+    expect(session.nonAlertsReadAccessSummaryEnforced).toBe(true);
+    expect(session.nonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);

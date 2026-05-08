@@ -1329,6 +1329,10 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly quaternaryProtectedSliceEnforced: boolean;
   readonly nonAlertsOperatorAccessSummaryLabel?: string;
   readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
@@ -1412,6 +1416,10 @@ export interface CurrentSessionPayload {
   readonly quaternaryProtectedSliceEnforced: boolean;
   readonly nonAlertsOperatorAccessSummaryLabel?: string;
   readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
@@ -1476,6 +1484,10 @@ export interface FrontendSessionBootstrapStatus {
   readonly quaternaryGuardedSliceEnforced: boolean;
   readonly nonAlertsOperatorAccessSummaryLabel?: string;
   readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsReadGuardedSliceLabel?: string;
+  readonly nonAlertsReadGuardedSliceEnforced?: boolean;
   readonly nonAlertsGuardedSliceLabel?: string;
   readonly nonAlertsGuardedSliceEnforced: boolean;
   readonly secondaryNonAlertsGuardedSliceLabel?: string;
@@ -1543,6 +1555,10 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly quaternaryProtectedSliceEnforced: boolean;
   readonly nonAlertsOperatorAccessSummaryLabel?: string;
   readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;

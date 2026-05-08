@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveNonAlertReadAccessSummary,
   deriveNonAlertOperatorAccessSummary,
   deriveFrontendSessionBootstrap,
   deriveProtectedOperatorUiGuard,
@@ -34,6 +35,10 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.quaternaryGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(session.nonAlertsReadAccessSummaryEnforced).toBe(false);
+    expect(session.nonAlertsReadGuardedSliceLabel).toBe("water_quality_detail_read");
+    expect(session.nonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -70,6 +75,10 @@ describe("Frontend auth session bootstrap", () => {
     const listReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.protectedReadGuardedSliceLabel,
       enforcedByBackend: session.protectedReadGuardedSliceEnforced
+    });
+    const nonAlertReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.nonAlertsReadGuardedSliceLabel,
+      enforcedByBackend: session.nonAlertsReadGuardedSliceEnforced
     });
     const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
@@ -113,6 +122,7 @@ describe("Frontend auth session bootstrap", () => {
       sliceLabel: session.octonaryNonAlertsGuardedSliceLabel
     });
     const nonAlertSummary = deriveNonAlertOperatorAccessSummary(session);
+    const nonAlertReadSummary = deriveNonAlertReadAccessSummary(session);
 
     expect(session.bootstrapState).toBe("active");
     expect(session.sourceOfTruth).toBe("runtime_derived");
@@ -120,6 +130,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.sessionPresent).toBe(true);
     expect(listReadGuard.enforcedByBackend).toBe(true);
     expect(listReadGuard.state).toBe("enabled");
+    expect(nonAlertReadGuard.enforcedByBackend).toBe(true);
+    expect(nonAlertReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -159,6 +171,9 @@ describe("Frontend auth session bootstrap", () => {
       "ponds_create"
     ]);
     expect(nonAlertSummary.accessState).toBe("available");
+    expect(nonAlertReadSummary.label).toBe("non_alert_read_access");
+    expect(nonAlertReadSummary.protectedSlices).toEqual(["water_quality_detail_read"]);
+    expect(nonAlertReadSummary.accessState).toBe("available");
   });
 
   it("degrades safely when keycloak mode is requested but config is incomplete", () => {

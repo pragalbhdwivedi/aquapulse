@@ -169,6 +169,10 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.quaternaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(diagnostics.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
+    expect(diagnostics.nonAlertsReadAccessSummaryEnforced).toBe(true);
+    expect(diagnostics.nonAlertsProtectedReadSliceLabel).toBe("water_quality_detail_read");
+    expect(diagnostics.nonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");

@@ -34,6 +34,16 @@ export interface NonAlertOperatorAccessSummary {
   readonly message: string;
 }
 
+export interface NonAlertReadAccessSummary {
+  readonly label: string;
+  readonly protectedSlices: readonly string[];
+  readonly enforcedByBackend: boolean;
+  readonly currentSessionSufficient: boolean;
+  readonly forwardingState: "forwarded" | "missing" | "bypassed" | "degraded";
+  readonly accessState: "available" | "auth_required" | "bypassed_local" | "degraded";
+  readonly message: string;
+}
+
 export function deriveFrontendSessionBootstrap(
   auth: FrontendAuthRuntimeDiagnostics,
   options: {
@@ -139,6 +149,16 @@ export function deriveFrontendSessionBootstrap(
     nonAlertsOperatorAccessSummaryEnforced:
       currentSession?.nonAlertsOperatorAccessSummaryEnforced ??
       auth.nonAlertsOperatorAccessSummaryEnforced,
+    nonAlertsReadAccessSummaryLabel:
+      currentSession?.nonAlertsReadAccessSummaryLabel ?? auth.nonAlertsReadAccessSummaryLabel,
+    nonAlertsReadAccessSummaryEnforced:
+      currentSession?.nonAlertsReadAccessSummaryEnforced ??
+      auth.nonAlertsReadAccessSummaryEnforced,
+    nonAlertsReadGuardedSliceLabel:
+      currentSession?.nonAlertsProtectedReadSliceLabel ?? auth.nonAlertsProtectedReadSliceLabel,
+    nonAlertsReadGuardedSliceEnforced:
+      currentSession?.nonAlertsProtectedReadSliceEnforced ??
+      auth.nonAlertsProtectedReadSliceEnforced,
     nonAlertsGuardedSliceLabel:
       currentSession?.nonAlertsProtectedSliceLabel ?? auth.nonAlertsProtectedSliceLabel,
     nonAlertsGuardedSliceEnforced:
@@ -344,6 +364,7 @@ export function deriveProtectedReadUiGuard(
   const isPrimarySlice = sliceLabel === session.protectedReadGuardedSliceLabel;
   const isSecondarySlice = sliceLabel === session.secondaryProtectedReadGuardedSliceLabel;
   const isTertiarySlice = sliceLabel === session.tertiaryProtectedReadGuardedSliceLabel;
+  const isNonAlertsReadSlice = sliceLabel === session.nonAlertsReadGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -352,6 +373,8 @@ export function deriveProtectedReadUiGuard(
         ? session.secondaryProtectedReadGuardedSliceEnforced
         : isTertiarySlice
           ? session.tertiaryProtectedReadGuardedSliceEnforced
+          : isNonAlertsReadSlice
+            ? session.nonAlertsReadGuardedSliceEnforced ?? false
           : false);
   const state =
     enforcedByBackend && session.bootstrapState === "unavailable"
@@ -367,13 +390,13 @@ export function deriveProtectedReadUiGuard(
   const message =
     state === "enabled"
       ? enforcedByBackend
-        ? "Protected alert read is enabled with forwarded auth available."
-        : "Alert read is available because backend auth enforcement is bypassed in this bounded stage."
+        ? "Protected read is enabled with forwarded auth available."
+        : "Read access is available because backend auth enforcement is bypassed in this bounded stage."
       : state === "bypassed"
         ? session.bootstrapState === "degraded"
-          ? "Frontend auth config is degraded, so the bounded alert read surface is staying on the safe local bypass path."
-          : "Alert read remains available because auth is disabled or local mode is active."
-        : "Protected alert read is unavailable until a forwarded auth session is present.";
+          ? "Frontend auth config is degraded, so the bounded read surface is staying on the safe local bypass path."
+          : "Read access remains available because auth is disabled or local mode is active."
+        : "Protected read is unavailable until a forwarded auth session is present.";
 
   return {
     sliceLabel: sliceLabel ?? "alerts_read_surface",
@@ -489,6 +512,54 @@ export function deriveNonAlertOperatorAccessSummary(
 
   return {
     label: session.nonAlertsOperatorAccessSummaryLabel ?? "non_alert_operator_update_access",
+    protectedSlices,
+    enforcedByBackend,
+    currentSessionSufficient,
+    forwardingState,
+    accessState,
+    message
+  };
+}
+
+export function deriveNonAlertReadAccessSummary(
+  session: FrontendSessionBootstrapStatus
+): NonAlertReadAccessSummary {
+  const protectedSlices = [session.nonAlertsReadGuardedSliceLabel].filter(
+    (value): value is string => Boolean(value)
+  );
+  const enforcedByBackend =
+    session.nonAlertsReadAccessSummaryEnforced ??
+    session.nonAlertsReadGuardedSliceEnforced ??
+    false;
+  const currentSessionSufficient =
+    session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
+  const forwardingState =
+    session.bootstrapState === "degraded"
+      ? "degraded"
+      : session.effectiveMode !== "keycloak"
+        ? "bypassed"
+        : session.forwardingActive
+          ? "forwarded"
+          : "missing";
+  const accessState =
+    session.bootstrapState === "degraded"
+      ? "degraded"
+      : session.effectiveMode !== "keycloak"
+        ? "bypassed_local"
+        : currentSessionSufficient && session.forwardingActive
+          ? "available"
+          : "auth_required";
+  const message =
+    accessState === "available"
+      ? "Bounded non-alert read access is aligned with forwarded auth and complements the non-alert mutation summary."
+      : accessState === "bypassed_local"
+        ? "Bounded non-alert read access remains available because auth is disabled or local mode is active."
+        : accessState === "degraded"
+          ? "Bounded non-alert read access is staying on the safe local bypass path because auth/session configuration is degraded."
+          : "Bounded non-alert read access is protected in active auth mode and needs forwarded auth plus a resolved current-session.";
+
+  return {
+    label: session.nonAlertsReadAccessSummaryLabel ?? "non_alert_read_access",
     protectedSlices,
     enforcedByBackend,
     currentSessionSufficient,

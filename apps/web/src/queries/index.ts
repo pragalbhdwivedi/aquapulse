@@ -114,6 +114,12 @@ export function createReadonlyQueries(repositories: Pick<
         summary: summary.data
       };
     },
+    async getWaterQualityDetailPageData(
+      readingId: string
+    ): Promise<WaterQualityReading> {
+      const detail = await repositories.waterQuality.getById(readingId);
+      return detail.data;
+    },
     async getAlertsPageData(query: AlertsListQuery = defaultAlertsQuery): Promise<{
       alerts: ListResponse<AlertSummary>;
       summary: AlertQueueSummary;
@@ -173,6 +179,12 @@ export async function getPondDetailPageData(pondId: string): Promise<{
   summary: AiPondsSummarizeResponse;
 }> {
   return readonlyQueries.getPondDetailPageData(pondId);
+}
+
+export async function getWaterQualityDetailPageData(
+  readingId: string
+): Promise<WaterQualityReading> {
+  return readonlyQueries.getWaterQualityDetailPageData(readingId);
 }
 
 export async function getPondMapPageData(): Promise<ListResponse<PondSummary>> {
