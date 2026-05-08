@@ -7,6 +7,14 @@ export const pondCreateSchema = z.object({
   kind: z.enum(["pond", "tank", "cage"])
 });
 
+export const pondUpdateSchema = z.object({
+  name: z.string().min(2).optional(),
+  code: z.string().min(2).optional(),
+  farmId: z.string().min(1).optional(),
+  kind: z.enum(["pond", "tank", "cage"]).optional(),
+  status: z.enum(["active", "maintenance", "inactive"]).optional()
+});
+
 export const batchCreateSchema = z.object({
   name: z.string().min(2),
   pondId: z.string().min(1),

@@ -31,12 +31,14 @@ describe("Current session surface", () => {
     expect(session.tertiaryProtectedSliceEnforced).toBe(false);
     expect(session.quaternaryProtectedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(session.quaternaryProtectedSliceEnforced).toBe(false);
-    expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_access");
+    expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(false);
+    expect(session.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
+    expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.user).toBeUndefined();
   });
 
@@ -72,6 +74,7 @@ describe("Current session surface", () => {
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(false);
+    expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(false);
   });
 
   it("returns a verified keycloak-backed current user when a valid bearer token is supplied", async () => {
@@ -135,6 +138,7 @@ describe("Current session surface", () => {
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
   });
 
   it("derives operator access from alerts:operate permission when the role is not present", async () => {

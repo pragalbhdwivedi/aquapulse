@@ -23,6 +23,7 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
+  PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   WaterQualityReading
@@ -285,7 +286,15 @@ export function createEndpointHandlersFromClients(
       create: createMutationFromDetailHandler(clients.ponds),
       list: createListHandler(clients.ponds, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.ponds),
-      update: createMutationFromDetailHandler(clients.ponds),
+      update:
+        "update" in clients.ponds
+          ? createUpdateHandler(clients.ponds as typeof clients.ponds & {
+              update: (id: string, input: PondUpdateRequest) => Promise<{
+                ok: true;
+                data: EndpointResponse<EndpointCatalog["ponds"]["getById"]>["data"];
+              }>;
+            })
+          : createMutationFromDetailHandler(clients.ponds),
       summarize: async (request) => clients.ponds.summarize(request)
     },
     alerts: {
@@ -541,6 +550,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     ponds: {
       list: (query) => handlers.ponds.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.ponds.getById({ id }),
+      update: (id, input) => handlers.ponds.update({ id, body: input }),
       summarize: (input) => handlers.ponds.summarize(input)
     },
     alerts: {

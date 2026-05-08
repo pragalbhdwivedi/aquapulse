@@ -23,6 +23,7 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondUpdateRequest,
   PondSummary,
   TaskCreateRequest,
   TaskUpdateRequest,
@@ -123,6 +124,13 @@ export function createHttpClientFactory({
       },
       getById(id) {
         return invokeItemEndpoint<PondSummary>(executor, registry.ponds.getById, { id });
+      },
+      update(id: string, input: PondUpdateRequest) {
+        return invokeCreateEndpoint<PondSummary, { readonly id: string; readonly body: PondUpdateRequest }>(
+          executor,
+          registry.ponds.update,
+          { id, body: input }
+        );
       }
     },
     waterQuality: {

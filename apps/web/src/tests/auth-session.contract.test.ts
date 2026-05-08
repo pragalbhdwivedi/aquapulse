@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveNonAlertOperatorAccessSummary,
   deriveFrontendSessionBootstrap,
   deriveProtectedOperatorUiGuard,
   deriveProtectedReadUiGuard,
@@ -31,12 +32,14 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.tertiaryGuardedSliceEnforced).toBe(false);
     expect(session.quaternaryGuardedSliceLabel).toBe("alerts_saved_view_mutations");
     expect(session.quaternaryGuardedSliceEnforced).toBe(false);
-    expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_access");
+    expect(session.nonAlertsOperatorAccessSummaryLabel).toBe("non_alert_operator_update_access");
     expect(session.nonAlertsOperatorAccessSummaryEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
     expect(session.secondaryNonAlertsGuardedSliceEnforced).toBe(false);
+    expect(session.tertiaryNonAlertsGuardedSliceLabel).toBe("ponds_update");
+    expect(session.tertiaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(lifecycleGuard.enabled).toBe(true);
     expect(lifecycleGuard.enforcedByBackend).toBe(true);
   });
@@ -81,6 +84,10 @@ describe("Frontend auth session bootstrap", () => {
     const feedUpdateGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.secondaryNonAlertsGuardedSliceLabel
     });
+    const pondsUpdateGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.tertiaryNonAlertsGuardedSliceLabel
+    });
+    const nonAlertSummary = deriveNonAlertOperatorAccessSummary(session);
 
     expect(session.bootstrapState).toBe("active");
     expect(session.sourceOfTruth).toBe("runtime_derived");
@@ -103,6 +110,11 @@ describe("Frontend auth session bootstrap", () => {
     expect(tasksUpdateGuard.state).toBe("enabled");
     expect(feedUpdateGuard.enforcedByBackend).toBe(true);
     expect(feedUpdateGuard.state).toBe("enabled");
+    expect(pondsUpdateGuard.enforcedByBackend).toBe(true);
+    expect(pondsUpdateGuard.state).toBe("enabled");
+    expect(nonAlertSummary.label).toBe("non_alert_operator_update_access");
+    expect(nonAlertSummary.protectedSlices).toEqual(["tasks_update", "feed_update", "ponds_update"]);
+    expect(nonAlertSummary.accessState).toBe("available");
   });
 
   it("degrades safely when keycloak mode is requested but config is incomplete", () => {

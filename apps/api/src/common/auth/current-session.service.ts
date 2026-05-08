@@ -105,12 +105,14 @@ export class CurrentSessionService {
       tertiaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
       quaternaryProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
-      nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+      nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_update_access",
       nonAlertsOperatorAccessSummaryEnforced: runtime.effectiveMode === "keycloak",
       nonAlertsProtectedSliceLabel: "tasks_update",
       nonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryNonAlertsProtectedSliceLabel: "feed_update",
       secondaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
+      tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
+      tertiaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       verificationState:
         runtime.effectiveMode === "disabled"
           ? "disabled"

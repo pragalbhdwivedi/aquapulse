@@ -332,12 +332,14 @@ export class RuntimeDiagnosticsService {
       tertiaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
       quaternaryProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
-      nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_access",
+      nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_update_access",
       nonAlertsOperatorAccessSummaryEnforced: authRuntime.effectiveMode === "keycloak",
       nonAlertsProtectedSliceLabel: "tasks_update",
       nonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       secondaryNonAlertsProtectedSliceLabel: "feed_update",
       secondaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
+      tertiaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -400,6 +402,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_FEED_UPDATE_SLICE_ACTIVE",
         message:
           "Feed update actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_PONDS_UPDATE_SLICE_ACTIVE",
+        message:
+          "Ponds update actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
       });
     }
 

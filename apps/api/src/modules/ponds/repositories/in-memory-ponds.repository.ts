@@ -4,7 +4,7 @@ import type { CreatePondsDto, UpdatePondsDto } from "../dto";
 import type { PondsRepositoryPort } from "../ports/ponds-repository.port";
 import type { PondListQueryContract } from "../query-contracts/ponds-query.contract";
 
-const pond: PondSummary = {
+let pond: PondSummary = {
   id: "pond-1",
   createdAt: "2026-04-13T00:00:00.000Z",
   updatedAt: "2026-04-13T00:00:00.000Z",
@@ -22,6 +22,11 @@ export class InMemoryPondsRepository implements PondsRepositoryPort {
   }
 
   async update(_id: string, _input: UpdatePondsDto): Promise<PondSummary> {
+    pond = {
+      ...pond,
+      ..._input,
+      updatedAt: "2026-04-15T07:00:00.000Z"
+    };
     return pond;
   }
 

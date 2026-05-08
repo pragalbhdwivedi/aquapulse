@@ -24,6 +24,16 @@ export interface AuthAlignedSurfaceDescriptor {
   readonly message: string;
 }
 
+export interface NonAlertOperatorAccessSummary {
+  readonly label: string;
+  readonly protectedSlices: readonly string[];
+  readonly enforcedByBackend: boolean;
+  readonly currentSessionSufficient: boolean;
+  readonly forwardingState: "forwarded" | "missing" | "bypassed" | "degraded";
+  readonly accessState: "available" | "auth_required" | "bypassed_local" | "degraded";
+  readonly message: string;
+}
+
 export function deriveFrontendSessionBootstrap(
   auth: FrontendAuthRuntimeDiagnostics,
   options: {
@@ -139,6 +149,12 @@ export function deriveFrontendSessionBootstrap(
     secondaryNonAlertsGuardedSliceEnforced:
       currentSession?.secondaryNonAlertsProtectedSliceEnforced ??
       auth.secondaryNonAlertsProtectedSliceEnforced,
+    tertiaryNonAlertsGuardedSliceLabel:
+      currentSession?.tertiaryNonAlertsProtectedSliceLabel ??
+      auth.tertiaryNonAlertsProtectedSliceLabel,
+    tertiaryNonAlertsGuardedSliceEnforced:
+      currentSession?.tertiaryNonAlertsProtectedSliceEnforced ??
+      auth.tertiaryNonAlertsProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -158,6 +174,7 @@ export function deriveProtectedOperatorUiGuard(
   const isQuaternarySlice = sliceLabel === session.quaternaryGuardedSliceLabel;
   const isNonAlertsSlice = sliceLabel === session.nonAlertsGuardedSliceLabel;
   const isSecondaryNonAlertsSlice = sliceLabel === session.secondaryNonAlertsGuardedSliceLabel;
+  const isTertiaryNonAlertsSlice = sliceLabel === session.tertiaryNonAlertsGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -172,6 +189,8 @@ export function deriveProtectedOperatorUiGuard(
               ? session.nonAlertsGuardedSliceEnforced
               : isSecondaryNonAlertsSlice
                 ? session.secondaryNonAlertsGuardedSliceEnforced
+                : isTertiaryNonAlertsSlice
+                  ? session.tertiaryNonAlertsGuardedSliceEnforced
               : false);
   const state =
     isPrimarySlice
@@ -201,6 +220,12 @@ export function deriveProtectedOperatorUiGuard(
             ? "bypassed"
             : "disabled"
       : isSecondaryNonAlertsSlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isTertiaryNonAlertsSlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
@@ -334,6 +359,57 @@ export function describeAuthAlignedSurface(options: {
     exposure,
     accessState: "auth_required",
     message: guard.message
+  };
+}
+
+export function deriveNonAlertOperatorAccessSummary(
+  session: FrontendSessionBootstrapStatus
+): NonAlertOperatorAccessSummary {
+  const protectedSlices = [
+    session.nonAlertsGuardedSliceLabel,
+    session.secondaryNonAlertsGuardedSliceLabel,
+    session.tertiaryNonAlertsGuardedSliceLabel
+  ].filter((value): value is string => Boolean(value));
+  const enforcedByBackend =
+    session.nonAlertsOperatorAccessSummaryEnforced ||
+    session.nonAlertsGuardedSliceEnforced ||
+    session.secondaryNonAlertsGuardedSliceEnforced ||
+    session.tertiaryNonAlertsGuardedSliceEnforced;
+  const currentSessionSufficient =
+    session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
+  const forwardingState =
+    session.bootstrapState === "degraded"
+      ? "degraded"
+      : session.effectiveMode !== "keycloak"
+        ? "bypassed"
+        : session.forwardingActive
+          ? "forwarded"
+          : "missing";
+  const accessState =
+    session.bootstrapState === "degraded"
+      ? "degraded"
+      : session.effectiveMode !== "keycloak"
+        ? "bypassed_local"
+        : currentSessionSufficient && session.forwardingActive
+          ? "available"
+          : "auth_required";
+  const message =
+    accessState === "available"
+      ? "Bounded non-alert operator updates are aligned with forwarded auth and current-session state."
+      : accessState === "bypassed_local"
+        ? "Bounded non-alert operator updates remain available because auth is disabled or local mode is active."
+        : accessState === "degraded"
+          ? "Bounded non-alert operator updates are staying on the safe local bypass path because auth/session configuration is degraded."
+          : "Bounded non-alert operator updates are protected in active auth mode and need forwarded auth plus a resolved current-session.";
+
+  return {
+    label: session.nonAlertsOperatorAccessSummaryLabel ?? "non_alert_operator_update_access",
+    protectedSlices,
+    enforcedByBackend,
+    currentSessionSufficient,
+    forwardingState,
+    accessState,
+    message
   };
 }
 

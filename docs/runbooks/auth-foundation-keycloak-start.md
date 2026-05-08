@@ -142,6 +142,7 @@ When `AQUAPULSE_WEB_ENABLE_BACKEND_CURRENT_SESSION=true`, the web app will try t
 Protected layout, runtime diagnostics, and the alerts workbench will all show whether they are currently using backend-derived session state or runtime-derived fallback state, along with the resolved current user/provider/role summary and alerts access level when available. The alerts workbench also uses that current-session surface to explain whether list/detail/summary reads and saved-view create/remove controls are active, bypassed, or blocked due to missing forwarded auth.
 The tasks page now reuses the same current-session/runtime model to explain whether the bounded `tasks_update` slice is active, bypassed, or blocked because forwarded auth/session state is missing.
 The feed page now reuses that same bounded non-alert operator model to explain whether `feed_update` is active, bypassed, or blocked because forwarded auth/current-session state is missing, while still keeping the update form readable in disabled and local modes.
+The pond detail page now applies the same bounded operator model to `ponds_update`, showing when the action is available, protected and waiting on forwarded auth/current-session, or safely bypassed in disabled/local modes.
 The runtime page and alerts workbench now also distinguish surface exposure explicitly:
 
 - `alerts_list_read`: `backend_protected`
@@ -149,10 +150,26 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - `alerts_summary_read`: `backend_protected`
 - alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
   forwarding/session state is insufficient
-- `non_alert_operator_access`: shared bounded non-alert operator access summary used by
-  `tasks_update` and `feed_update`
+- `non_alert_operator_update_access`: shared bounded non-alert operator access summary used by
+  `tasks_update`, `feed_update`, and `ponds_update`
 - `tasks_update`: first bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `feed_update`: second bounded non-alert `ui_guarded` + backend-enforced operator slice
+- `ponds_update`: third bounded non-alert `ui_guarded` + backend-enforced operator slice
+
+In Keycloak mode, those three update actions require forwarded auth and a current-session that resolves to an authenticated user before the UI will enable the action. In disabled and local modes, the same shared summary reports a bounded bypass path so mock/in-memory development stays usable.
+
+You can see the shared summary and the three bounded non-alert slices in:
+- `/api/auth/session`
+- `/runtime` frontend diagnostics
+- backend runtime diagnostics when runtime probing is enabled
+
+If `ponds_update` is blocked in Keycloak mode, check:
+- `Forwarded auth`
+- `Current-session endpoint`
+- `Session availability`
+- `Non-alert operator shared state`
+
+This branch still intentionally does not roll full RBAC or full-domain auth onto the rest of ponds, feed, tasks, water-quality, or websocket surfaces beyond the already bounded slices.
 
 ## Intentionally deferred in this branch
 

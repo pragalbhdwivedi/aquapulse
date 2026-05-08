@@ -124,6 +124,14 @@ export interface FeedUpdateRequest {
   readonly fedAt?: ISODateString;
 }
 
+export interface PondUpdateRequest {
+  readonly name?: string;
+  readonly code?: string;
+  readonly farmId?: EntityId;
+  readonly kind?: PondSummary["kind"];
+  readonly status?: PondSummary["status"];
+}
+
 export interface TaskSummary extends BaseEntity {
   readonly title: string;
   readonly status: TaskStatus;
@@ -642,7 +650,7 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/ponds/:id",
       semantics: "detail"
     }),
-    update: defineEndpoint<{ readonly id: EntityId; readonly body?: PlaceholderMutationRequest }, ApiSuccessEnvelope<PondSummary>>({
+    update: defineEndpoint<{ readonly id: EntityId; readonly body: PondUpdateRequest }, ApiSuccessEnvelope<PondSummary>>({
       id: "ponds.update",
       method: "PATCH",
       path: "/api/ponds/:id",
@@ -1311,6 +1319,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
   readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
   readonly forwardingMode:
     | "bypassed"
     | "proxy_env_token"
@@ -1382,6 +1392,8 @@ export interface CurrentSessionPayload {
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
   readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
   readonly verificationState:
     | "disabled"
     | "local_bypass"
@@ -1434,6 +1446,8 @@ export interface FrontendSessionBootstrapStatus {
   readonly nonAlertsGuardedSliceEnforced: boolean;
   readonly secondaryNonAlertsGuardedSliceLabel?: string;
   readonly secondaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsGuardedSliceLabel?: string;
+  readonly tertiaryNonAlertsGuardedSliceEnforced: boolean;
   readonly currentUser?: CurrentSessionUserSummary;
   readonly warnings: RuntimeWarning[];
 }
@@ -1489,6 +1503,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
   readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

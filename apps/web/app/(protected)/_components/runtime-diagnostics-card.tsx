@@ -4,6 +4,7 @@ import type {
 } from "@aquapulse/types";
 import { describeAlertsLiveUpdatesState } from "@web/features/alerts-live-updates";
 import {
+  deriveNonAlertOperatorAccessSummary,
   deriveProtectedOperatorUiGuard,
   deriveProtectedReadUiGuard,
   describeAuthAlignedSurface
@@ -87,6 +88,7 @@ export function RuntimeDiagnosticsCard({
     guard: deriveProtectedOperatorUiGuard(diagnostics.session),
     session: diagnostics.session
   });
+  const nonAlertOperatorSummary = deriveNonAlertOperatorAccessSummary(diagnostics.session);
 
   return (
     <section
@@ -187,12 +189,20 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.nonAlertsOperatorAccessSummaryEnforced || diagnostics.session.nonAlertsOperatorAccessSummaryEnforced ? "yes" : "no"}
         </span>
         <span>
+          Non-alert operator shared state: {nonAlertOperatorSummary.accessState} / Current-session sufficient:{" "}
+          {nonAlertOperatorSummary.currentSessionSufficient ? "yes" : "no"} / Forwarding: {nonAlertOperatorSummary.forwardingState}
+        </span>
+        <span>
           Non-alert protected slice: {diagnostics.auth.nonAlertsProtectedSliceLabel ?? diagnostics.session.nonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
           {diagnostics.auth.nonAlertsProtectedSliceEnforced || diagnostics.session.nonAlertsGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
           Second non-alert protected slice: {diagnostics.auth.secondaryNonAlertsProtectedSliceLabel ?? diagnostics.session.secondaryNonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
           {diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced || diagnostics.session.secondaryNonAlertsGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
+          Third non-alert protected slice: {diagnostics.auth.tertiaryNonAlertsProtectedSliceLabel ?? diagnostics.session.tertiaryNonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.tertiaryNonAlertsProtectedSliceEnforced || diagnostics.session.tertiaryNonAlertsGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
           Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}
@@ -350,6 +360,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend second non-alert protected slice: {backendProbe.runtime.auth.secondaryNonAlertsProtectedSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.secondaryNonAlertsProtectedSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend third non-alert protected slice: {backendProbe.runtime.auth.tertiaryNonAlertsProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.tertiaryNonAlertsProtectedSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

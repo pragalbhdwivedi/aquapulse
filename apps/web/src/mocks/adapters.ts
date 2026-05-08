@@ -29,6 +29,7 @@ import type {
   AlertUnassignActionRequest,
   FeedCreateRequest,
   FeedUpdateRequest,
+  PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   WaterQualityCreateRequest
@@ -37,6 +38,7 @@ import type { OperationalAlertDecision } from "@aquapulse/types";
 import {
   feedEntryCreateSchema,
   feedEntryUpdateSchema,
+  pondUpdateSchema,
   taskCreateSchema,
   taskUpdateSchema,
   waterQualityEntryCreateSchema
@@ -259,6 +261,26 @@ export const pondsMockAdapter: PondsApiClient = {
     return ok(list(items, normalizedQuery));
   },
   async getById(id: string) { return ok(mockPonds.find((item) => item.id === id) ?? mockPonds[0]); },
+  async update(id: string, input: PondUpdateRequest) {
+    const parsed = pondUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const existing = mockPonds.find((item) => item.id === id) ?? mockPonds[0];
+    const updated = {
+      ...existing,
+      ...parsed.data,
+      updatedAt: "2026-04-15T07:00:00.000Z"
+    };
+    const index = mockPonds.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockPonds[index] = updated;
+    } else {
+      mockPonds.unshift(updated);
+    }
+    return ok(updated);
+  },
   async summarize(_input: AiPondsSummarizeRequest) { return ok({ summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] }); }
 };
 export const batchesMockAdapter: BatchesApiClient = {

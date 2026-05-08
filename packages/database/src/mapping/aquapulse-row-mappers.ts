@@ -8,6 +8,7 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
+  PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary,
@@ -485,16 +486,23 @@ export function createPlaceholderAlertSavedViewRow(
   };
 }
 
-export function mapCreatePondInputToRowWrite(input: { readonly id?: string }): PondRowWrite {
+export function mapCreatePondInputToRowWrite(input: {
+  readonly id?: string;
+  readonly name?: string;
+  readonly code?: string;
+  readonly farmId?: string;
+  readonly kind?: PondSummary["kind"];
+  readonly status?: PondSummary["status"];
+}): PondRowWrite {
   const base = createPlaceholderPondRow(input.id ? { id: input.id } : {});
 
   return {
     id: base.id,
-    name: base.name,
-    code: base.code,
-    farm_id: base.farm_id,
-    kind: base.kind,
-    status: base.status,
+    name: input.name ?? base.name,
+    code: input.code ?? base.code,
+    farm_id: input.farmId ?? base.farm_id,
+    kind: input.kind ?? base.kind,
+    status: input.status ?? base.status,
     created_at: base.created_at,
     updated_at: base.updated_at
   };
@@ -502,11 +510,16 @@ export function mapCreatePondInputToRowWrite(input: { readonly id?: string }): P
 
 export function mapUpdatePondInputToRowPatch(
   id: string,
-  _input: { readonly id?: string }
+  input: PondUpdateRequest
 ): PondRowPatch {
   return {
     id,
-    updated_at: createPlaceholderPondRow({ id }).updated_at
+    updated_at: createPlaceholderPondRow({ id }).updated_at,
+    name: input.name,
+    code: input.code,
+    farm_id: input.farmId,
+    kind: input.kind,
+    status: input.status
   };
 }
 
