@@ -23,7 +23,9 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
+  PondCreateRequest,
   PondUpdateRequest,
+  PondSummary,
   TaskCreateRequest,
   TaskUpdateRequest,
   WaterQualityUpdateRequest,
@@ -284,7 +286,24 @@ export function createEndpointHandlersFromClients(
       session: async () => clients.auth.getSession()
     },
     ponds: {
-      create: createMutationFromDetailHandler(clients.ponds),
+      create:
+        "create" in clients.ponds
+          ? createCreateHandler(clients.ponds as typeof clients.ponds & {
+              create: (input: PondCreateRequest) => Promise<{
+                ok: true;
+                data: PondSummary;
+              }>;
+            })
+          : createMutationFromValue({
+              id: "pond-1",
+              createdAt: "2026-04-13T00:00:00.000Z",
+              updatedAt: "2026-04-13T00:00:00.000Z",
+              name: "North Pond 1",
+              code: "NP-01",
+              farmId: "farm-1",
+              kind: "pond" as const,
+              status: "active" as const
+            }),
       list: createListHandler(clients.ponds, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.ponds),
       update:
@@ -557,6 +576,7 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       getSession: () => handlers.auth.session({})
     },
     ponds: {
+      create: (input) => handlers.ponds.create(input),
       list: (query) => handlers.ponds.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.ponds.getById({ id }),
       update: (id, input) => handlers.ponds.update({ id, body: input }),

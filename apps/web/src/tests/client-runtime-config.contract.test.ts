@@ -183,6 +183,8 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.senaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.septenaryNonAlertsProtectedSliceLabel).toBe("tasks_create");
     expect(diagnostics.septenaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.octonaryNonAlertsProtectedSliceLabel).toBe("ponds_create");
+    expect(diagnostics.octonaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.forwardingActive).toBe(true);
     expect(diagnostics.forwardedAuthPresent).toBe(true);

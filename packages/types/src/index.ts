@@ -79,6 +79,13 @@ export interface PondSummary extends BaseEntity {
   readonly status: "active" | "maintenance" | "inactive";
 }
 
+export interface PondCreateRequest {
+  readonly name: string;
+  readonly code: string;
+  readonly farmId: EntityId;
+  readonly kind: PondSummary["kind"];
+}
+
 export interface BatchSummary extends BaseEntity {
   readonly name: string;
   readonly pondId: EntityId;
@@ -639,7 +646,7 @@ export const aquaPulseEndpointCatalog = {
     })
   },
   ponds: {
-    create: defineEndpoint<PlaceholderMutationRequest, ApiSuccessEnvelope<PondSummary>>({
+    create: defineEndpoint<PondCreateRequest, ApiSuccessEnvelope<PondSummary>>({
       id: "ponds.create",
       method: "POST",
       path: "/api/ponds",
@@ -1336,6 +1343,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly senaryNonAlertsProtectedSliceEnforced: boolean;
   readonly septenaryNonAlertsProtectedSliceLabel?: string;
   readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
   readonly forwardingMode:
     | "bypassed"
     | "proxy_env_token"
@@ -1417,6 +1426,8 @@ export interface CurrentSessionPayload {
   readonly senaryNonAlertsProtectedSliceEnforced: boolean;
   readonly septenaryNonAlertsProtectedSliceLabel?: string;
   readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
   readonly verificationState:
     | "disabled"
     | "local_bypass"
@@ -1479,6 +1490,8 @@ export interface FrontendSessionBootstrapStatus {
   readonly senaryNonAlertsGuardedSliceEnforced: boolean;
   readonly septenaryNonAlertsGuardedSliceLabel?: string;
   readonly septenaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly octonaryNonAlertsGuardedSliceLabel?: string;
+  readonly octonaryNonAlertsGuardedSliceEnforced: boolean;
   readonly currentUser?: CurrentSessionUserSummary;
   readonly warnings: RuntimeWarning[];
 }
@@ -1544,6 +1557,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly senaryNonAlertsProtectedSliceEnforced: boolean;
   readonly septenaryNonAlertsProtectedSliceLabel?: string;
   readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
   readonly defaultLocalUserLabel: string;
   readonly warnings: RuntimeWarning[];
 }

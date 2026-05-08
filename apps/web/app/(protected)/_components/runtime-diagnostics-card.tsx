@@ -221,6 +221,10 @@ export function RuntimeDiagnosticsCard({
           {diagnostics.auth.septenaryNonAlertsProtectedSliceEnforced || diagnostics.session.septenaryNonAlertsGuardedSliceEnforced ? "yes" : "no"}
         </span>
         <span>
+          Eighth non-alert protected slice: {diagnostics.auth.octonaryNonAlertsProtectedSliceLabel ?? diagnostics.session.octonaryNonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {diagnostics.auth.octonaryNonAlertsProtectedSliceEnforced || diagnostics.session.octonaryNonAlertsGuardedSliceEnforced ? "yes" : "no"}
+        </span>
+        <span>
           Forwarded auth: {diagnostics.auth.forwardedAuthPresent ? "present" : "absent"} / Mode:{" "}
           {diagnostics.auth.forwardingMode}
         </span>
@@ -406,6 +410,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend seventh non-alert protected slice: {backendProbe.runtime.auth.septenaryNonAlertsProtectedSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.septenaryNonAlertsProtectedSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend eighth non-alert protected slice: {backendProbe.runtime.auth.octonaryNonAlertsProtectedSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.octonaryNonAlertsProtectedSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

@@ -179,6 +179,12 @@ export function deriveFrontendSessionBootstrap(
     septenaryNonAlertsGuardedSliceEnforced:
       currentSession?.septenaryNonAlertsProtectedSliceEnforced ??
       auth.septenaryNonAlertsProtectedSliceEnforced,
+    octonaryNonAlertsGuardedSliceLabel:
+      currentSession?.octonaryNonAlertsProtectedSliceLabel ??
+      auth.octonaryNonAlertsProtectedSliceLabel,
+    octonaryNonAlertsGuardedSliceEnforced:
+      currentSession?.octonaryNonAlertsProtectedSliceEnforced ??
+      auth.octonaryNonAlertsProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -203,6 +209,7 @@ export function deriveProtectedOperatorUiGuard(
   const isQuinaryNonAlertsSlice = sliceLabel === session.quinaryNonAlertsGuardedSliceLabel;
   const isSenaryNonAlertsSlice = sliceLabel === session.senaryNonAlertsGuardedSliceLabel;
   const isSeptenaryNonAlertsSlice = sliceLabel === session.septenaryNonAlertsGuardedSliceLabel;
+  const isOctonaryNonAlertsSlice = sliceLabel === session.octonaryNonAlertsGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -227,7 +234,9 @@ export function deriveProtectedOperatorUiGuard(
                         ? session.senaryNonAlertsGuardedSliceEnforced
                         : isSeptenaryNonAlertsSlice
                           ? session.septenaryNonAlertsGuardedSliceEnforced
-                      : false);
+                          : isOctonaryNonAlertsSlice
+                            ? session.octonaryNonAlertsGuardedSliceEnforced
+                            : false);
   const state =
     isPrimarySlice
       ? session.protectedOperatorUiState
@@ -286,6 +295,12 @@ export function deriveProtectedOperatorUiGuard(
             ? "bypassed"
             : "disabled"
       : isSeptenaryNonAlertsSlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isOctonaryNonAlertsSlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
@@ -432,7 +447,8 @@ export function deriveNonAlertOperatorAccessSummary(
     session.quaternaryNonAlertsGuardedSliceLabel,
     session.quinaryNonAlertsGuardedSliceLabel,
     session.senaryNonAlertsGuardedSliceLabel,
-    session.septenaryNonAlertsGuardedSliceLabel
+    session.septenaryNonAlertsGuardedSliceLabel,
+    session.octonaryNonAlertsGuardedSliceLabel
   ].filter((value): value is string => Boolean(value));
   const enforcedByBackend =
     session.nonAlertsOperatorAccessSummaryEnforced ||
@@ -442,7 +458,8 @@ export function deriveNonAlertOperatorAccessSummary(
     session.quaternaryNonAlertsGuardedSliceEnforced ||
     session.quinaryNonAlertsGuardedSliceEnforced ||
     session.senaryNonAlertsGuardedSliceEnforced ||
-    session.septenaryNonAlertsGuardedSliceEnforced;
+    session.septenaryNonAlertsGuardedSliceEnforced ||
+    session.octonaryNonAlertsGuardedSliceEnforced;
   const currentSessionSufficient =
     session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
   const forwardingState =

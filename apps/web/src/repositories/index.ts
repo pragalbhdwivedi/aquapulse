@@ -33,6 +33,7 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
   PondUpdateRequest,
   PondSummary,
   TaskCreateRequest,
@@ -65,6 +66,7 @@ import type {
 } from "../contracts/api";
 
 export interface PondsRepository {
+  create(input: PondCreateRequest): Promise<ApiSuccessEnvelope<PondSummary>>;
   list(query?: PondsListQuery): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>>;
   getById(id: string): Promise<ApiSuccessEnvelope<PondSummary>>;
   update(id: string, input: PondUpdateRequest): Promise<ApiSuccessEnvelope<PondSummary>>;
@@ -148,6 +150,9 @@ export interface AquaPulseRepositories {
 export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepositories {
   return {
     ponds: {
+      create(input: PondCreateRequest) {
+        return clients.ponds.create(input);
+      },
       list(query?: PondsListQuery) {
         return clients.ponds.list(query);
       },

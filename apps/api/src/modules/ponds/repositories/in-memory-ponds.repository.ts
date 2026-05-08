@@ -17,7 +17,18 @@ let pond: PondSummary = {
 
 @Injectable()
 export class InMemoryPondsRepository implements PondsRepositoryPort {
-  async create(_input: CreatePondsDto): Promise<PondSummary> {
+  async create(input: CreatePondsDto): Promise<PondSummary> {
+    const createdAt = "2026-04-15T06:30:00.000Z";
+    pond = {
+      id: input.id ?? "pond-2",
+      createdAt,
+      updatedAt: createdAt,
+      name: input.name ?? "New Pond",
+      code: input.code ?? "NEW-01",
+      farmId: input.farmId ?? "farm-1",
+      kind: input.kind ?? "pond",
+      status: input.status ?? "active"
+    };
     return pond;
   }
 

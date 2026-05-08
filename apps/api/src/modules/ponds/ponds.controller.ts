@@ -23,6 +23,8 @@ export class PondsController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreatePondsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.create>> {

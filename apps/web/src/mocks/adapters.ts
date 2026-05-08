@@ -29,6 +29,7 @@ import type {
   AlertUnassignActionRequest,
   FeedCreateRequest,
   FeedUpdateRequest,
+  PondCreateRequest,
   PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
@@ -40,6 +41,7 @@ import type { OperationalAlertDecision } from "@aquapulse/types";
 import {
   feedEntryCreateSchema,
   feedEntryUpdateSchema,
+  pondCreateSchema,
   pondUpdateSchema,
   taskCreateSchema,
   taskUpdateSchema,
@@ -252,6 +254,25 @@ function buildMockExplanation(
 }
 
 export const pondsMockAdapter: PondsApiClient = {
+  async create(input: PondCreateRequest) {
+    const parsed = pondCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const created = {
+      id: `pond-${mockPonds.length + 1}`,
+      createdAt: "2026-04-15T06:30:00.000Z",
+      updatedAt: "2026-04-15T06:30:00.000Z",
+      name: parsed.data.name,
+      code: parsed.data.code,
+      farmId: parsed.data.farmId,
+      kind: parsed.data.kind,
+      status: "active" as const
+    };
+    mockPonds.unshift(created);
+    return ok(created);
+  },
   async list(query?: PondsListQuery) {
     const normalizedQuery = normalizeListQuery(query);
     const items = mockPonds.filter(

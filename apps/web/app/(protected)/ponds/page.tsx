@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { getPondsPageData } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
+import { PondCreateForm } from "./_components/pond-create-form";
 
 export default async function PondsPage() {
+  const diagnostics = await readResolvedFrontendRuntimeDiagnostics();
   const ponds = await getPondsPageData();
 
   return (
@@ -14,6 +17,11 @@ export default async function PondsPage() {
           </li>
         ))}
       </ul>
+      <PondCreateForm
+        session={diagnostics.session}
+        initialFarmId={ponds.items[0]?.farmId}
+        initialKind={ponds.items[0]?.kind}
+      />
     </PageShell>
   );
 }

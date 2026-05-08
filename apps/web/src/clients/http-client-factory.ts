@@ -23,6 +23,7 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
   PondUpdateRequest,
   PondSummary,
   TaskCreateRequest,
@@ -116,6 +117,13 @@ export function createHttpClientFactory({
     },
     ponds: {
       ...baseClients.ponds,
+      create(input: PondCreateRequest) {
+        return invokeCreateEndpoint<PondSummary, PondCreateRequest>(
+          executor,
+          registry.ponds.create,
+          input
+        );
+      },
       list(query) {
         return invokeListEndpoint<PondSummary, NonNullable<typeof query> | { page: number; pageSize: number }>(
           executor,

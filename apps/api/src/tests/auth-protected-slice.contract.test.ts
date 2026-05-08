@@ -112,6 +112,14 @@ class ProtectedPondsUpdateHandler {
   }
 }
 
+class ProtectedPondsCreateHandler {
+  @RequireAuthentication()
+  @RequireRoles("operator")
+  run() {
+    return true;
+  }
+}
+
 class ProtectedWaterQualityCreateHandler {
   @RequireAuthentication()
   @RequireRoles("operator")
@@ -144,6 +152,7 @@ function createExecutionContext(
     | typeof ProtectedTasksCreateHandler
     | typeof ProtectedFeedUpdateHandler
     | typeof ProtectedPondsUpdateHandler
+    | typeof ProtectedPondsCreateHandler
     | typeof ProtectedWaterQualityCreateHandler
     | typeof ProtectedWaterQualityUpdateHandler =
     ProtectedRuntimeDiagnosticsHandler
@@ -635,6 +644,44 @@ describe("First protected auth slice", () => {
 
     await expect(
       guard.canActivate(createExecutionContext({ headers: {} }, ProtectedPondsUpdateHandler))
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it("keeps the bounded ponds create operator slice usable in local mode", async () => {
+    const request: Record<string, unknown> = {
+      headers: {}
+    };
+    const authService = new ApiAuthService({
+      runtime: readApiAuthRuntimeConfig({
+        AQUAPULSE_AUTH_MODE: "local"
+      })
+    });
+    const authGuard = new PlaceholderAuthGuard(new Reflector(), authService);
+    const roleGuard = new PlaceholderRoleGuard(new Reflector(), authService);
+    const context = createExecutionContext(request, ProtectedPondsCreateHandler);
+
+    await expect(authGuard.canActivate(context)).resolves.toBe(true);
+    expect(roleGuard.canActivate(context)).toBe(true);
+    expect((request as { user?: { roles?: string[] } }).user?.roles).toContain("operator");
+  });
+
+  it("requires an authenticated operator on the bounded ponds create slice when keycloak mode is active", async () => {
+    const guard = new PlaceholderAuthGuard(
+      new Reflector(),
+      new ApiAuthService({
+        runtime: readApiAuthRuntimeConfig({
+          AQUAPULSE_AUTH_MODE: "keycloak",
+          AQUAPULSE_KEYCLOAK_ISSUER_URL: "https://id.example.com/realms/aquapulse",
+          AQUAPULSE_KEYCLOAK_JWKS_URL: "https://id.example.com/jwks",
+          AQUAPULSE_KEYCLOAK_REALM: "aquapulse",
+          AQUAPULSE_KEYCLOAK_CLIENT_ID: "aquapulse-web"
+        }),
+        fetchImpl: (async () => new Response(JSON.stringify({ keys: [] }), { status: 200 })) as typeof fetch
+      })
+    );
+
+    await expect(
+      guard.canActivate(createExecutionContext({ headers: {} }, ProtectedPondsCreateHandler))
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 

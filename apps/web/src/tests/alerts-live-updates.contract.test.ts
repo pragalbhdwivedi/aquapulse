@@ -233,6 +233,8 @@ describe("Alerts live updates connector", () => {
         senaryNonAlertsProtectedSliceEnforced: true,
         septenaryNonAlertsProtectedSliceLabel: "tasks_create",
         septenaryNonAlertsProtectedSliceEnforced: true,
+        octonaryNonAlertsProtectedSliceLabel: "ponds_create",
+        octonaryNonAlertsProtectedSliceEnforced: true,
         verificationState: "verified",
         warnings: []
       },

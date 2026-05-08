@@ -42,6 +42,7 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
   PondUpdateRequest,
   PondsListQueryRequest,
   PondSummary,
@@ -84,6 +85,7 @@ export type AiListQuery = AiResponseLogListQueryRequest;
 export const endpointCatalog = aquaPulseEndpointCatalog;
 
 export interface PondsApiClient {
+  create(input: PondCreateRequest): ApiItemContract<PondSummary>;
   list(query?: PondsListQuery): ApiListContract<PondSummary>;
   getById(id: string): ApiItemContract<PondSummary>;
   update(id: string, input: PondUpdateRequest): ApiItemContract<PondSummary>;
