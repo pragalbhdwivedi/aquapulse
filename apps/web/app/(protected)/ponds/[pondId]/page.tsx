@@ -17,7 +17,7 @@ export default async function PondDetailPage({ params }: { params: Promise<{ pon
       <p>Water-quality readings: {detail.waterQuality.items.length}</p>
       <p>AI summary: {detail.summary.summary}</p>
       <PondUpdateForm pond={detail.pond} session={diagnostics.session} />
-      <WaterQualityEntryForm pondId={detail.pond.id} />
+      <WaterQualityEntryForm pondId={detail.pond.id} session={diagnostics.session} />
     </PageShell>
   );
 }

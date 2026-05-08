@@ -31,6 +31,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
+    expect(diagnostics.auth.quaternaryNonAlertsProtectedSliceLabel).toBe("water_quality_create");
     expect(diagnostics.auth.forwardingMode).toBe("bypassed");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(false);
     expect(diagnostics.session.bootstrapState).toBe("bypassed");
@@ -46,6 +47,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.tertiaryNonAlertsGuardedSliceLabel).toBe("ponds_update");
     expect(diagnostics.session.tertiaryNonAlertsGuardedSliceEnforced).toBe(false);
+    expect(diagnostics.session.quaternaryNonAlertsGuardedSliceLabel).toBe("water_quality_create");
+    expect(diagnostics.session.quaternaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.alerts.effectiveMode).toBe("mock");
     expect(diagnostics.alertsLiveUpdates.enabled).toBe(false);
     expect(diagnostics.alertsLiveUpdates.connectionState).toBe("disabled");
@@ -95,6 +98,8 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.nonAlertsOperatorAccessSummaryEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth.quaternaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.auth.forwardedAuthPresent).toBe(true);
     expect(diagnostics.auth.forwardingActive).toBe(true);
@@ -827,6 +832,8 @@ describe("Frontend runtime diagnostics", () => {
                   secondaryNonAlertsProtectedSliceEnforced: false,
                   tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
                   tertiaryNonAlertsProtectedSliceEnforced: false,
+                  quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+                  quaternaryNonAlertsProtectedSliceEnforced: false,
                   forwardingMode: "bypassed",
                   forwardingActive: false,
                   forwardedAuthPresent: false,
@@ -922,6 +929,8 @@ describe("Frontend runtime diagnostics", () => {
               secondaryNonAlertsProtectedSliceEnforced: false,
               tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
               tertiaryNonAlertsProtectedSliceEnforced: false,
+              quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+              quaternaryNonAlertsProtectedSliceEnforced: false,
               forwardingMode: "bypassed",
               forwardingActive: false,
               forwardedAuthPresent: false,
@@ -1061,6 +1070,8 @@ describe("Frontend runtime diagnostics", () => {
                   secondaryNonAlertsProtectedSliceEnforced: true,
                   tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
                   tertiaryNonAlertsProtectedSliceEnforced: true,
+                  quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+                  quaternaryNonAlertsProtectedSliceEnforced: true,
                   forwardingMode: "unavailable",
                   forwardingActive: false,
                   forwardedAuthPresent: false,

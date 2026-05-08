@@ -62,6 +62,8 @@ describe("Backend-backed frontend auth session resolution", () => {
               secondaryNonAlertsProtectedSliceEnforced: true,
               tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
               tertiaryNonAlertsProtectedSliceEnforced: true,
+              quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+              quaternaryNonAlertsProtectedSliceEnforced: true,
               verificationState: "verified",
               warnings: []
             }
@@ -88,6 +90,8 @@ describe("Backend-backed frontend auth session resolution", () => {
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceEnforced).toBe(true);
     expect(diagnostics.session.tertiaryNonAlertsGuardedSliceLabel).toBe("ponds_update");
     expect(diagnostics.session.tertiaryNonAlertsGuardedSliceEnforced).toBe(true);
+    expect(diagnostics.session.quaternaryNonAlertsGuardedSliceLabel).toBe("water_quality_create");
+    expect(diagnostics.session.quaternaryNonAlertsGuardedSliceEnforced).toBe(true);
   });
 
   it("degrades safely to runtime-derived auth state when the backend current-session endpoint is unreachable", async () => {

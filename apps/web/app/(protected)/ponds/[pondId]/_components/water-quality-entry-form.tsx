@@ -1,17 +1,28 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
+import type { FrontendSessionBootstrapStatus } from "@aquapulse/types";
 import type { WaterQualityEntrySubmissionResult } from "@web/features/water-quality-entry";
 import { createWaterQualityEntrySubmitter } from "@web/features/water-quality-entry";
 import { toMutationPageState } from "@web/features/mutation-refresh";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
 import { createRepositoriesFromConfig } from "@web/repositories";
 import {
+  deriveNonAlertOperatorAccessSummary,
+  deriveProtectedOperatorUiGuard
+} from "@web/features/auth-session";
+import {
   deriveWaterQualityRuntimeIndicator,
   formatWaterQualityRuntimeError
 } from "@web/features/water-quality-runtime";
 
-export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
+export function WaterQualityEntryForm({
+  pondId,
+  session
+}: {
+  pondId: string;
+  session: FrontendSessionBootstrapStatus;
+}) {
   const [recordedAt, setRecordedAt] = useState("2026-04-14T08:00:00.000Z");
   const [temperatureC, setTemperatureC] = useState("28.4");
   const [ph, setPh] = useState("7.6");
@@ -45,10 +56,23 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
     () => deriveWaterQualityRuntimeIndicator(runtimeConfig),
     [runtimeConfig]
   );
+  const createGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.quaternaryNonAlertsGuardedSliceLabel ?? "water_quality_create",
+        enforcedByBackend: session.quaternaryNonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
+  const operatorSummary = useMemo(() => deriveNonAlertOperatorAccessSummary(session), [session]);
   const pageState = toMutationPageState(result, isSubmitting);
+  const createDisabled = !createGuard.enabled;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createDisabled) {
+      return;
+    }
     setIsSubmitting(true);
     setRuntimeError(null);
 
@@ -87,6 +111,19 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
           Water-quality runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
         </span>
         <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Water-quality create auth: {createGuard.sliceLabel} / {createGuard.state}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Shared non-alert operator access: {operatorSummary.label} / {operatorSummary.accessState}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {operatorSummary.message}
+        </span>
+        <span style={{ color: "#94a3b8" }}>
+          Current-session sufficient: {operatorSummary.currentSessionSufficient ? "yes" : "no"} /
+          Forwarding: {operatorSummary.forwardingState}
+        </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
             {warning.message}
@@ -95,17 +132,17 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
       </div>
       <label style={{ display: "block", marginBottom: 8 }}>
         Recorded At
-        <input value={recordedAt} onChange={(event) => setRecordedAt(event.target.value)} />
+        <input value={recordedAt} onChange={(event) => setRecordedAt(event.target.value)} disabled={createDisabled} />
       </label>
       <label style={{ display: "block", marginBottom: 8 }}>
         Temperature C
-        <input value={temperatureC} onChange={(event) => setTemperatureC(event.target.value)} />
+        <input value={temperatureC} onChange={(event) => setTemperatureC(event.target.value)} disabled={createDisabled} />
       </label>
       <label style={{ display: "block", marginBottom: 8 }}>
         pH
-        <input value={ph} onChange={(event) => setPh(event.target.value)} />
+        <input value={ph} onChange={(event) => setPh(event.target.value)} disabled={createDisabled} />
       </label>
-      <button type="submit" disabled={pageState.isSubmitting}>
+      <button type="submit" disabled={pageState.isSubmitting || createDisabled}>
         {pageState.isSubmitting ? "Saving..." : "Save Entry"}
       </button>
       {pageState.status === "success" ? (
@@ -121,6 +158,12 @@ export function WaterQualityEntryForm({ pondId }: { pondId: string }) {
         </p>
       ) : null}
       {runtimeError ? <p style={{ color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {createDisabled ? (
+        <p style={{ color: "#fca5a5" }}>
+          Water-quality create is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded non-alert operator action can run.
+        </p>
+      ) : null}
     </form>
   );
 }

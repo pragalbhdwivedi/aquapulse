@@ -175,6 +175,8 @@ describe("Client runtime config and invocation registry", () => {
     expect(diagnostics.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
     expect(diagnostics.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.quaternaryNonAlertsProtectedSliceLabel).toBe("water_quality_create");
+    expect(diagnostics.quaternaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.forwardingMode).toBe("proxy_env_token");
     expect(diagnostics.forwardingActive).toBe(true);
     expect(diagnostics.forwardedAuthPresent).toBe(true);

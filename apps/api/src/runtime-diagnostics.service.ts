@@ -340,6 +340,8 @@ export class RuntimeDiagnosticsService {
       secondaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
       tertiaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+      quaternaryNonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       defaultLocalUserLabel: `${authRuntime.localUser.displayName} (${authRuntime.localUser.username})`,
       warnings: authWarnings
     };
@@ -407,6 +409,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_PONDS_UPDATE_SLICE_ACTIVE",
         message:
           "Ponds update actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_WATER_QUALITY_CREATE_SLICE_ACTIVE",
+        message:
+          "Water-quality create actions now require verified auth in Keycloak mode. Local and disabled modes still keep the bounded non-alert operator flow usable for development."
       });
     }
 

@@ -1047,6 +1047,8 @@ export function getAuthRuntimeDiagnostics(
     secondaryNonAlertsProtectedSliceEnforced: effectiveMode === "keycloak",
     tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
     tertiaryNonAlertsProtectedSliceEnforced: effectiveMode === "keycloak",
+    quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+    quaternaryNonAlertsProtectedSliceEnforced: effectiveMode === "keycloak",
     forwardingMode,
     forwardingActive: effectiveMode === "keycloak" && forwardedAuthPresent,
     forwardedAuthPresent,

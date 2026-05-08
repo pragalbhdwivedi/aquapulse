@@ -113,6 +113,8 @@ export class CurrentSessionService {
       secondaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
       tertiaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
+      quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+      quaternaryNonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       verificationState:
         runtime.effectiveMode === "disabled"
           ? "disabled"
