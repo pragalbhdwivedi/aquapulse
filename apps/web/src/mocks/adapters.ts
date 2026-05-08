@@ -33,6 +33,8 @@ import type {
   TaskCreateRequest,
   TaskUpdateRequest,
   WaterQualityCreateRequest
+  ,
+  WaterQualityUpdateRequest
 } from "@aquapulse/types";
 import type { OperationalAlertDecision } from "@aquapulse/types";
 import {
@@ -41,7 +43,8 @@ import {
   pondUpdateSchema,
   taskCreateSchema,
   taskUpdateSchema,
-  waterQualityEntryCreateSchema
+  waterQualityEntryCreateSchema,
+  waterQualityEntryUpdateSchema
 } from "@aquapulse/validation";
 import {
   normalizeListQuery,
@@ -317,6 +320,26 @@ export const waterQualityMockAdapter: WaterQualityApiClient = {
       upsertMockOperationalAlert(decision);
     });
     return ok(created);
+  },
+  async update(id: string, input: WaterQualityUpdateRequest) {
+    const parsed = waterQualityEntryUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+      throw new Error("VALIDATION_ERROR");
+    }
+
+    const existing = mockWaterQuality.find((item) => item.id === id) ?? mockWaterQuality[0];
+    const updated = {
+      ...existing,
+      ...parsed.data,
+      updatedAt: parsed.data.recordedAt ?? "2026-04-15T10:00:00.000Z"
+    };
+    const index = mockWaterQuality.findIndex((item) => item.id === id);
+    if (index >= 0) {
+      mockWaterQuality[index] = updated;
+    } else {
+      mockWaterQuality.unshift(updated);
+    }
+    return ok(updated);
   },
   async list(query: WaterQualityListQuery) {
     const normalizedQuery = normalizeListQuery(query);

@@ -57,6 +57,8 @@ export class WaterQualityController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdateWaterQualityDto

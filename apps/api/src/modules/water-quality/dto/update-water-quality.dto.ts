@@ -1,1 +1,6 @@
-export class UpdateWaterQualityDto { id?: string; }
+export class UpdateWaterQualityDto {
+  pondId?: string;
+  recordedAt?: string;
+  temperatureC?: number;
+  ph?: number;
+}

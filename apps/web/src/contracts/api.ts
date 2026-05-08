@@ -50,6 +50,7 @@ import type {
   TasksListQueryRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityListQueryRequest,
   WaterQualityReading
 } from "@aquapulse/types";
@@ -100,6 +101,7 @@ export interface BatchesApiClient {
 
 export interface WaterQualityApiClient {
   create(input: WaterQualityCreateRequest): ApiItemContract<WaterQualityReading>;
+  update(id: string, input: WaterQualityUpdateRequest): ApiItemContract<WaterQualityReading>;
   list(query: WaterQualityListQuery): ApiListContract<WaterQualityReading>;
   getById(id: string): ApiItemContract<WaterQualityReading>;
 }

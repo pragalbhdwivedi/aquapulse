@@ -39,6 +39,7 @@ import type {
   TaskUpdateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type {
@@ -76,6 +77,7 @@ export interface BatchesRepository {
 
 export interface WaterQualityRepository {
   create(input: WaterQualityCreateRequest): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
+  update(id: string, input: WaterQualityUpdateRequest): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   list(query: WaterQualityListQuery): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
   getById(id: string): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   listByPond(
@@ -167,6 +169,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
     waterQuality: {
       create(input: WaterQualityCreateRequest) {
         return clients.waterQuality.create(input);
+      },
+      update(id: string, input: WaterQualityUpdateRequest) {
+        return clients.waterQuality.update(id, input);
       },
       list(query: WaterQualityListQuery) {
         return clients.waterQuality.list(query);

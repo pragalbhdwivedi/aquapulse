@@ -29,6 +29,13 @@ export const waterQualityEntryCreateSchema = z.object({
   ph: z.number().optional()
 });
 
+export const waterQualityEntryUpdateSchema = z.object({
+  pondId: z.string().min(1).optional(),
+  recordedAt: z.string().min(1).optional(),
+  temperatureC: z.number().optional(),
+  ph: z.number().optional()
+});
+
 export const feedEntryCreateSchema = z.object({
   pondId: z.string().min(1),
   feedType: z.string().min(2),

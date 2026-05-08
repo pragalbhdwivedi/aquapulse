@@ -42,6 +42,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.tertiaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.quaternaryNonAlertsGuardedSliceLabel).toBe("water_quality_create");
     expect(session.quaternaryNonAlertsGuardedSliceEnforced).toBe(false);
+    expect(session.quinaryNonAlertsGuardedSliceLabel).toBe("water_quality_update");
+    expect(session.quinaryNonAlertsGuardedSliceEnforced).toBe(false);
     expect(lifecycleGuard.enabled).toBe(true);
     expect(lifecycleGuard.enforcedByBackend).toBe(true);
   });
@@ -92,6 +94,9 @@ describe("Frontend auth session bootstrap", () => {
     const waterQualityCreateGuard = deriveProtectedOperatorUiGuard(session, {
       sliceLabel: session.quaternaryNonAlertsGuardedSliceLabel
     });
+    const waterQualityUpdateGuard = deriveProtectedOperatorUiGuard(session, {
+      sliceLabel: session.quinaryNonAlertsGuardedSliceLabel
+    });
     const nonAlertSummary = deriveNonAlertOperatorAccessSummary(session);
 
     expect(session.bootstrapState).toBe("active");
@@ -119,8 +124,16 @@ describe("Frontend auth session bootstrap", () => {
     expect(pondsUpdateGuard.state).toBe("enabled");
     expect(waterQualityCreateGuard.enforcedByBackend).toBe(true);
     expect(waterQualityCreateGuard.state).toBe("enabled");
+    expect(waterQualityUpdateGuard.enforcedByBackend).toBe(true);
+    expect(waterQualityUpdateGuard.state).toBe("enabled");
     expect(nonAlertSummary.label).toBe("non_alert_operator_update_access");
-    expect(nonAlertSummary.protectedSlices).toEqual(["tasks_update", "feed_update", "ponds_update", "water_quality_create"]);
+    expect(nonAlertSummary.protectedSlices).toEqual([
+      "tasks_update",
+      "feed_update",
+      "ponds_update",
+      "water_quality_create",
+      "water_quality_update"
+    ]);
     expect(nonAlertSummary.accessState).toBe("available");
   });
 

@@ -26,6 +26,7 @@ import type {
   PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
@@ -525,7 +526,15 @@ export function createEndpointHandlersFromClients(
         EndpointRequest<EndpointCatalog["waterQuality"]["list"]>
       >(clients.waterQuality, { page: 1, pageSize: 20, pondId: "pond-1" }),
       getById: createDetailHandler(clients.waterQuality),
-      update: createMutationFromDetailHandler(clients.waterQuality)
+      update:
+        "update" in clients.waterQuality
+          ? createUpdateHandler(clients.waterQuality as typeof clients.waterQuality & {
+              update: (id: string, input: WaterQualityUpdateRequest) => Promise<{
+                ok: true;
+                data: WaterQualityReading;
+              }>;
+            })
+          : createMutationFromDetailHandler(clients.waterQuality)
     },
     ai: {
       create: createMutationFromDetailHandler(clients.ai),
@@ -596,7 +605,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     waterQuality: {
       create: (input) => handlers.waterQuality.create(input),
       list: (query) => handlers.waterQuality.list(query),
-      getById: (id) => handlers.waterQuality.getById({ id })
+      getById: (id) => handlers.waterQuality.getById({ id }),
+      update: (id, input) => handlers.waterQuality.update({ id, body: input })
     },
     audit: {
       list: (query) => handlers.audit.list(query ?? { page: 1, pageSize: 20 }),

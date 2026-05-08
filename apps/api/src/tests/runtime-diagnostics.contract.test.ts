@@ -51,6 +51,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.tertiaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedSliceLabel).toBe("water_quality_create");
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.quinaryNonAlertsProtectedSliceLabel).toBe("water_quality_update");
+    expect(diagnostics.auth?.quinaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.database.host).toBe("db.internal");
     expect(diagnostics.database.configured).toBe(true);
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
@@ -159,6 +161,9 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_WATER_QUALITY_CREATE_SLICE_ACTIVE"
     );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_WATER_QUALITY_UPDATE_SLICE_ACTIVE"
+    );
     expect(diagnostics.auth?.protectedOperatorSliceEnforced).toBe(true);
     expect(diagnostics.auth?.secondaryProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryProtectedSliceEnforced).toBe(true);
@@ -168,6 +173,7 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedSliceEnforced).toBe(true);
+    expect(diagnostics.auth?.quinaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
   });
 

@@ -59,6 +59,8 @@ describe("Auth local API proxy", () => {
           tertiaryNonAlertsProtectedSliceEnforced: false,
           quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
           quaternaryNonAlertsProtectedSliceEnforced: false,
+          quinaryNonAlertsProtectedSliceLabel: "water_quality_update",
+          quinaryNonAlertsProtectedSliceEnforced: false,
           verificationState: "local_bypass",
           warnings: []
         }

@@ -29,6 +29,7 @@ import type {
   TaskUpdateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "./index";
@@ -154,6 +155,12 @@ export function createHttpClientFactory({
           registry.waterQuality.getById,
           { id }
         );
+      },
+      update(id: string, input: WaterQualityUpdateRequest) {
+        return invokeCreateEndpoint<
+          WaterQualityReading,
+          { readonly id: string; readonly body: WaterQualityUpdateRequest }
+        >(executor, registry.waterQuality.update, { id, body: input });
       }
     },
     alerts: {

@@ -227,6 +227,8 @@ describe("Alerts live updates connector", () => {
         tertiaryNonAlertsProtectedSliceEnforced: true,
         quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
         quaternaryNonAlertsProtectedSliceEnforced: true,
+        quinaryNonAlertsProtectedSliceLabel: "water_quality_update",
+        quinaryNonAlertsProtectedSliceEnforced: true,
         verificationState: "verified",
         warnings: []
       },
