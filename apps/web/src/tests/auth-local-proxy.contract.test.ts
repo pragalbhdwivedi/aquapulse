@@ -59,6 +59,8 @@ describe("Auth local API proxy", () => {
           secondaryNonAlertsProtectedReadSliceEnforced: false,
           tertiaryNonAlertsProtectedReadSliceLabel: "ponds_detail_read",
           tertiaryNonAlertsProtectedReadSliceEnforced: false,
+          quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
+          quaternaryNonAlertsProtectedReadSliceEnforced: false,
           nonAlertsProtectedSliceLabel: "tasks_update",
           nonAlertsProtectedSliceEnforced: false,
           secondaryNonAlertsProtectedSliceLabel: "feed_update",

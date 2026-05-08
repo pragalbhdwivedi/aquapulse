@@ -19,6 +19,7 @@ import {
   getPondDetailPageData,
   getPondDetailPagePreviewData,
   getPondsPageData,
+  getTaskDetailPageData,
   getReportsPageData
 } from "../queries";
 import { resetAlertsMockState } from "../mocks/adapters";
@@ -51,6 +52,13 @@ describe("Frontend query layer", () => {
     expect(pondDetail.pond?.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
     expect(pondDetail.summary.summary).toContain("Placeholder");
+  });
+
+  it("builds task detail data from repository-backed queries", async () => {
+    const taskDetail = await getTaskDetailPageData("task-1");
+
+    expect(taskDetail.id).toBe("task-1");
+    expect(taskDetail.title).toBeTruthy();
   });
 
   it("keeps alert, audit, pond, and report queries stable", async () => {

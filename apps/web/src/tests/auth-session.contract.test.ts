@@ -43,6 +43,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.secondaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.tertiaryNonAlertsReadGuardedSliceLabel).toBe("ponds_detail_read");
     expect(session.tertiaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+    expect(session.quaternaryNonAlertsReadGuardedSliceLabel).toBe("tasks_detail_read");
+    expect(session.quaternaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -91,6 +93,10 @@ describe("Frontend auth session bootstrap", () => {
     const pondsDetailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.tertiaryNonAlertsReadGuardedSliceLabel,
       enforcedByBackend: session.tertiaryNonAlertsReadGuardedSliceEnforced
+    });
+    const tasksDetailReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.quaternaryNonAlertsReadGuardedSliceLabel,
+      enforcedByBackend: session.quaternaryNonAlertsReadGuardedSliceEnforced
     });
     const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
@@ -148,6 +154,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(feedDetailReadGuard.state).toBe("enabled");
     expect(pondsDetailReadGuard.enforcedByBackend).toBe(true);
     expect(pondsDetailReadGuard.state).toBe("enabled");
+    expect(tasksDetailReadGuard.enforcedByBackend).toBe(true);
+    expect(tasksDetailReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -191,7 +199,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(nonAlertReadSummary.protectedSlices).toEqual([
       "water_quality_detail_read",
       "feed_detail_read",
-      "ponds_detail_read"
+      "ponds_detail_read",
+      "tasks_detail_read"
     ]);
     expect(nonAlertReadSummary.accessState).toBe("available");
   });

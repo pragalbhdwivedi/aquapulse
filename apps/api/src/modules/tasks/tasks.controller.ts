@@ -67,6 +67,8 @@ export class TasksController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.tasks.getById>> {

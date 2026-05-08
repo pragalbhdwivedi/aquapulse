@@ -1,12 +1,23 @@
-import { getTasksPageData } from "@web/queries";
+import { deriveProtectedReadUiGuard } from "@web/features/auth-session";
+import { getTaskDetailPageData, getTasksPageData } from "@web/queries";
 import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { PageShell } from "../_components/page-shell";
+import { TaskDetailReadCard } from "./_components/task-detail-read-card";
 import { TaskCreateForm } from "./_components/task-create-form";
 import { TaskUpdateForm } from "./_components/task-update-form";
 
 export default async function TasksPage() {
   const diagnostics = await readResolvedFrontendRuntimeDiagnostics();
   const tasks = await getTasksPageData();
+  const firstTask = tasks.items[0];
+  const taskReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
+    sliceLabel: diagnostics.session.quaternaryNonAlertsReadGuardedSliceLabel ?? "tasks_detail_read",
+    enforcedByBackend: diagnostics.session.quaternaryNonAlertsReadGuardedSliceEnforced ?? false
+  });
+  const firstTaskDetail =
+    firstTask && taskReadGuard.enabled
+      ? await getTaskDetailPageData(firstTask.id).catch(() => undefined)
+      : undefined;
 
   return (
     <PageShell title="Tasks" description="Placeholder tasks route using the repository and query layer.">
@@ -18,8 +29,15 @@ export default async function TasksPage() {
           </li>
         ))}
       </ul>
-      <TaskCreateForm pondId={tasks.items[0]?.pondId} session={diagnostics.session} />
-      {tasks.items[0] ? <TaskUpdateForm task={tasks.items[0]} session={diagnostics.session} /> : null}
+      {firstTask ? (
+        <TaskDetailReadCard
+          taskPreview={firstTask}
+          taskDetail={firstTaskDetail}
+          session={diagnostics.session}
+        />
+      ) : null}
+      <TaskCreateForm pondId={firstTask?.pondId} session={diagnostics.session} />
+      {firstTask ? <TaskUpdateForm task={firstTask} session={diagnostics.session} /> : null}
     </PageShell>
   );
 }

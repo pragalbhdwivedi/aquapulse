@@ -254,6 +254,13 @@ export async function getFeedDetailPageData(
   return detail.data;
 }
 
+export async function getTaskDetailPageData(
+  taskId: string
+): Promise<TaskSummary> {
+  const detail = await tasksRepository.getById(taskId);
+  return detail.data;
+}
+
 export async function getTasksPageData(): Promise<ListResponse<TaskSummary>> {
   return readonlyQueries.getTasksPageData();
 }
