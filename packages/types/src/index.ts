@@ -337,7 +337,15 @@ export interface AiResponseRecord extends BaseEntity {
 }
 
 export interface AiRequestRecord extends BaseEntity {
-  readonly requestType: "alerts_explain" | "ponds_summarize" | "handover_generate" | "text_rewrite" | "dashboard_query" | "incident_draft";
+  readonly requestType:
+    | "alerts_explain"
+    | "ponds_summarize"
+    | "handover_generate"
+    | "text_rewrite"
+    | "dashboard_query"
+    | "incident_draft"
+    | "daily_farm_summary"
+    | "shift_handover_generate";
   readonly requestedBy?: EntityId;
   readonly inputPayload: Record<string, unknown>;
   readonly status: "queued" | "processing" | "completed" | "failed";
@@ -452,24 +460,75 @@ export interface AlertExplanationAttachmentRequest {
   readonly note?: string;
 }
 
+export type AiOperatorAssistanceTaskLabel =
+  | "daily_farm_summary"
+  | "shift_handover_generate";
+
+export interface AiOperatorAssistanceMetadata {
+  readonly taskLabel: AiOperatorAssistanceTaskLabel;
+  readonly advisoryOnly: true;
+  readonly mode: "fallback" | "openai_nano";
+  readonly generatedAt: ISODateString;
+  readonly modelLabel: string;
+  readonly sourceLabel: string;
+  readonly usedLiveOpenAi: boolean;
+  readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+}
+
+export interface AiOperatorAssistanceAuditMetadata {
+  readonly requestId: EntityId;
+  readonly responseId: EntityId;
+  readonly requestLoggedAt: ISODateString;
+  readonly responseLoggedAt: ISODateString;
+  readonly fallbackUsed: boolean;
+}
+
+export interface AiOperatorAttentionItem {
+  readonly pondId?: EntityId;
+  readonly pondName: string;
+  readonly reason: string;
+  readonly priority: "low" | "medium" | "high";
+}
+
 export interface AiPondsSummarizeRequest {
-  readonly pondId: EntityId;
+  readonly pondId?: EntityId;
+  readonly farmId?: EntityId;
+  readonly generatedForDate?: ISODateString;
   readonly dateRange?: DateRange;
+  readonly includeMissingDataSignals?: boolean;
 }
 
 export interface AiPondsSummarizeResponse {
   readonly summary: string;
   readonly highlights: string[];
+  readonly headline: string;
+  readonly keyHighlights: string[];
+  readonly openIssues: string[];
+  readonly pendingActions: string[];
+  readonly pondsNeedingAttention: AiOperatorAttentionItem[];
+  readonly missingDataNotes: string[];
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface AiHandoverGenerateRequest {
   readonly shiftDate: ISODateString;
   readonly pondIds?: EntityId[];
+  readonly shiftLabel?: string;
+  readonly includeCompletedItems?: boolean;
 }
 
 export interface AiHandoverGenerateResponse {
   readonly summary: string;
   readonly actionItems: string[];
+  readonly headline: string;
+  readonly completedThisShift: string[];
+  readonly pendingItems: string[];
+  readonly priorityPonds: AiOperatorAttentionItem[];
+  readonly watchItems: string[];
+  readonly nextShiftNote: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface AiTextRewriteRequest {
@@ -1885,6 +1944,17 @@ export interface BackendRuntimeDiagnostics {
     readonly cacheEnabled: boolean;
     readonly attachmentAvailable: boolean;
     readonly feedbackEnabled: boolean;
+    readonly warnings: RuntimeWarning[];
+  };
+  readonly aiOperatorAssistance?: {
+    readonly enabled: boolean;
+    readonly advisoryOnly: true;
+    readonly mode: "fallback" | "openai_nano";
+    readonly configured: boolean;
+    readonly modelLabel: string;
+    readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+    readonly fallbackActive: boolean;
+    readonly supportedTasks: AiOperatorAssistanceTaskLabel[];
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;

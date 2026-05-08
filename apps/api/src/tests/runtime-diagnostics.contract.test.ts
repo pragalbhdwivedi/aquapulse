@@ -78,6 +78,13 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.database.connectivity.status).toBe("configured_only");
     expect(diagnostics.aiExplanations.mode).toBe("fallback");
     expect(diagnostics.aiExplanations.configured).toBe(false);
+    expect(diagnostics.aiOperatorAssistance?.enabled).toBe(true);
+    expect(diagnostics.aiOperatorAssistance?.mode).toBe("fallback");
+    expect(diagnostics.aiOperatorAssistance?.configured).toBe(false);
+    expect(diagnostics.aiOperatorAssistance?.supportedTasks).toEqual([
+      "daily_farm_summary",
+      "shift_handover_generate"
+    ]);
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);
@@ -232,6 +239,24 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.septenaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.octonaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.alertsLiveUpdates?.subscriptionPolicy).toBe("disabled");
+  });
+
+  it("surfaces bounded AI operator assistance diagnostics without requiring a live OpenAI provider", () => {
+    const service = new RuntimeDiagnosticsService({
+      env: {
+        AQUAPULSE_AI_OPERATOR_ASSISTANCE_MODE: "openai"
+      }
+    });
+
+    const diagnostics = service.getRuntimeDiagnostics();
+
+    expect(diagnostics.aiOperatorAssistance?.enabled).toBe(true);
+    expect(diagnostics.aiOperatorAssistance?.mode).toBe("fallback");
+    expect(diagnostics.aiOperatorAssistance?.configured).toBe(false);
+    expect(diagnostics.aiOperatorAssistance?.providerPath).toBe("deterministic_fallback");
+    expect(diagnostics.aiOperatorAssistance?.warnings.map((warning) => warning.code)).toContain(
+      "OPENAI_API_KEY_MISSING"
+    );
   });
 
   it("shows alerts cutover as active when Postgres adapters are enabled for the alerts module", () => {

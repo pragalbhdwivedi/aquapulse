@@ -268,17 +268,20 @@ export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQu
 export async function getReportsPageData(): Promise<{
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
+  dailySummary: AiPondsSummarizeResponse;
   handover: AiHandoverGenerateResponse;
 }> {
-  const [ponds, alerts, handover] = await Promise.all([
+  const [ponds, alerts, dailySummary, handover] = await Promise.all([
     pondsRepository.list(defaultPondsQuery),
     alertsRepository.list(defaultAlertsQuery),
+    pondsRepository.summarize({ generatedForDate: "2026-04-13T00:00:00.000Z", includeMissingDataSignals: true }),
     aiRepository.generateHandover({ shiftDate: "2026-04-13T00:00:00.000Z" })
   ]);
 
   return {
     ponds: ponds.data,
     alerts: alerts.data,
+    dailySummary: dailySummary.data,
     handover: handover.data
   };
 }

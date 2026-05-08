@@ -69,4 +69,11 @@ For AI alert explanations:
 - `mode = openai_nano` means the backend is configured to attempt a live OpenAI explanation call
 - `configured = false` means the backend will keep falling back safely even if OpenAI mode was requested
 
+For AI operator assistance:
+
+- `aiOperatorAssistance.mode = fallback` means daily farm summary and shift handover are running on the deterministic backend fallback path
+- `aiOperatorAssistance.mode = openai_nano` means the backend is configured to attempt the provider-backed Responses path
+- `aiOperatorAssistance.fallbackActive = true` means AquaPulse is intentionally staying on the safe degraded advisory path
+- `aiOperatorAssistance.supportedTasks` lists the currently bounded operator-assistance surfaces exposed in this branch
+
 These diagnostics are intentionally lightweight. They are for runtime clarity, not full monitoring or production observability.

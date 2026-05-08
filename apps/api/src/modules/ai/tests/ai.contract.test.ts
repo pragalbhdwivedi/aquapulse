@@ -157,7 +157,67 @@ describe("AI contracts", () => {
       list: vi.fn(),
       getById: vi.fn(),
       explainAlert: vi.fn().mockResolvedValue({ ok: true, data: explainResponse }),
-      submitAlertExplanationFeedback: vi.fn().mockResolvedValue({ ok: true, data: feedbackRecord })
+      submitAlertExplanationFeedback: vi.fn().mockResolvedValue({ ok: true, data: feedbackRecord }),
+      summarizePond: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          summary: "Daily summary headline",
+          highlights: ["One open issue."],
+          headline: "Daily summary headline",
+          keyHighlights: ["One open issue."],
+          openIssues: ["High alert remains open."],
+          pendingActions: ["Repeat the latest reading."],
+          pondsNeedingAttention: [],
+          missingDataNotes: [],
+          metadata: {
+            taskLabel: "daily_farm_summary",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-1",
+            responseId: "response-1",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
+      generateHandover: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          summary: "Shift handover headline",
+          actionItems: ["Check the alert queue."],
+          headline: "Shift handover headline",
+          completedThisShift: [],
+          pendingItems: ["Check the alert queue."],
+          priorityPonds: [],
+          watchItems: [],
+          nextShiftNote: "Start with the alert queue.",
+          metadata: {
+            taskLabel: "shift_handover_generate",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-2",
+            responseId: "response-2",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      })
     };
 
     const controller = new AiController(placeholderService as never, appService as never);

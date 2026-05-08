@@ -21,6 +21,10 @@ import { getCachedAlertsLiveUpdatesGatewayState } from "./common/config/alerts-l
 import { getCachedDatabaseConnectionStatus } from "./common/config/database-connectivity-cache";
 import { readAlertExplanationRuntimeConfig } from "./modules/ai/config/alert-explanation.config";
 import {
+  readOperatorAssistanceRuntimeConfig,
+  type OperatorAssistanceRuntimeEnv
+} from "./modules/ai/config/operator-assistance.config";
+import {
   readAlertsLiveUpdatesRuntimeConfig,
   type AlertsLiveUpdatesRuntimeEnvSource
 } from "./modules/alerts/live-updates/alerts-live-updates.config";
@@ -28,7 +32,8 @@ import {
 export interface RuntimeDiagnosticsServiceOptions {
   readonly env?: ApiDatabaseRuntimeEnvSource &
     AlertsLiveUpdatesRuntimeEnvSource &
-    ApiAuthRuntimeEnvSource;
+    ApiAuthRuntimeEnvSource &
+    OperatorAssistanceRuntimeEnv;
   readonly now?: () => string;
   readonly version?: string;
 }
@@ -37,14 +42,16 @@ export interface RuntimeDiagnosticsServiceOptions {
 export class RuntimeDiagnosticsService {
   private readonly env: ApiDatabaseRuntimeEnvSource &
     AlertsLiveUpdatesRuntimeEnvSource &
-    ApiAuthRuntimeEnvSource;
+    ApiAuthRuntimeEnvSource &
+    OperatorAssistanceRuntimeEnv;
   private readonly now: () => string;
   private readonly version: string;
 
   constructor(options: RuntimeDiagnosticsServiceOptions = {}) {
     this.env = (options.env ?? process.env) as ApiDatabaseRuntimeEnvSource &
       AlertsLiveUpdatesRuntimeEnvSource &
-      ApiAuthRuntimeEnvSource;
+      ApiAuthRuntimeEnvSource &
+      OperatorAssistanceRuntimeEnv;
     this.now = options.now ?? (() => new Date().toISOString());
     this.version = options.version ?? "0.1.0";
   }
@@ -54,6 +61,7 @@ export class RuntimeDiagnosticsService {
     const cachedKeycloakVerification = getCachedKeycloakVerificationState();
     const runtime = readApiDatabaseRuntimeConfig(this.env);
     const alertExplanationRuntime = readAlertExplanationRuntimeConfig({ ...this.env });
+    const operatorAssistanceRuntime = readOperatorAssistanceRuntimeConfig({ ...this.env });
     const alertsLiveUpdatesRuntime = readAlertsLiveUpdatesRuntimeConfig(
       this.env as ApiDatabaseRuntimeEnvSource & AlertsLiveUpdatesRuntimeEnvSource
     );
@@ -530,6 +538,19 @@ export class RuntimeDiagnosticsService {
         attachmentAvailable: true,
         feedbackEnabled: true,
         warnings: alertExplanationRuntime.warnings
+      },
+      aiOperatorAssistance: {
+        enabled: true,
+        advisoryOnly: true,
+        mode: operatorAssistanceRuntime.configured ? "openai_nano" : "fallback",
+        configured: operatorAssistanceRuntime.configured,
+        modelLabel: operatorAssistanceRuntime.modelLabel,
+        providerPath: operatorAssistanceRuntime.configured
+          ? "openai_responses_api"
+          : "deterministic_fallback",
+        fallbackActive: !operatorAssistanceRuntime.configured,
+        supportedTasks: ["daily_farm_summary", "shift_handover_generate"],
+        warnings: operatorAssistanceRuntime.warnings
       },
       alerts: {
         workbenchCutoverAvailable: true,

@@ -152,3 +152,77 @@ export const alertExplanationAttachmentSchema = z.object({
 export const aiDashboardQueryRequestSchema = z.object({
   question: z.string().min(3)
 });
+
+const aiOperatorAssistanceMetadataSchema = z.object({
+  taskLabel: z.enum(["daily_farm_summary", "shift_handover_generate"]),
+  advisoryOnly: z.literal(true),
+  mode: z.enum(["fallback", "openai_nano"]),
+  generatedAt: z.string().min(1),
+  modelLabel: z.string().min(1),
+  sourceLabel: z.string().min(1),
+  usedLiveOpenAi: z.boolean(),
+  providerPath: z.enum(["deterministic_fallback", "openai_responses_api"])
+});
+
+const aiOperatorAssistanceAuditMetadataSchema = z.object({
+  requestId: z.string().min(1),
+  responseId: z.string().min(1),
+  requestLoggedAt: z.string().min(1),
+  responseLoggedAt: z.string().min(1),
+  fallbackUsed: z.boolean()
+});
+
+const aiOperatorAttentionItemSchema = z.object({
+  pondId: z.string().min(1).optional(),
+  pondName: z.string().min(1),
+  reason: z.string().min(1),
+  priority: z.enum(["low", "medium", "high"])
+});
+
+export const aiDailyFarmSummaryRequestSchema = z.object({
+  pondId: z.string().min(1).optional(),
+  farmId: z.string().min(1).optional(),
+  generatedForDate: z.string().min(1).optional(),
+  dateRange: z.object({
+    from: z.string().min(1).optional(),
+    to: z.string().min(1).optional()
+  }).optional(),
+  includeMissingDataSignals: z.boolean().optional()
+});
+
+export const aiDailyFarmSummaryResponseSchema = z.object({
+  summary: z.string().min(1),
+  highlights: z.array(z.string().min(1)),
+  headline: z.string().min(1),
+  keyHighlights: z.array(z.string().min(1)),
+  openIssues: z.array(z.string().min(1)),
+  pendingActions: z.array(z.string().min(1)),
+  pondsNeedingAttention: z.array(aiOperatorAttentionItemSchema),
+  missingDataNotes: z.array(z.string().min(1)),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("daily_farm_summary")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});
+
+export const aiShiftHandoverRequestSchema = z.object({
+  shiftDate: z.string().min(1),
+  pondIds: z.array(z.string().min(1)).optional(),
+  shiftLabel: z.string().min(1).optional(),
+  includeCompletedItems: z.boolean().optional()
+});
+
+export const aiShiftHandoverResponseSchema = z.object({
+  summary: z.string().min(1),
+  actionItems: z.array(z.string().min(1)),
+  headline: z.string().min(1),
+  completedThisShift: z.array(z.string().min(1)),
+  pendingItems: z.array(z.string().min(1)),
+  priorityPonds: z.array(aiOperatorAttentionItemSchema),
+  watchItems: z.array(z.string().min(1)),
+  nextShiftNote: z.string().min(1),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("shift_handover_generate")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});

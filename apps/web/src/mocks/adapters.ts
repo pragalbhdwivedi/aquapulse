@@ -305,7 +305,43 @@ export const pondsMockAdapter: PondsApiClient = {
     }
     return ok(updated);
   },
-  async summarize(_input: AiPondsSummarizeRequest) { return ok({ summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] }); }
+  async summarize(input: AiPondsSummarizeRequest) {
+    const scopeLabel = input.pondId ? `Pond ${input.pondId}` : "Farm-wide daily summary";
+    return ok({
+      summary: `${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`,
+      highlights: ["Water-quality follow-up is pending on one pond.", "Open alert queue still needs review."],
+      headline: `${scopeLabel}: 2 ponds need attention and 3 follow-up actions are pending.`,
+      keyHighlights: ["Water-quality follow-up is pending on one pond.", "Open alert queue still needs review."],
+      openIssues: ["High water-quality alert remains open.", "One pond has no fresh feed log in the selected window."],
+      pendingActions: ["Repeat dissolved oxygen reading.", "Review open alert queue.", "Confirm next feed round."],
+      pondsNeedingAttention: [
+        {
+          pondId: input.pondId ?? "pond-1",
+          pondName: input.pondId ? `Pond ${input.pondId}` : "North Pond 1",
+          reason: "Fresh water-quality confirmation is still pending.",
+          priority: "high"
+        }
+      ],
+      missingDataNotes: ["One pond is missing a fresh feed entry for the selected window."],
+      metadata: {
+        taskLabel: "daily_farm_summary",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T09:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "mock-daily-summary-request",
+        responseId: "mock-daily-summary-response",
+        requestLoggedAt: "2026-05-08T09:00:00.000Z",
+        responseLoggedAt: "2026-05-08T09:00:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  }
 };
 export const batchesMockAdapter: BatchesApiClient = {
   async list(query?: BatchesListQuery) {
@@ -783,6 +819,41 @@ export const aiMockAdapter: AiApiClient = {
   async getById(id: string) { return ok(mockAiResponses.find((item) => item.id === id) ?? mockAiResponses[0]); },
   async rewriteText(input: AiTextRewriteRequest) { return ok({ rewrittenText: `[placeholder] ${input.text}` }); },
   async queryDashboard(_input: AiDashboardQueryRequest) { return ok({ answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] }); },
-  async generateHandover(_input: AiHandoverGenerateRequest) { return ok({ summary: "Placeholder handover summary.", actionItems: ["Check alert queue.", "Confirm next feed run."] }); },
+  async generateHandover(input: AiHandoverGenerateRequest) {
+    return ok({
+      summary: `${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`,
+      actionItems: ["Check alert queue.", "Confirm next feed run."],
+      headline: `${input.shiftLabel ?? "Shift handover"}: confirm the open alert queue and recheck the highest-priority pond first.`,
+      completedThisShift: ["Logged the latest feed entry.", "Captured fresh water-quality readings."],
+      pendingItems: ["Check alert queue.", "Confirm next feed run."],
+      priorityPonds: [
+        {
+          pondId: input.pondIds?.[0] ?? "pond-1",
+          pondName: input.pondIds?.[0] ? `Pond ${input.pondIds[0]}` : "North Pond 1",
+          reason: "Open water-quality follow-up remains unresolved.",
+          priority: "high"
+        }
+      ],
+      watchItems: ["One high-severity alert is still open.", "Confirm fresh readings before closing the shift."],
+      nextShiftNote: "Start with the open alert queue, then confirm fresh readings on the priority pond.",
+      metadata: {
+        taskLabel: "shift_handover_generate",
+        advisoryOnly: true,
+        generatedAt: "2026-05-08T09:30:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback"
+      },
+      audit: {
+        requestId: "mock-handover-request",
+        responseId: "mock-handover-response",
+        requestLoggedAt: "2026-05-08T09:30:00.000Z",
+        responseLoggedAt: "2026-05-08T09:30:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  },
   async draftIncident(_input: AiIncidentsDraftRequest) { return ok({ draftTitle: "Placeholder incident draft", draftBody: "Placeholder incident body." }); }
 };

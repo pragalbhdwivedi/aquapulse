@@ -46,7 +46,8 @@ describe("Frontend query layer", () => {
 
     expect(pondDetail.pond.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
-    expect(pondDetail.summary.summary).toContain("Placeholder");
+    expect(pondDetail.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(pondDetail.summary.summary).toContain("pending");
   });
 
   it("builds bounded pond preview data without requiring the protected detail route", async () => {
@@ -54,7 +55,8 @@ describe("Frontend query layer", () => {
 
     expect(pondDetail.pond?.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
-    expect(pondDetail.summary.summary).toContain("Placeholder");
+    expect(pondDetail.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(pondDetail.summary.summary).toContain("pending");
   });
 
   it("keeps bounded pond overview and recent water-quality queries stable as separate read surfaces", async () => {
@@ -66,7 +68,8 @@ describe("Frontend query layer", () => {
 
     expect(overview.pond.id).toBe("pond-1");
     expect(preview.pond?.id).toBe("pond-1");
-    expect(overview.summary.summary).toContain("Placeholder");
+    expect(overview.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(overview.summary.summary).toContain("pending");
     expect(recent.items.length).toBeGreaterThan(0);
   });
 
@@ -89,7 +92,10 @@ describe("Frontend query layer", () => {
     expect(alerts.explanation).toContain("Placeholder");
     expect(alerts.summary.assignmentCounts.unassigned).toBeGreaterThanOrEqual(0);
     expect(audit.items[0]?.resourceType).toBe("alert");
-    expect(reports.handover.summary).toContain("Placeholder");
+    expect(reports.dailySummary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(reports.dailySummary.pendingActions.length).toBeGreaterThan(0);
+    expect(reports.handover.metadata.taskLabel).toBe("shift_handover_generate");
+    expect(reports.handover.nextShiftNote).toBeTruthy();
   });
 
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {

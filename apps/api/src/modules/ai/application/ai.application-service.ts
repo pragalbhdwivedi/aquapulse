@@ -26,12 +26,14 @@ import type {
 import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.port";
 import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.contract";
 import { AlertExplanationService } from "../services/alert-explanation.service";
+import { OperatorAssistanceService } from "../services/operator-assistance.service";
 
 @Injectable()
 export class AiApplicationService {
   constructor(
     @Inject(AI_REPOSITORY) private readonly aiRepository: AiRepositoryPort,
-    private readonly alertExplanationService?: AlertExplanationService
+    private readonly alertExplanationService?: AlertExplanationService,
+    private readonly operatorAssistanceService?: OperatorAssistanceService
   ) {}
 
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.create(_input) }; }
@@ -92,8 +94,78 @@ export class AiApplicationService {
       }
     };
   }
-  async summarizePond(_input: SummarizePondDto): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>> { return { ok: true, data: { summary: "Placeholder pond summary.", highlights: ["Water quality stable.", "One open alert."] } }; }
-  async generateHandover(_input: GenerateHandoverDto): Promise<ApiSuccessEnvelope<AiHandoverGenerateResponse>> { return { ok: true, data: { summary: "Placeholder handover summary.", actionItems: ["Check alert queue.", "Confirm next feed run."] } }; }
+  async summarizePond(_input: SummarizePondDto): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.generateDailyFarmSummary(_input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        summary: "Fallback daily farm summary is available, but no operator assistance service was attached.",
+        highlights: ["No operator-assistance service is attached.", "The bounded fallback path stayed active."],
+        headline: "Fallback daily farm summary is available, but no operator assistance service was attached.",
+        keyHighlights: ["No operator-assistance service is attached.", "The bounded fallback path stayed active."],
+        openIssues: [],
+        pendingActions: [],
+        pondsNeedingAttention: [],
+        missingDataNotes: [],
+        metadata: {
+          taskLabel: "daily_farm_summary",
+          advisoryOnly: true,
+          generatedAt: "2026-05-08T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback"
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-08T00:00:00.000Z",
+          responseLoggedAt: "2026-05-08T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
+  async generateHandover(_input: GenerateHandoverDto): Promise<ApiSuccessEnvelope<AiHandoverGenerateResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.generateShiftHandover(_input) };
+    }
+
+    return {
+      ok: true,
+      data: {
+        summary: "Fallback shift handover is available, but no operator assistance service was attached.",
+        actionItems: ["Review open issues manually."],
+        headline: "Fallback shift handover is available, but no operator assistance service was attached.",
+        completedThisShift: [],
+        pendingItems: ["Review open issues manually."],
+        priorityPonds: [],
+        watchItems: [],
+        nextShiftNote: "Start with the open issues queue and confirm fresh readings manually.",
+        metadata: {
+          taskLabel: "shift_handover_generate",
+          advisoryOnly: true,
+          generatedAt: "2026-05-08T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback"
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-08T00:00:00.000Z",
+          responseLoggedAt: "2026-05-08T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
   async rewriteText(input: RewriteTextDto): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>> { return { ok: true, data: { rewrittenText: `[placeholder] ${input.text}` } }; }
   async queryDashboard(_input: DashboardQueryDto): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>> { return { ok: true, data: { answer: "Placeholder dashboard answer.", relatedMetrics: ["open_alerts", "active_ponds"] } }; }
   async draftIncident(_input: DraftIncidentDto): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>> { return { ok: true, data: { draftTitle: "Placeholder incident draft", draftBody: "This is a placeholder incident draft." } }; }

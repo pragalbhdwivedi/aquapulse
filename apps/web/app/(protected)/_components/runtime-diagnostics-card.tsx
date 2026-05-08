@@ -589,6 +589,16 @@ export function RuntimeDiagnosticsCard({
             AI explanations: {backendProbe.runtime.aiExplanations.mode} / {backendProbe.runtime.aiExplanations.configured ? "configured" : "fallback only"}
           </span>
         ) : null}
+        {backendProbe?.runtime?.aiOperatorAssistance ? (
+          <span>
+            AI operator assistance: {backendProbe.runtime.aiOperatorAssistance.mode} / {backendProbe.runtime.aiOperatorAssistance.configured ? "configured" : "fallback only"} / Tasks: {backendProbe.runtime.aiOperatorAssistance.supportedTasks.join(", ")}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.aiOperatorAssistance ? (
+          <span>
+            AI operator assistance provider: {backendProbe.runtime.aiOperatorAssistance.providerPath} / Fallback active: {backendProbe.runtime.aiOperatorAssistance.fallbackActive ? "yes" : "no"}
+          </span>
+        ) : null}
         {backendProbe?.runtime ? (
           <span>
             AI cache: {backendProbe.runtime.aiExplanations.cacheEnabled ? "enabled" : "disabled"} / Manual attach: {backendProbe.runtime.aiExplanations.attachmentAvailable ? "available" : "unavailable"} / Feedback: {backendProbe.runtime.aiExplanations.feedbackEnabled ? "enabled" : "disabled"}
@@ -617,6 +627,13 @@ export function RuntimeDiagnosticsCard({
       {backendProbe?.runtime?.auth?.warnings.length ? (
         <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
           {backendProbe.runtime.auth.warnings.map((warning) => (
+            <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
+          ))}
+        </div>
+      ) : null}
+      {backendProbe?.runtime?.aiOperatorAssistance?.warnings.length ? (
+        <div style={{ display: "grid", gap: "0.25rem", color: "#fbbf24" }}>
+          {backendProbe.runtime.aiOperatorAssistance.warnings.map((warning) => (
             <span key={`${warning.code}:${warning.message}`}>{warning.message}</span>
           ))}
         </div>
