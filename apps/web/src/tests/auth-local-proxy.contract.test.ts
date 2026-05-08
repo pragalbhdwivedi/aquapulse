@@ -63,6 +63,8 @@ describe("Auth local API proxy", () => {
           quaternaryNonAlertsProtectedReadSliceEnforced: false,
           quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
           quinaryNonAlertsProtectedReadSliceEnforced: false,
+          senaryNonAlertsProtectedReadSliceLabel: "feed_recent_read",
+          senaryNonAlertsProtectedReadSliceEnforced: false,
           nonAlertsProtectedSliceLabel: "tasks_update",
           nonAlertsProtectedSliceEnforced: false,
           secondaryNonAlertsProtectedSliceLabel: "feed_update",

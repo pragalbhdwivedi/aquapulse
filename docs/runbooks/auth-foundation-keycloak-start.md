@@ -147,6 +147,7 @@ The pond detail page now uses that same bounded operator model for `water_qualit
 The pond detail page now uses that same bounded operator model for `water_quality_update`, so the latest reading edit stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
 The pond detail page now uses bounded protected read models for `water_quality_detail_read` and `ponds_detail_read`, the feed page uses the same bounded pattern for `feed_detail_read`, and the tasks page now uses it for `tasks_detail_read`. Each surface stays readable through a preview path but only loads the protected single-record detail route in Keycloak mode when forwarded auth/current-session are both sufficient.
 The pond detail page now also uses the same bounded read model for `water_quality_recent_read`, protecting the pond-scoped recent-history surface on `GET /water-quality?pondId=...` while keeping the rest of the page readable and explicit when forwarded auth/current-session are missing.
+The feed page now also uses that bounded read model for `feed_recent_read`, protecting the existing feed history surface on `GET /feed` while keeping the rest of the page readable and explicit when forwarded auth/current-session are missing.
 The feed page now applies that same bounded operator model to `feed_create`, so the create form stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
 The tasks page now applies that same bounded operator model to `tasks_create`, so the create form stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
 The ponds page now applies that same bounded operator model to `ponds_create`, so the create form stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
@@ -158,7 +159,7 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
   forwarding/session state is insufficient
 - `non_alert_read_access`: shared bounded non-alert read summary currently used by
-  `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, and `water_quality_recent_read`
+  `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, `water_quality_recent_read`, and `feed_recent_read`
 - `non_alert_operator_update_access`: shared bounded non-alert operator access summary used by
   `tasks_update`, `feed_update`, `ponds_update`, `water_quality_create`, `water_quality_update`, `feed_create`, `tasks_create`, and `ponds_create`
 - `water_quality_detail_read`: first bounded non-alert `backend_protected` read slice on `GET /water-quality/:id`
@@ -166,6 +167,7 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - `ponds_detail_read`: third bounded non-alert `backend_protected` read slice on `GET /ponds/:id`
 - `tasks_detail_read`: fourth bounded non-alert `backend_protected` read slice on `GET /tasks/:id`
 - `water_quality_recent_read`: fifth bounded non-alert `backend_protected` read slice on the existing pond-scoped recent-history `GET /water-quality?pondId=...` surface used by pond detail
+- `feed_recent_read`: sixth bounded non-alert `backend_protected` read slice on the existing feed history `GET /feed` surface used by the feed page
 - `tasks_update`: first bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `feed_update`: second bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `ponds_update`: third bounded non-alert `ui_guarded` + backend-enforced operator slice
@@ -176,14 +178,14 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - `ponds_create`: eighth bounded non-alert `ui_guarded` + backend-enforced operator slice
 
 In Keycloak mode, those eight bounded non-alert operator actions require forwarded auth and a current-session that resolves to an authenticated user before the UI will enable the action. In disabled and local modes, the same shared summary reports a bounded bypass path so mock/in-memory development stays usable.
-In Keycloak mode, `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, and `water_quality_recent_read` all require forwarded auth and a current-session that resolves to an authenticated user before the protected non-alert read will load. In disabled and local modes, the non-alert read summary reports a bounded bypass path so local development stays usable.
+In Keycloak mode, `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, `water_quality_recent_read`, and `feed_recent_read` all require forwarded auth and a current-session that resolves to an authenticated user before the protected non-alert read will load. In disabled and local modes, the non-alert read summary reports a bounded bypass path so local development stays usable.
 
 You can see the additive non-alert read summary, the shared mutation summary, and the bounded slices in:
 - `/api/auth/session`
 - `/runtime` frontend diagnostics
 - backend runtime diagnostics when runtime probing is enabled
 
-If `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, `water_quality_recent_read`, `ponds_update`, `water_quality_create`, `water_quality_update`, `feed_create`, `tasks_create`, or `ponds_create` is blocked in Keycloak mode, check:
+If `water_quality_detail_read`, `feed_detail_read`, `ponds_detail_read`, `tasks_detail_read`, `water_quality_recent_read`, `feed_recent_read`, `ponds_update`, `water_quality_create`, `water_quality_update`, `feed_create`, `tasks_create`, or `ponds_create` is blocked in Keycloak mode, check:
 - `Forwarded auth`
 - `Current-session endpoint`
 - `Session availability`

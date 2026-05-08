@@ -55,6 +55,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(diagnostics.auth?.quinaryNonAlertsProtectedReadSliceLabel).toBe("water_quality_recent_read");
     expect(diagnostics.auth?.quinaryNonAlertsProtectedReadSliceEnforced).toBe(false);
+    expect(diagnostics.auth?.senaryNonAlertsProtectedReadSliceLabel).toBe("feed_recent_read");
+    expect(diagnostics.auth?.senaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(diagnostics.auth?.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.auth?.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(diagnostics.auth?.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
@@ -198,6 +200,9 @@ describe("API runtime diagnostics", () => {
       "AUTH_WATER_QUALITY_RECENT_READ_SLICE_ACTIVE"
     );
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
+      "AUTH_FEED_RECENT_READ_SLICE_ACTIVE"
+    );
+    expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
       "AUTH_FEED_CREATE_SLICE_ACTIVE"
     );
     expect(diagnostics.auth?.warnings.map((warning) => warning.code)).toContain(
@@ -217,6 +222,7 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.auth?.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth?.quinaryNonAlertsProtectedReadSliceEnforced).toBe(true);
+    expect(diagnostics.auth?.senaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth?.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth?.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);

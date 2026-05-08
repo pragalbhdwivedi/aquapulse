@@ -47,6 +47,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.quaternaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.quinaryNonAlertsReadGuardedSliceLabel).toBe("water_quality_recent_read");
     expect(session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+    expect(session.senaryNonAlertsReadGuardedSliceLabel).toBe("feed_recent_read");
+    expect(session.senaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -103,6 +105,10 @@ describe("Frontend auth session bootstrap", () => {
     const waterQualityRecentReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.quinaryNonAlertsReadGuardedSliceLabel,
       enforcedByBackend: session.quinaryNonAlertsReadGuardedSliceEnforced
+    });
+    const feedRecentReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.senaryNonAlertsReadGuardedSliceLabel,
+      enforcedByBackend: session.senaryNonAlertsReadGuardedSliceEnforced
     });
     const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
@@ -164,6 +170,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(tasksDetailReadGuard.state).toBe("enabled");
     expect(waterQualityRecentReadGuard.enforcedByBackend).toBe(true);
     expect(waterQualityRecentReadGuard.state).toBe("enabled");
+    expect(feedRecentReadGuard.enforcedByBackend).toBe(true);
+    expect(feedRecentReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -209,7 +217,8 @@ describe("Frontend auth session bootstrap", () => {
       "feed_detail_read",
       "ponds_detail_read",
       "tasks_detail_read",
-      "water_quality_recent_read"
+      "water_quality_recent_read",
+      "feed_recent_read"
     ]);
     expect(nonAlertReadSummary.accessState).toBe("available");
   });

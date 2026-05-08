@@ -181,6 +181,8 @@ expect(diagnostics.quaternaryNonAlertsProtectedReadSliceLabel).toBe("tasks_detai
 expect(diagnostics.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(true);
 expect(diagnostics.quinaryNonAlertsProtectedReadSliceLabel).toBe("water_quality_recent_read");
 expect(diagnostics.quinaryNonAlertsProtectedReadSliceEnforced).toBe(true);
+expect(diagnostics.senaryNonAlertsProtectedReadSliceLabel).toBe("feed_recent_read");
+expect(diagnostics.senaryNonAlertsProtectedReadSliceEnforced).toBe(true);
 expect(diagnostics.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");

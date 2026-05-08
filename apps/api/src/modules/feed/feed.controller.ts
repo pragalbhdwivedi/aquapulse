@@ -38,6 +38,8 @@ export class FeedController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryFeedDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.list>> {

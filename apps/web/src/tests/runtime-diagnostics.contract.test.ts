@@ -34,6 +34,7 @@ describe("Frontend runtime diagnostics", () => {
 expect(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceLabel).toBe("ponds_detail_read");
 expect(diagnostics.auth.quaternaryNonAlertsProtectedReadSliceLabel).toBe("tasks_detail_read");
 expect(diagnostics.auth.quinaryNonAlertsProtectedReadSliceLabel).toBe("water_quality_recent_read");
+expect(diagnostics.auth.senaryNonAlertsProtectedReadSliceLabel).toBe("feed_recent_read");
     expect(diagnostics.auth.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
@@ -63,6 +64,8 @@ expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceLabel).toBe("tasks
 expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceEnforced).toBe(false);
 expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceLabel).toBe("water_quality_recent_read");
 expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+expect(diagnostics.session.senaryNonAlertsReadGuardedSliceLabel).toBe("feed_recent_read");
+expect(diagnostics.session.senaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -132,6 +135,7 @@ expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false)
     expect(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.quinaryNonAlertsProtectedReadSliceEnforced).toBe(true);
+    expect(diagnostics.auth.senaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
@@ -878,6 +882,8 @@ expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false)
                   quaternaryNonAlertsProtectedReadSliceEnforced: false,
                   quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
                   quinaryNonAlertsProtectedReadSliceEnforced: false,
+                  senaryNonAlertsProtectedReadSliceLabel: "feed_recent_read",
+                  senaryNonAlertsProtectedReadSliceEnforced: false,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: false,
                   secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -995,6 +1001,8 @@ expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false)
               quaternaryNonAlertsProtectedReadSliceEnforced: false,
               quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
               quinaryNonAlertsProtectedReadSliceEnforced: false,
+              senaryNonAlertsProtectedReadSliceLabel: "feed_recent_read",
+              senaryNonAlertsProtectedReadSliceEnforced: false,
               nonAlertsProtectedSliceLabel: "tasks_update",
               nonAlertsProtectedSliceEnforced: false,
               secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -1156,6 +1164,8 @@ expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false)
                   quaternaryNonAlertsProtectedReadSliceEnforced: true,
                   quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
                   quinaryNonAlertsProtectedReadSliceEnforced: true,
+                  senaryNonAlertsProtectedReadSliceLabel: "feed_recent_read",
+                  senaryNonAlertsProtectedReadSliceEnforced: true,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: true,
                   secondaryNonAlertsProtectedSliceLabel: "feed_update",

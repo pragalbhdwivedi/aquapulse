@@ -79,6 +79,26 @@ describe("Feed write vertical slice", () => {
     expect(response.data.feedType).toBe("Finisher Feed");
   });
 
+  it("keeps controller -> mapper -> service -> envelope delegation stable for recent/history reads", async () => {
+    const repository = new InMemoryFeedRepository();
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const applicationService = new FeedApplicationService(repository, alerts);
+    const controller = new FeedController(
+      { getPlaceholder: async () => ({ ok: true }) } as never,
+      applicationService
+    );
+
+    const response = await controller.list({
+      page: 1,
+      pageSize: 20,
+      pondId: "pond-1"
+    });
+
+    expect(response.ok).toBe(true);
+    expect(response.data.items[0]?.pondId).toBe("pond-1");
+    expect(response.data.page.page).toBe(1);
+  });
+
   it("supports a simple deterministic feed anomaly alert path", async () => {
     const repository = new InMemoryFeedRepository();
     const alertsRepository = new InMemoryAlertsRepository();
