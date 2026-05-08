@@ -1335,6 +1335,8 @@ export interface FrontendAuthRuntimeDiagnostics {
   readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
   readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
@@ -1424,6 +1426,8 @@ export interface CurrentSessionPayload {
   readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
   readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;
@@ -1494,6 +1498,8 @@ export interface FrontendSessionBootstrapStatus {
   readonly nonAlertsReadGuardedSliceEnforced?: boolean;
   readonly secondaryNonAlertsReadGuardedSliceLabel?: string;
   readonly secondaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly tertiaryNonAlertsReadGuardedSliceEnforced?: boolean;
   readonly nonAlertsGuardedSliceLabel?: string;
   readonly nonAlertsGuardedSliceEnforced: boolean;
   readonly secondaryNonAlertsGuardedSliceLabel?: string;
@@ -1567,6 +1573,8 @@ export interface BackendAuthRuntimeDiagnostics {
   readonly nonAlertsProtectedReadSliceEnforced?: boolean;
   readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
   readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
   readonly nonAlertsProtectedSliceLabel?: string;
   readonly nonAlertsProtectedSliceEnforced: boolean;
   readonly secondaryNonAlertsProtectedSliceLabel?: string;

@@ -41,6 +41,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.nonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsReadGuardedSliceLabel).toBe("feed_detail_read");
     expect(session.secondaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+    expect(session.tertiaryNonAlertsReadGuardedSliceLabel).toBe("ponds_detail_read");
+    expect(session.tertiaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -85,6 +87,10 @@ describe("Frontend auth session bootstrap", () => {
     const feedDetailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryNonAlertsReadGuardedSliceLabel,
       enforcedByBackend: session.secondaryNonAlertsReadGuardedSliceEnforced
+    });
+    const pondsDetailReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.tertiaryNonAlertsReadGuardedSliceLabel,
+      enforcedByBackend: session.tertiaryNonAlertsReadGuardedSliceEnforced
     });
     const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
@@ -140,6 +146,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(nonAlertReadGuard.state).toBe("enabled");
     expect(feedDetailReadGuard.enforcedByBackend).toBe(true);
     expect(feedDetailReadGuard.state).toBe("enabled");
+    expect(pondsDetailReadGuard.enforcedByBackend).toBe(true);
+    expect(pondsDetailReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -182,7 +190,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(nonAlertReadSummary.label).toBe("non_alert_read_access");
     expect(nonAlertReadSummary.protectedSlices).toEqual([
       "water_quality_detail_read",
-      "feed_detail_read"
+      "feed_detail_read",
+      "ponds_detail_read"
     ]);
     expect(nonAlertReadSummary.accessState).toBe("available");
   });

@@ -101,6 +101,8 @@ export function createMockApiClients(): AquaPulseApiClients {
             nonAlertsProtectedReadSliceEnforced: false,
             secondaryNonAlertsProtectedReadSliceLabel: "feed_detail_read",
             secondaryNonAlertsProtectedReadSliceEnforced: false,
+            tertiaryNonAlertsProtectedReadSliceLabel: "ponds_detail_read",
+            tertiaryNonAlertsProtectedReadSliceEnforced: false,
             nonAlertsProtectedSliceLabel: "tasks_update",
             nonAlertsProtectedSliceEnforced: false,
             secondaryNonAlertsProtectedSliceLabel: "feed_update",

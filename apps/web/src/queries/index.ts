@@ -181,6 +181,24 @@ export async function getPondDetailPageData(pondId: string): Promise<{
   return readonlyQueries.getPondDetailPageData(pondId);
 }
 
+export async function getPondDetailPagePreviewData(pondId: string): Promise<{
+  pond?: PondSummary;
+  waterQuality: WaterQualityList;
+  summary: AiPondsSummarizeResponse;
+}> {
+  const [ponds, waterQuality, summary] = await Promise.all([
+    pondsRepository.list(defaultPondsQuery),
+    waterQualityRepository.listByPond(pondId, { page: 1, pageSize: 20 }),
+    pondsRepository.summarize({ pondId })
+  ]);
+
+  return {
+    pond: ponds.data.items.find((item) => item.id === pondId),
+    waterQuality: waterQuality.data,
+    summary: summary.data
+  };
+}
+
 export async function getWaterQualityDetailPageData(
   readingId: string
 ): Promise<WaterQualityReading> {

@@ -17,6 +17,7 @@ import {
   getAuditPageData,
   getDashboardPageData,
   getPondDetailPageData,
+  getPondDetailPagePreviewData,
   getPondsPageData,
   getReportsPageData
 } from "../queries";
@@ -40,6 +41,14 @@ describe("Frontend query layer", () => {
     const pondDetail = await getPondDetailPageData("pond-1");
 
     expect(pondDetail.pond.id).toBe("pond-1");
+    expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
+    expect(pondDetail.summary.summary).toContain("Placeholder");
+  });
+
+  it("builds bounded pond preview data without requiring the protected detail route", async () => {
+    const pondDetail = await getPondDetailPagePreviewData("pond-1");
+
+    expect(pondDetail.pond?.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
     expect(pondDetail.summary.summary).toContain("Placeholder");
   });

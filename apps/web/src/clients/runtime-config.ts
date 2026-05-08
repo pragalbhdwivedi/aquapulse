@@ -1047,6 +1047,8 @@ export function getAuthRuntimeDiagnostics(
     nonAlertsProtectedReadSliceEnforced: effectiveMode === "keycloak",
     secondaryNonAlertsProtectedReadSliceLabel: "feed_detail_read",
     secondaryNonAlertsProtectedReadSliceEnforced: effectiveMode === "keycloak",
+    tertiaryNonAlertsProtectedReadSliceLabel: "ponds_detail_read",
+    tertiaryNonAlertsProtectedReadSliceEnforced: effectiveMode === "keycloak",
     nonAlertsProtectedSliceLabel: "tasks_update",
     nonAlertsProtectedSliceEnforced: effectiveMode === "keycloak",
     secondaryNonAlertsProtectedSliceLabel: "feed_update",

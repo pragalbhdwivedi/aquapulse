@@ -211,6 +211,10 @@ export function RuntimeDiagnosticsCard({
           {(diagnostics.auth.secondaryNonAlertsProtectedReadSliceEnforced ?? diagnostics.session.secondaryNonAlertsReadGuardedSliceEnforced) ? "yes" : "no"}
         </span>
         <span>
+          Third non-alert protected read slice: {diagnostics.auth.tertiaryNonAlertsProtectedReadSliceLabel ?? diagnostics.session.tertiaryNonAlertsReadGuardedSliceLabel ?? "none"} / Enforced:{" "}
+          {(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceEnforced ?? diagnostics.session.tertiaryNonAlertsReadGuardedSliceEnforced) ? "yes" : "no"}
+        </span>
+        <span>
           Non-alert protected slice: {diagnostics.auth.nonAlertsProtectedSliceLabel ?? diagnostics.session.nonAlertsGuardedSliceLabel ?? "none"} / Enforced:{" "}
           {diagnostics.auth.nonAlertsProtectedSliceEnforced || diagnostics.session.nonAlertsGuardedSliceEnforced ? "yes" : "no"}
         </span>
@@ -404,6 +408,12 @@ export function RuntimeDiagnosticsCard({
           <span>
             Backend second non-alert protected read slice: {backendProbe.runtime.auth.secondaryNonAlertsProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
             {backendProbe.runtime.auth.secondaryNonAlertsProtectedReadSliceEnforced ? "yes" : "no"}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.auth ? (
+          <span>
+            Backend third non-alert protected read slice: {backendProbe.runtime.auth.tertiaryNonAlertsProtectedReadSliceLabel ?? "none"} / Enforced:{" "}
+            {backendProbe.runtime.auth.tertiaryNonAlertsProtectedReadSliceEnforced ? "yes" : "no"}
           </span>
         ) : null}
         {backendProbe?.runtime?.auth ? (

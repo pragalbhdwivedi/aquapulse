@@ -67,6 +67,8 @@ export class PondsController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.getById>> {

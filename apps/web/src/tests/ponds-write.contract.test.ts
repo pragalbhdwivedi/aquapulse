@@ -57,4 +57,12 @@ describe("Ponds write flow", () => {
     expect(created.data.name).toBe("Proxy Pond 9");
     expect(listed.data.items[0]?.farmId).toBe("farm-9");
   });
+
+  it("keeps bounded ponds detail reads structurally compatible with existing repository clients", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const detail = await repositories.ponds.getById("pond-1");
+
+    expect(detail.data.id).toBe("pond-1");
+    expect(detail.data.name).toBeTruthy();
+  });
 });

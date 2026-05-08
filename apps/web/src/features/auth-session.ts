@@ -165,6 +165,12 @@ export function deriveFrontendSessionBootstrap(
     secondaryNonAlertsReadGuardedSliceEnforced:
       currentSession?.secondaryNonAlertsProtectedReadSliceEnforced ??
       auth.secondaryNonAlertsProtectedReadSliceEnforced,
+    tertiaryNonAlertsReadGuardedSliceLabel:
+      currentSession?.tertiaryNonAlertsProtectedReadSliceLabel ??
+      auth.tertiaryNonAlertsProtectedReadSliceLabel,
+    tertiaryNonAlertsReadGuardedSliceEnforced:
+      currentSession?.tertiaryNonAlertsProtectedReadSliceEnforced ??
+      auth.tertiaryNonAlertsProtectedReadSliceEnforced,
     nonAlertsGuardedSliceLabel:
       currentSession?.nonAlertsProtectedSliceLabel ?? auth.nonAlertsProtectedSliceLabel,
     nonAlertsGuardedSliceEnforced:
@@ -372,6 +378,7 @@ export function deriveProtectedReadUiGuard(
   const isTertiarySlice = sliceLabel === session.tertiaryProtectedReadGuardedSliceLabel;
   const isNonAlertsReadSlice = sliceLabel === session.nonAlertsReadGuardedSliceLabel;
   const isSecondaryNonAlertsReadSlice = sliceLabel === session.secondaryNonAlertsReadGuardedSliceLabel;
+  const isTertiaryNonAlertsReadSlice = sliceLabel === session.tertiaryNonAlertsReadGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -384,6 +391,8 @@ export function deriveProtectedReadUiGuard(
             ? session.nonAlertsReadGuardedSliceEnforced ?? false
             : isSecondaryNonAlertsReadSlice
               ? session.secondaryNonAlertsReadGuardedSliceEnforced ?? false
+              : isTertiaryNonAlertsReadSlice
+                ? session.tertiaryNonAlertsReadGuardedSliceEnforced ?? false
             : false);
   const state =
     enforcedByBackend && session.bootstrapState === "unavailable"
@@ -539,10 +548,14 @@ export function deriveNonAlertReadAccessSummary(
   if (session.secondaryNonAlertsReadGuardedSliceLabel) {
     protectedSlices.push(session.secondaryNonAlertsReadGuardedSliceLabel);
   }
+  if (session.tertiaryNonAlertsReadGuardedSliceLabel) {
+    protectedSlices.push(session.tertiaryNonAlertsReadGuardedSliceLabel);
+  }
   const enforcedByBackend =
     session.nonAlertsReadAccessSummaryEnforced ??
     session.nonAlertsReadGuardedSliceEnforced ??
     session.secondaryNonAlertsReadGuardedSliceEnforced ??
+    session.tertiaryNonAlertsReadGuardedSliceEnforced ??
     false;
   const currentSessionSufficient =
     session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
