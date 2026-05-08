@@ -31,8 +31,9 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.nonAlertsReadAccessSummaryLabel).toBe("non_alert_read_access");
     expect(diagnostics.auth.nonAlertsProtectedReadSliceLabel).toBe("water_quality_detail_read");
     expect(diagnostics.auth.secondaryNonAlertsProtectedReadSliceLabel).toBe("feed_detail_read");
-    expect(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceLabel).toBe("ponds_detail_read");
-    expect(diagnostics.auth.quaternaryNonAlertsProtectedReadSliceLabel).toBe("tasks_detail_read");
+expect(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceLabel).toBe("ponds_detail_read");
+expect(diagnostics.auth.quaternaryNonAlertsProtectedReadSliceLabel).toBe("tasks_detail_read");
+expect(diagnostics.auth.quinaryNonAlertsProtectedReadSliceLabel).toBe("water_quality_recent_read");
     expect(diagnostics.auth.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceLabel).toBe("ponds_update");
@@ -56,10 +57,12 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.session.nonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.secondaryNonAlertsReadGuardedSliceLabel).toBe("feed_detail_read");
     expect(diagnostics.session.secondaryNonAlertsReadGuardedSliceEnforced).toBe(false);
-    expect(diagnostics.session.tertiaryNonAlertsReadGuardedSliceLabel).toBe("ponds_detail_read");
-    expect(diagnostics.session.tertiaryNonAlertsReadGuardedSliceEnforced).toBe(false);
-    expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceLabel).toBe("tasks_detail_read");
-    expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+expect(diagnostics.session.tertiaryNonAlertsReadGuardedSliceLabel).toBe("ponds_detail_read");
+expect(diagnostics.session.tertiaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceLabel).toBe("tasks_detail_read");
+expect(diagnostics.session.quaternaryNonAlertsReadGuardedSliceEnforced).toBe(false);
+expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceLabel).toBe("water_quality_recent_read");
+expect(diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(diagnostics.session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(diagnostics.session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -128,6 +131,7 @@ describe("Frontend runtime diagnostics", () => {
     expect(diagnostics.auth.secondaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(true);
+    expect(diagnostics.auth.quinaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(diagnostics.auth.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(diagnostics.auth.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);
@@ -872,6 +876,8 @@ describe("Frontend runtime diagnostics", () => {
                   tertiaryNonAlertsProtectedReadSliceEnforced: false,
                   quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
                   quaternaryNonAlertsProtectedReadSliceEnforced: false,
+                  quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+                  quinaryNonAlertsProtectedReadSliceEnforced: false,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: false,
                   secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -987,6 +993,8 @@ describe("Frontend runtime diagnostics", () => {
               tertiaryNonAlertsProtectedReadSliceEnforced: false,
               quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
               quaternaryNonAlertsProtectedReadSliceEnforced: false,
+              quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+              quinaryNonAlertsProtectedReadSliceEnforced: false,
               nonAlertsProtectedSliceLabel: "tasks_update",
               nonAlertsProtectedSliceEnforced: false,
               secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -1146,6 +1154,8 @@ describe("Frontend runtime diagnostics", () => {
                   tertiaryNonAlertsProtectedReadSliceEnforced: true,
                   quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
                   quaternaryNonAlertsProtectedReadSliceEnforced: true,
+                  quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+                  quinaryNonAlertsProtectedReadSliceEnforced: true,
                   nonAlertsProtectedSliceLabel: "tasks_update",
                   nonAlertsProtectedSliceEnforced: true,
                   secondaryNonAlertsProtectedSliceLabel: "feed_update",

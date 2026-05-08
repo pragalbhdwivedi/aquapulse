@@ -114,6 +114,24 @@ export function createReadonlyQueries(repositories: Pick<
         summary: summary.data
       };
     },
+    async getPondOverviewPageData(pondId: string): Promise<{
+      pond: PondSummary;
+      summary: AiPondsSummarizeResponse;
+    }> {
+      const [pond, summary] = await Promise.all([
+        repositories.ponds.getById(pondId),
+        repositories.ponds.summarize({ pondId })
+      ]);
+
+      return {
+        pond: pond.data,
+        summary: summary.data
+      };
+    },
+    async getPondRecentWaterQualityPageData(pondId: string): Promise<WaterQualityList> {
+      const waterQuality = await repositories.waterQuality.listByPond(pondId, { page: 1, pageSize: 20 });
+      return waterQuality.data;
+    },
     async getWaterQualityDetailPageData(
       readingId: string
     ): Promise<WaterQualityReading> {
@@ -179,6 +197,34 @@ export async function getPondDetailPageData(pondId: string): Promise<{
   summary: AiPondsSummarizeResponse;
 }> {
   return readonlyQueries.getPondDetailPageData(pondId);
+}
+
+export async function getPondOverviewPageData(pondId: string): Promise<{
+  pond: PondSummary;
+  summary: AiPondsSummarizeResponse;
+}> {
+  return readonlyQueries.getPondOverviewPageData(pondId);
+}
+
+export async function getPondRecentWaterQualityPageData(
+  pondId: string
+): Promise<WaterQualityList> {
+  return readonlyQueries.getPondRecentWaterQualityPageData(pondId);
+}
+
+export async function getPondOverviewPreviewData(pondId: string): Promise<{
+  pond?: PondSummary;
+  summary: AiPondsSummarizeResponse;
+}> {
+  const [ponds, summary] = await Promise.all([
+    pondsRepository.list(defaultPondsQuery),
+    pondsRepository.summarize({ pondId })
+  ]);
+
+  return {
+    pond: ponds.data.items.find((item) => item.id === pondId),
+    summary: summary.data
+  };
 }
 
 export async function getPondDetailPagePreviewData(pondId: string): Promise<{

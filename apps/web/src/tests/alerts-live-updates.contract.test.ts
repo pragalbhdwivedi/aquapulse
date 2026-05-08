@@ -229,6 +229,8 @@ describe("Alerts live updates connector", () => {
         tertiaryNonAlertsProtectedReadSliceEnforced: true,
         quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
         quaternaryNonAlertsProtectedReadSliceEnforced: true,
+        quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+        quinaryNonAlertsProtectedReadSliceEnforced: true,
         nonAlertsProtectedSliceLabel: "tasks_update",
         nonAlertsProtectedSliceEnforced: true,
         secondaryNonAlertsProtectedSliceLabel: "feed_update",

@@ -44,6 +44,8 @@ export class WaterQualityController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryWaterQualityDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.waterQuality.list>> {

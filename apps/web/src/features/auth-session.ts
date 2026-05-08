@@ -177,6 +177,12 @@ export function deriveFrontendSessionBootstrap(
     quaternaryNonAlertsReadGuardedSliceEnforced:
       currentSession?.quaternaryNonAlertsProtectedReadSliceEnforced ??
       auth.quaternaryNonAlertsProtectedReadSliceEnforced,
+    quinaryNonAlertsReadGuardedSliceLabel:
+      currentSession?.quinaryNonAlertsProtectedReadSliceLabel ??
+      auth.quinaryNonAlertsProtectedReadSliceLabel,
+    quinaryNonAlertsReadGuardedSliceEnforced:
+      currentSession?.quinaryNonAlertsProtectedReadSliceEnforced ??
+      auth.quinaryNonAlertsProtectedReadSliceEnforced,
     nonAlertsGuardedSliceLabel:
       currentSession?.nonAlertsProtectedSliceLabel ?? auth.nonAlertsProtectedSliceLabel,
     nonAlertsGuardedSliceEnforced:
@@ -386,6 +392,7 @@ export function deriveProtectedReadUiGuard(
   const isSecondaryNonAlertsReadSlice = sliceLabel === session.secondaryNonAlertsReadGuardedSliceLabel;
   const isTertiaryNonAlertsReadSlice = sliceLabel === session.tertiaryNonAlertsReadGuardedSliceLabel;
   const isQuaternaryNonAlertsReadSlice = sliceLabel === session.quaternaryNonAlertsReadGuardedSliceLabel;
+  const isQuinaryNonAlertsReadSlice = sliceLabel === session.quinaryNonAlertsReadGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -402,7 +409,9 @@ export function deriveProtectedReadUiGuard(
                 ? session.tertiaryNonAlertsReadGuardedSliceEnforced ?? false
                 : isQuaternaryNonAlertsReadSlice
                   ? session.quaternaryNonAlertsReadGuardedSliceEnforced ?? false
-            : false);
+                  : isQuinaryNonAlertsReadSlice
+                    ? session.quinaryNonAlertsReadGuardedSliceEnforced ?? false
+                    : false);
   const state =
     enforcedByBackend && session.bootstrapState === "unavailable"
       ? "disabled"
@@ -563,12 +572,16 @@ export function deriveNonAlertReadAccessSummary(
   if (session.quaternaryNonAlertsReadGuardedSliceLabel) {
     protectedSlices.push(session.quaternaryNonAlertsReadGuardedSliceLabel);
   }
+  if (session.quinaryNonAlertsReadGuardedSliceLabel) {
+    protectedSlices.push(session.quinaryNonAlertsReadGuardedSliceLabel);
+  }
   const enforcedByBackend =
     session.nonAlertsReadAccessSummaryEnforced ??
     session.nonAlertsReadGuardedSliceEnforced ??
     session.secondaryNonAlertsReadGuardedSliceEnforced ??
     session.tertiaryNonAlertsReadGuardedSliceEnforced ??
     session.quaternaryNonAlertsReadGuardedSliceEnforced ??
+    session.quinaryNonAlertsReadGuardedSliceEnforced ??
     false;
   const currentSessionSufficient =
     session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";

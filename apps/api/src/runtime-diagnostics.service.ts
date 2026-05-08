@@ -344,6 +344,8 @@ export class RuntimeDiagnosticsService {
       tertiaryNonAlertsProtectedReadSliceEnforced: authRuntime.effectiveMode === "keycloak",
       quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
       quaternaryNonAlertsProtectedReadSliceEnforced: authRuntime.effectiveMode === "keycloak",
+      quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+      quinaryNonAlertsProtectedReadSliceEnforced: authRuntime.effectiveMode === "keycloak",
       nonAlertsProtectedSliceLabel: "tasks_update",
       nonAlertsProtectedSliceEnforced: authRuntime.effectiveMode === "keycloak",
       secondaryNonAlertsProtectedSliceLabel: "feed_update",
@@ -467,6 +469,11 @@ export class RuntimeDiagnosticsService {
         code: "AUTH_TASKS_DETAIL_READ_SLICE_ACTIVE",
         message:
           "Tasks detail reads now require verified auth in Keycloak mode. Disabled and local modes still keep the bounded non-alert read surface usable for development."
+      });
+      authWarnings.push({
+        code: "AUTH_WATER_QUALITY_RECENT_READ_SLICE_ACTIVE",
+        message:
+          "Water-quality recent pond reads now require verified auth in Keycloak mode. Disabled and local modes still keep the bounded non-alert read surface usable for development."
       });
       authWarnings.push({
         code: "AUTH_PONDS_CREATE_SLICE_ACTIVE",

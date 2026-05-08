@@ -17,6 +17,9 @@ import {
   getAuditPageData,
   getDashboardPageData,
   getPondDetailPageData,
+  getPondOverviewPageData,
+  getPondOverviewPreviewData,
+  getPondRecentWaterQualityPageData,
   getPondDetailPagePreviewData,
   getPondsPageData,
   getTaskDetailPageData,
@@ -52,6 +55,19 @@ describe("Frontend query layer", () => {
     expect(pondDetail.pond?.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
     expect(pondDetail.summary.summary).toContain("Placeholder");
+  });
+
+  it("keeps bounded pond overview and recent water-quality queries stable as separate read surfaces", async () => {
+    const [overview, preview, recent] = await Promise.all([
+      getPondOverviewPageData("pond-1"),
+      getPondOverviewPreviewData("pond-1"),
+      getPondRecentWaterQualityPageData("pond-1")
+    ]);
+
+    expect(overview.pond.id).toBe("pond-1");
+    expect(preview.pond?.id).toBe("pond-1");
+    expect(overview.summary.summary).toContain("Placeholder");
+    expect(recent.items.length).toBeGreaterThan(0);
   });
 
   it("builds task detail data from repository-backed queries", async () => {

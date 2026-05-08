@@ -43,6 +43,8 @@ describe("Current session surface", () => {
     expect(session.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.quaternaryNonAlertsProtectedReadSliceLabel).toBe("tasks_detail_read");
     expect(session.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(false);
+    expect(session.quinaryNonAlertsProtectedReadSliceLabel).toBe("water_quality_recent_read");
+    expect(session.quinaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceLabel).toBe("feed_update");
@@ -97,6 +99,7 @@ describe("Current session surface", () => {
     expect(session.secondaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(false);
+    expect(session.quinaryNonAlertsProtectedReadSliceEnforced).toBe(false);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(false);
     expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(false);
@@ -171,6 +174,7 @@ describe("Current session surface", () => {
     expect(session.secondaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(session.tertiaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(session.quaternaryNonAlertsProtectedReadSliceEnforced).toBe(true);
+    expect(session.quinaryNonAlertsProtectedReadSliceEnforced).toBe(true);
     expect(session.nonAlertsProtectedSliceEnforced).toBe(true);
     expect(session.secondaryNonAlertsProtectedSliceEnforced).toBe(true);
     expect(session.tertiaryNonAlertsProtectedSliceEnforced).toBe(true);

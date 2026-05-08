@@ -105,6 +105,8 @@ export function createMockApiClients(): AquaPulseApiClients {
             tertiaryNonAlertsProtectedReadSliceEnforced: false,
             quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
             quaternaryNonAlertsProtectedReadSliceEnforced: false,
+            quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+            quinaryNonAlertsProtectedReadSliceEnforced: false,
             nonAlertsProtectedSliceLabel: "tasks_update",
             nonAlertsProtectedSliceEnforced: false,
             secondaryNonAlertsProtectedSliceLabel: "feed_update",

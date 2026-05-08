@@ -1,7 +1,8 @@
 import { deriveProtectedReadUiGuard } from "@web/features/auth-session";
 import {
-  getPondDetailPageData,
-  getPondDetailPagePreviewData,
+  getPondOverviewPageData,
+  getPondOverviewPreviewData,
+  getPondRecentWaterQualityPageData,
   getWaterQualityDetailPageData
 } from "@web/queries";
 import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
@@ -10,6 +11,7 @@ import { PondDetailReadCard } from "./_components/pond-detail-read-card";
 import { PondUpdateForm } from "./_components/pond-update-form";
 import { WaterQualityDetailReadCard } from "./_components/water-quality-detail-read-card";
 import { WaterQualityEntryForm } from "./_components/water-quality-entry-form";
+import { WaterQualityRecentReadCard } from "./_components/water-quality-recent-read-card";
 import { WaterQualityUpdateForm } from "./_components/water-quality-update-form";
 
 export default async function PondDetailPage({ params }: { params: Promise<{ pondId: string }> }) {
@@ -19,12 +21,18 @@ export default async function PondDetailPage({ params }: { params: Promise<{ pon
     sliceLabel: diagnostics.session.tertiaryNonAlertsReadGuardedSliceLabel ?? "ponds_detail_read",
     enforcedByBackend: diagnostics.session.tertiaryNonAlertsReadGuardedSliceEnforced ?? false
   });
-  const detail = pondReadGuard.enabled
-    ? await getPondDetailPageData(pondId).catch(() => getPondDetailPagePreviewData(pondId))
-    : await getPondDetailPagePreviewData(pondId);
-  const pondPreview = detail.pond;
-  const pondDetail =
-    pondReadGuard.enabled && detail.pond ? detail.pond : undefined;
+  const recentReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
+    sliceLabel: diagnostics.session.quinaryNonAlertsReadGuardedSliceLabel ?? "water_quality_recent_read",
+    enforcedByBackend: diagnostics.session.quinaryNonAlertsReadGuardedSliceEnforced ?? false
+  });
+  const overview = pondReadGuard.enabled
+    ? await getPondOverviewPageData(pondId).catch(() => getPondOverviewPreviewData(pondId))
+    : await getPondOverviewPreviewData(pondId);
+  const recentWaterQuality = recentReadGuard.enabled
+    ? await getPondRecentWaterQualityPageData(pondId).catch(() => undefined)
+    : undefined;
+  const pondPreview = overview.pond;
+  const pondDetail = pondReadGuard.enabled && overview.pond ? overview.pond : undefined;
 
   if (!pondPreview) {
     return (
@@ -33,7 +41,7 @@ export default async function PondDetailPage({ params }: { params: Promise<{ pon
       </PageShell>
     );
   }
-  const latestReading = detail.waterQuality.items[0];
+  const latestReading = recentWaterQuality?.items[0];
   const waterQualityReadGuard = deriveProtectedReadUiGuard(diagnostics.session, {
     sliceLabel: diagnostics.session.nonAlertsReadGuardedSliceLabel ?? "water_quality_detail_read",
     enforcedByBackend: diagnostics.session.nonAlertsReadGuardedSliceEnforced ?? false
@@ -49,8 +57,9 @@ export default async function PondDetailPage({ params }: { params: Promise<{ pon
       <p>Code: {pondPreview.code}</p>
       <p>Status: {pondPreview.status}</p>
       <p>Type: {pondPreview.kind}</p>
-      <p>Water-quality readings: {detail.waterQuality.items.length}</p>
-      <p>AI summary: {detail.summary.summary}</p>
+      <p>Water-quality readings: {recentWaterQuality?.items.length ?? 0}</p>
+      <p>AI summary: {overview.summary.summary}</p>
+      <WaterQualityRecentReadCard readings={recentWaterQuality} session={diagnostics.session} />
       {latestReading ? (
         <WaterQualityDetailReadCard
           readingPreview={latestReading}
