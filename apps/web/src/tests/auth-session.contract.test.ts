@@ -39,6 +39,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(session.nonAlertsReadAccessSummaryEnforced).toBe(false);
     expect(session.nonAlertsReadGuardedSliceLabel).toBe("water_quality_detail_read");
     expect(session.nonAlertsReadGuardedSliceEnforced).toBe(false);
+    expect(session.secondaryNonAlertsReadGuardedSliceLabel).toBe("feed_detail_read");
+    expect(session.secondaryNonAlertsReadGuardedSliceEnforced).toBe(false);
     expect(session.nonAlertsGuardedSliceLabel).toBe("tasks_update");
     expect(session.nonAlertsGuardedSliceEnforced).toBe(false);
     expect(session.secondaryNonAlertsGuardedSliceLabel).toBe("feed_update");
@@ -79,6 +81,10 @@ describe("Frontend auth session bootstrap", () => {
     const nonAlertReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.nonAlertsReadGuardedSliceLabel,
       enforcedByBackend: session.nonAlertsReadGuardedSliceEnforced
+    });
+    const feedDetailReadGuard = deriveProtectedReadUiGuard(session, {
+      sliceLabel: session.secondaryNonAlertsReadGuardedSliceLabel,
+      enforcedByBackend: session.secondaryNonAlertsReadGuardedSliceEnforced
     });
     const detailReadGuard = deriveProtectedReadUiGuard(session, {
       sliceLabel: session.secondaryProtectedReadGuardedSliceLabel,
@@ -132,6 +138,8 @@ describe("Frontend auth session bootstrap", () => {
     expect(listReadGuard.state).toBe("enabled");
     expect(nonAlertReadGuard.enforcedByBackend).toBe(true);
     expect(nonAlertReadGuard.state).toBe("enabled");
+    expect(feedDetailReadGuard.enforcedByBackend).toBe(true);
+    expect(feedDetailReadGuard.state).toBe("enabled");
     expect(detailReadGuard.enforcedByBackend).toBe(true);
     expect(detailReadGuard.state).toBe("enabled");
     expect(summaryReadGuard.enforcedByBackend).toBe(true);
@@ -172,7 +180,10 @@ describe("Frontend auth session bootstrap", () => {
     ]);
     expect(nonAlertSummary.accessState).toBe("available");
     expect(nonAlertReadSummary.label).toBe("non_alert_read_access");
-    expect(nonAlertReadSummary.protectedSlices).toEqual(["water_quality_detail_read"]);
+    expect(nonAlertReadSummary.protectedSlices).toEqual([
+      "water_quality_detail_read",
+      "feed_detail_read"
+    ]);
     expect(nonAlertReadSummary.accessState).toBe("available");
   });
 

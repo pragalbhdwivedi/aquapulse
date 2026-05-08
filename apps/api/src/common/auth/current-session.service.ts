@@ -111,6 +111,8 @@ export class CurrentSessionService {
       nonAlertsReadAccessSummaryEnforced: runtime.effectiveMode === "keycloak",
       nonAlertsProtectedReadSliceLabel: "water_quality_detail_read",
       nonAlertsProtectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
+      secondaryNonAlertsProtectedReadSliceLabel: "feed_detail_read",
+      secondaryNonAlertsProtectedReadSliceEnforced: runtime.effectiveMode === "keycloak",
       nonAlertsProtectedSliceLabel: "tasks_update",
       nonAlertsProtectedSliceEnforced: runtime.effectiveMode === "keycloak",
       secondaryNonAlertsProtectedSliceLabel: "feed_update",

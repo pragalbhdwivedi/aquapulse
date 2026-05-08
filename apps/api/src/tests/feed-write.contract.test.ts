@@ -56,6 +56,29 @@ describe("Feed write vertical slice", () => {
     expect(response.data.quantityKg).toBe(20);
   });
 
+  it("keeps controller -> mapper -> service -> envelope delegation stable for bounded detail reads", async () => {
+    const repository = new InMemoryFeedRepository();
+    const alerts = new AlertsApplicationService(new InMemoryAlertsRepository());
+    const applicationService = new FeedApplicationService(repository, alerts);
+    const controller = new FeedController(
+      { getPlaceholder: async () => ({ ok: true }) } as never,
+      applicationService
+    );
+
+    const created = await applicationService.create({
+      pondId: "pond-1",
+      batchId: "batch-2",
+      feedType: "Finisher Feed",
+      quantityKg: 12,
+      fedAt: "2026-04-14T07:30:00.000Z"
+    });
+    const response = await controller.getById(created.data.id);
+
+    expect(response.ok).toBe(true);
+    expect(response.data.id).toBe(created.data.id);
+    expect(response.data.feedType).toBe("Finisher Feed");
+  });
+
   it("supports a simple deterministic feed anomaly alert path", async () => {
     const repository = new InMemoryFeedRepository();
     const alertsRepository = new InMemoryAlertsRepository();

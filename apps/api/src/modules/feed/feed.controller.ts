@@ -67,6 +67,8 @@ export class FeedController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.getById>> {

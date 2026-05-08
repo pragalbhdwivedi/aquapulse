@@ -229,6 +229,13 @@ export async function getFeedPageData(): Promise<ListResponse<FeedEntry>> {
   return feed.data;
 }
 
+export async function getFeedDetailPageData(
+  entryId: string
+): Promise<FeedEntry> {
+  const detail = await feedRepository.getById(entryId);
+  return detail.data;
+}
+
 export async function getTasksPageData(): Promise<ListResponse<TaskSummary>> {
   return readonlyQueries.getTasksPageData();
 }
