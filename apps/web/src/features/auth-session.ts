@@ -167,6 +167,12 @@ export function deriveFrontendSessionBootstrap(
     quinaryNonAlertsGuardedSliceEnforced:
       currentSession?.quinaryNonAlertsProtectedSliceEnforced ??
       auth.quinaryNonAlertsProtectedSliceEnforced,
+    senaryNonAlertsGuardedSliceLabel:
+      currentSession?.senaryNonAlertsProtectedSliceLabel ??
+      auth.senaryNonAlertsProtectedSliceLabel,
+    senaryNonAlertsGuardedSliceEnforced:
+      currentSession?.senaryNonAlertsProtectedSliceEnforced ??
+      auth.senaryNonAlertsProtectedSliceEnforced,
     currentUser: currentSession?.user,
     warnings
   };
@@ -189,6 +195,7 @@ export function deriveProtectedOperatorUiGuard(
   const isTertiaryNonAlertsSlice = sliceLabel === session.tertiaryNonAlertsGuardedSliceLabel;
   const isQuaternaryNonAlertsSlice = sliceLabel === session.quaternaryNonAlertsGuardedSliceLabel;
   const isQuinaryNonAlertsSlice = sliceLabel === session.quinaryNonAlertsGuardedSliceLabel;
+  const isSenaryNonAlertsSlice = sliceLabel === session.senaryNonAlertsGuardedSliceLabel;
   const enforcedByBackend =
     options.enforcedByBackend ??
     (isPrimarySlice
@@ -209,6 +216,8 @@ export function deriveProtectedOperatorUiGuard(
                     ? session.quaternaryNonAlertsGuardedSliceEnforced
                     : isQuinaryNonAlertsSlice
                       ? session.quinaryNonAlertsGuardedSliceEnforced
+                      : isSenaryNonAlertsSlice
+                        ? session.senaryNonAlertsGuardedSliceEnforced
                       : false);
   const state =
     isPrimarySlice
@@ -256,6 +265,12 @@ export function deriveProtectedOperatorUiGuard(
             ? "bypassed"
             : "disabled"
       : isQuinaryNonAlertsSlice && enforcedByBackend
+        ? session.bootstrapState === "active"
+          ? "enabled"
+          : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
+            ? "bypassed"
+            : "disabled"
+      : isSenaryNonAlertsSlice && enforcedByBackend
         ? session.bootstrapState === "active"
           ? "enabled"
           : session.bootstrapState === "bypassed" || session.bootstrapState === "degraded"
@@ -400,7 +415,8 @@ export function deriveNonAlertOperatorAccessSummary(
     session.secondaryNonAlertsGuardedSliceLabel,
     session.tertiaryNonAlertsGuardedSliceLabel,
     session.quaternaryNonAlertsGuardedSliceLabel,
-    session.quinaryNonAlertsGuardedSliceLabel
+    session.quinaryNonAlertsGuardedSliceLabel,
+    session.senaryNonAlertsGuardedSliceLabel
   ].filter((value): value is string => Boolean(value));
   const enforcedByBackend =
     session.nonAlertsOperatorAccessSummaryEnforced ||
@@ -408,7 +424,8 @@ export function deriveNonAlertOperatorAccessSummary(
     session.secondaryNonAlertsGuardedSliceEnforced ||
     session.tertiaryNonAlertsGuardedSliceEnforced ||
     session.quaternaryNonAlertsGuardedSliceEnforced ||
-    session.quinaryNonAlertsGuardedSliceEnforced;
+    session.quinaryNonAlertsGuardedSliceEnforced ||
+    session.senaryNonAlertsGuardedSliceEnforced;
   const currentSessionSufficient =
     session.effectiveMode !== "keycloak" || session.availabilityState === "authenticated_user";
   const forwardingState =
@@ -429,12 +446,12 @@ export function deriveNonAlertOperatorAccessSummary(
           : "auth_required";
   const message =
     accessState === "available"
-      ? "Bounded non-alert operator updates are aligned with forwarded auth and current-session state."
+      ? "Bounded non-alert operator actions are aligned with forwarded auth and current-session state."
       : accessState === "bypassed_local"
-        ? "Bounded non-alert operator updates remain available because auth is disabled or local mode is active."
+        ? "Bounded non-alert operator actions remain available because auth is disabled or local mode is active."
         : accessState === "degraded"
-          ? "Bounded non-alert operator updates are staying on the safe local bypass path because auth/session configuration is degraded."
-          : "Bounded non-alert operator updates are protected in active auth mode and need forwarded auth plus a resolved current-session.";
+          ? "Bounded non-alert operator actions are staying on the safe local bypass path because auth/session configuration is degraded."
+          : "Bounded non-alert operator actions are protected in active auth mode and need forwarded auth plus a resolved current-session.";
 
   return {
     label: session.nonAlertsOperatorAccessSummaryLabel ?? "non_alert_operator_update_access",

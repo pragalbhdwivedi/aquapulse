@@ -18,7 +18,7 @@ export default async function FeedPage() {
           </li>
         ))}
       </ul>
-      <FeedEntryForm pondId={feed.items[0]?.pondId} batchId={feed.items[0]?.batchId} />
+      <FeedEntryForm pondId={feed.items[0]?.pondId} batchId={feed.items[0]?.batchId} session={diagnostics.session} />
       {feed.items[0] ? <FeedUpdateForm feedEntry={feed.items[0]} session={diagnostics.session} /> : null}
     </PageShell>
   );

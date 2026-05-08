@@ -1,10 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { FrontendSessionBootstrapStatus } from "@aquapulse/types";
 import { type FeedEntrySubmissionResult, createFeedEntrySubmitter } from "@web/features/feed-entry";
 import { toMutationPageState } from "@web/features/mutation-refresh";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
 import { createRepositoriesFromConfig } from "@web/repositories";
+import {
+  deriveNonAlertOperatorAccessSummary,
+  deriveProtectedOperatorUiGuard
+} from "@web/features/auth-session";
 import {
   deriveFeedRuntimeIndicator,
   formatFeedRuntimeError
@@ -13,11 +18,13 @@ import {
 interface FeedEntryFormProps {
   readonly pondId?: string;
   readonly batchId?: string;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
 export function FeedEntryForm({
   pondId = "pond-1",
-  batchId = "batch-1"
+  batchId = "batch-1",
+  session
 }: FeedEntryFormProps) {
   const [feedType, setFeedType] = useState("Starter Feed");
   const [quantityKg, setQuantityKg] = useState("18");
@@ -48,12 +55,33 @@ export function FeedEntryForm({
     () => deriveFeedRuntimeIndicator(runtimeConfig),
     [runtimeConfig]
   );
+  const createGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.senaryNonAlertsGuardedSliceLabel ?? "feed_create",
+        enforcedByBackend: session.senaryNonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
+  const operatorSummary = useMemo(() => deriveNonAlertOperatorAccessSummary(session), [session]);
   const pageState = toMutationPageState(result, isSubmitting);
+  const createDisabled = !createGuard.enabled;
+  const operatorStatusLabel =
+    operatorSummary.accessState === "available"
+      ? "action available"
+      : operatorSummary.accessState === "bypassed_local"
+        ? "allowed in disabled/local modes"
+        : operatorSummary.accessState === "degraded"
+          ? "protected with degraded forwarding/session"
+          : "protected and waiting for forwarded auth/session";
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
+        if (createDisabled) {
+          return;
+        }
         setIsSubmitting(true);
         setRuntimeError(null);
 
@@ -98,6 +126,19 @@ export function FeedEntryForm({
           Feed runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
         </span>
         <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Feed create auth: {createGuard.sliceLabel} / {createGuard.state}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Shared non-alert operator access: {operatorSummary.label} / {operatorStatusLabel}
+        </span>
+        <span style={{ color: createDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {operatorSummary.message}
+        </span>
+        <span style={{ color: "#94a3b8" }}>
+          Current-session sufficient: {operatorSummary.currentSessionSufficient ? "yes" : "no"} /
+          Forwarding: {operatorSummary.forwardingState}
+        </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
             {warning.message}
@@ -109,6 +150,7 @@ export function FeedEntryForm({
         <input
           value={feedType}
           onChange={(event) => setFeedType(event.target.value)}
+          disabled={createDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -117,6 +159,7 @@ export function FeedEntryForm({
         <input
           value={quantityKg}
           onChange={(event) => setQuantityKg(event.target.value)}
+          disabled={createDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -125,12 +168,13 @@ export function FeedEntryForm({
         <input
           value={fedAt}
           onChange={(event) => setFedAt(event.target.value)}
+          disabled={createDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <button
         type="submit"
-        disabled={pageState.isSubmitting}
+        disabled={pageState.isSubmitting || createDisabled}
         style={{
           padding: "0.7rem 0.9rem",
           borderRadius: "0.5rem",
@@ -153,6 +197,12 @@ export function FeedEntryForm({
         </p>
       ) : null}
       {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {createDisabled ? (
+        <p style={{ margin: 0, color: "#fca5a5" }}>
+          Feed create is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded non-alert operator action can run.
+        </p>
+      ) : null}
     </form>
   );
 }

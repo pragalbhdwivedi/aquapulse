@@ -23,6 +23,8 @@ export class FeedController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateFeedDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.create>> {

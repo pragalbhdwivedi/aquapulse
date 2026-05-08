@@ -145,6 +145,7 @@ The feed page now reuses that same bounded non-alert operator model to explain w
 The pond detail page now applies the same bounded operator model to `ponds_update`, showing when the action is available, protected and waiting on forwarded auth/current-session, or safely bypassed in disabled/local modes.
 The pond detail page now uses that same bounded operator model for `water_quality_create`, so the create action stays readable but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
 The pond detail page now uses that same bounded operator model for `water_quality_update`, so the latest reading edit stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
+The feed page now applies that same bounded operator model to `feed_create`, so the create form stays visible but only becomes runnable in Keycloak mode when forwarded auth/current-session are both sufficient.
 The runtime page and alerts workbench now also distinguish surface exposure explicitly:
 
 - `alerts_list_read`: `backend_protected`
@@ -153,21 +154,22 @@ The runtime page and alerts workbench now also distinguish surface exposure expl
 - alerts mutation controls: bounded `ui_guarded` surfaces whose buttons stay readable even when
   forwarding/session state is insufficient
 - `non_alert_operator_update_access`: shared bounded non-alert operator access summary used by
-  `tasks_update`, `feed_update`, `ponds_update`, `water_quality_create`, and `water_quality_update`
+  `tasks_update`, `feed_update`, `ponds_update`, `water_quality_create`, `water_quality_update`, and `feed_create`
 - `tasks_update`: first bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `feed_update`: second bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `ponds_update`: third bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `water_quality_create`: fourth bounded non-alert `ui_guarded` + backend-enforced operator slice
 - `water_quality_update`: fifth bounded non-alert `ui_guarded` + backend-enforced operator slice
+- `feed_create`: sixth bounded non-alert `ui_guarded` + backend-enforced operator slice
 
-In Keycloak mode, those five bounded non-alert operator actions require forwarded auth and a current-session that resolves to an authenticated user before the UI will enable the action. In disabled and local modes, the same shared summary reports a bounded bypass path so mock/in-memory development stays usable.
+In Keycloak mode, those six bounded non-alert operator actions require forwarded auth and a current-session that resolves to an authenticated user before the UI will enable the action. In disabled and local modes, the same shared summary reports a bounded bypass path so mock/in-memory development stays usable.
 
-You can see the shared summary and the five bounded non-alert slices in:
+You can see the shared summary and the six bounded non-alert slices in:
 - `/api/auth/session`
 - `/runtime` frontend diagnostics
 - backend runtime diagnostics when runtime probing is enabled
 
-If `ponds_update`, `water_quality_create`, or `water_quality_update` is blocked in Keycloak mode, check:
+If `ponds_update`, `water_quality_create`, `water_quality_update`, or `feed_create` is blocked in Keycloak mode, check:
 - `Forwarded auth`
 - `Current-session endpoint`
 - `Session availability`
