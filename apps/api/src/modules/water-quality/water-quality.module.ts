@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
 import { AlertsModule } from "../alerts/alerts.module";
+import { PondResponsibilityModule } from "../pond-responsibility/pond-responsibility.module";
 import { PostgresWaterQualityRepository } from "./adapters/postgres-water-quality.repository";
 import { WaterQualityApplicationService } from "./application/water-quality.application-service";
 import { WATER_QUALITY_REPOSITORY } from "./ports/water-quality-repository.port";
@@ -27,7 +28,7 @@ const WATER_QUALITY_PROVIDERS = [WaterQualityService, ...WATER_QUALITY_ADAPTERS,
 const WATER_QUALITY_EXPORTS = [WaterQualityService, WaterQualityApplicationService];
 
 @Module({
-  imports: [AlertsModule],
+  imports: [AlertsModule, PondResponsibilityModule],
   controllers: [WaterQualityController],
   providers: WATER_QUALITY_PROVIDERS,
   exports: WATER_QUALITY_EXPORTS

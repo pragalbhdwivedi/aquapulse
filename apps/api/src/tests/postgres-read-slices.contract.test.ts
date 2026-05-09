@@ -498,6 +498,7 @@ describe("Postgres read adapter slices", () => {
       page: 1,
       pageSize: 10,
       pondId: "pond-42",
+      readablePondIds: ["pond-42"],
       metric: "temperatureC"
     });
     const byPond = await repository.listByPond("pond-42");
@@ -511,14 +512,22 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[0]?.statement).toContain("where id = $1");
     expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
     expect(recordedQueries[1]?.statement).toContain("temperature_c is not null");
-    expect(recordedQueries[1]?.params).toEqual(["pond-42", 10, 0]);
+    expect(recordedQueries[1]?.statement).toContain("pond_id = any($2)");
+    expect(recordedQueries[1]?.params).toEqual(["pond-42", ["pond-42"], 10, 0]);
     expect(recordedQueries[2]?.statement).toContain("where pond_id = $1");
     expect(recordedQueries[2]?.params).toEqual(["pond-42", 20, 0]);
     expect(buildWaterQualityByIdQueryPlan("wq-42").filters).toEqual({ id: "wq-42" });
     expect(
-      buildWaterQualityListQueryPlan({ page: 1, pageSize: 20, pondId: "pond-42", metric: "ph" })
+      buildWaterQualityListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        pondId: "pond-42",
+        readablePondIds: ["pond-42"],
+        metric: "ph"
+      })
         .filters
     ).toEqual({
+      readablePondIds: ["pond-42"],
       pondId: "pond-42",
       metric: "ph"
     });

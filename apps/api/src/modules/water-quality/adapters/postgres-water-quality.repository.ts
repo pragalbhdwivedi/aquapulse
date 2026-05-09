@@ -54,6 +54,10 @@ function createWaterQualityWhereClause(
     addCondition("pond_id = ?", query.pondId);
   }
 
+  if (query.readablePondIds) {
+    addCondition("pond_id = any(?)", query.readablePondIds);
+  }
+
   if (query.metric === "temperatureC") {
     conditions.push("temperature_c is not null");
   }
@@ -102,6 +106,7 @@ export function buildWaterQualityListQueryPlan(
     `.trim(),
     params: [...where.params, query.pageSize, offset],
     filters: {
+      readablePondIds: query.readablePondIds,
       pondId: query.pondId,
       metric: query.metric
     }
@@ -318,7 +323,7 @@ export const POSTGRES_WATER_QUALITY_IMPLEMENTATION_PLAN = {
   writeMethods: ["create", "update"],
   rowSource: "water_quality",
   queryNotes: [
-    "support pond filtering and simple metric presence filtering",
+    "support pond filtering, readable pond identifier filtering, and simple metric presence filtering",
     "shape list ordering around recorded_at desc with stable id tiebreakers"
   ],
   mappingNotes: [

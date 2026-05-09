@@ -20,6 +20,29 @@ const baseReading: WaterQualityReading = {
 
 const readings: WaterQualityReading[] = [baseReading];
 
+function matchesWaterQualityQuery(
+  item: WaterQualityReading,
+  query: WaterQualityListQueryContract
+): boolean {
+  if (query.readablePondIds && !query.readablePondIds.includes(item.pondId)) {
+    return false;
+  }
+
+  if (query.pondId && item.pondId !== query.pondId) {
+    return false;
+  }
+
+  if (query.metric === "temperatureC" && item.temperatureC === undefined) {
+    return false;
+  }
+
+  if (query.metric === "ph" && item.ph === undefined) {
+    return false;
+  }
+
+  return true;
+}
+
 function createPage(items: WaterQualityReading[], page = 1, pageSize = 20): ListResponse<WaterQualityReading> {
   return {
     items,
@@ -68,12 +91,7 @@ export class InMemoryWaterQualityRepository implements WaterQualityRepositoryPor
   }
 
   async list(query: WaterQualityListQueryContract): Promise<ListResponse<WaterQualityReading>> {
-    const filtered = readings.filter(
-      (item) =>
-        (!query.pondId || item.pondId === query.pondId) &&
-        (!query.metric ||
-          (query.metric === "temperatureC" ? item.temperatureC !== undefined : item.ph !== undefined))
-    );
+    const filtered = readings.filter((item) => matchesWaterQualityQuery(item, query));
     return createPage(filtered, query.page, query.pageSize);
   }
 
