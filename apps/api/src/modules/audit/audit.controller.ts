@@ -2,8 +2,10 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterce
 import type { EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AuditApplicationService } from "./application/audit.application-service";
 import { AuditService } from "./audit.service";
@@ -21,6 +23,8 @@ export class AuditController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateAuditDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.create>> {
@@ -34,6 +38,8 @@ export class AuditController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryAuditDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.list>> {
@@ -47,6 +53,8 @@ export class AuditController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdateAuditDto
@@ -61,6 +69,8 @@ export class AuditController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.getById>> {
