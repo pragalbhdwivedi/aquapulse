@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
@@ -38,13 +38,16 @@ export class PondsController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
-    @Query() query: QueryPondsDto
+    @Query() query: QueryPondsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.list>> {
     return delegateList(
       query,
       toQueryPondsInput,
-      (mappedQuery) => this.pondsApplicationService.list(mappedQuery),
+      (mappedQuery) => this.pondsApplicationService.list(mappedQuery, resolvePondReadRequesterScope(request?.user)),
       toPondsListResponse
     );
   }
@@ -70,8 +73,27 @@ export class PondsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.getById>> {
-    return delegateGetById(id, (resourceId) => this.pondsApplicationService.getById(resourceId), toPondsItemResponse);
+    return delegateGetById(
+      id,
+      (resourceId) => this.pondsApplicationService.getById(resourceId, resolvePondReadRequesterScope(request?.user)),
+      toPondsItemResponse
+    );
   }
+}
+
+function resolvePondReadRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local"; readonly roles: readonly string[] } | undefined {
+  if (!user?.id || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider,
+    roles: user.roles
+  };
 }

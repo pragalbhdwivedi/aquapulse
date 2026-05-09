@@ -15,6 +15,33 @@ let pond: PondSummary = {
   status: "active"
 };
 
+function matchesPondQuery(pondItem: PondSummary, query: PondListQueryContract): boolean {
+  if (query.readablePondIds && !query.readablePondIds.includes(pondItem.id)) {
+    return false;
+  }
+
+  if (query.farmId && pondItem.farmId !== query.farmId) {
+    return false;
+  }
+
+  if (query.status && pondItem.status !== query.status) {
+    return false;
+  }
+
+  if (query.kind && pondItem.kind !== query.kind) {
+    return false;
+  }
+
+  if (query.search?.trim()) {
+    const haystack = `${pondItem.name} ${pondItem.code}`.toLowerCase();
+    if (!haystack.includes(query.search.trim().toLowerCase())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 @Injectable()
 export class InMemoryPondsRepository implements PondsRepositoryPort {
   async create(input: CreatePondsDto): Promise<PondSummary> {
@@ -46,6 +73,15 @@ export class InMemoryPondsRepository implements PondsRepositoryPort {
   }
 
   async list(_query: PondListQueryContract): Promise<ListResponse<PondSummary>> {
-    return { items: [pond], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
+    const items = matchesPondQuery(pond, _query) ? [pond] : [];
+    return {
+      items,
+      page: {
+        page: _query.page,
+        pageSize: _query.pageSize,
+        totalItems: items.length,
+        totalPages: 1
+      }
+    };
   }
 }

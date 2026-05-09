@@ -95,6 +95,7 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[1]?.statement).toContain("order by name asc, id asc");
     expect(buildPondByIdQueryPlan("pond-42").filters).toEqual({ id: "pond-42" });
     expect(buildPondsListQueryPlan({ page: 1, pageSize: 20, status: "active" }).filters).toEqual({
+      readablePondIds: undefined,
       farmId: undefined,
       status: "active",
       kind: undefined,

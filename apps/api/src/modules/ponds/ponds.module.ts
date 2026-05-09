@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
+import { PondResponsibilityModule } from "../pond-responsibility/pond-responsibility.module";
 import { PostgresPondsRepository } from "./adapters/postgres-ponds.repository";
 import { PondsApplicationService } from "./application/ponds.application-service";
 import { PondsController } from "./ponds.controller";
@@ -23,7 +24,7 @@ const PONDS_PROVIDERS = [PondsService, ...PONDS_ADAPTERS, PONDS_PERSISTENCE_PROV
 const PONDS_EXPORTS = [PondsService, PondsApplicationService];
 
 @Module({
-  imports: [],
+  imports: [PondResponsibilityModule],
   controllers: [PondsController],
   providers: PONDS_PROVIDERS,
   exports: PONDS_EXPORTS
