@@ -98,10 +98,13 @@ describe("API runtime diagnostics", () => {
       "shift_handover_generate",
       "dashboard_assistant_query",
       "incident_rewrite",
-      "approval_note_draft"
+      "approval_note_draft",
+      "incident_draft"
     ]);
     expect(diagnostics.aiOperatorAssistance?.bilingualTasks).toContain("incident_rewrite");
+    expect(diagnostics.aiOperatorAssistance?.bilingualTasks).toContain("incident_draft");
     expect(diagnostics.aiOperatorAssistance?.toneTasks).toContain("approval_note_draft");
+    expect(diagnostics.aiOperatorAssistance?.toneTasks).toContain("incident_draft");
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);

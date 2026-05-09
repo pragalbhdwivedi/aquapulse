@@ -6,6 +6,7 @@ This branch adds the first broader backend-controlled AI operator-assistance sur
 - shift handover via `POST /api/ai/handover/generate`
 - dashboard assistant via `POST /api/ai/dashboard/query`
 - incident rewrite via `POST /api/ai/text/rewrite`
+- incident draft via `POST /api/ai/incidents/draft`
 - approval note draft via `POST /api/ai/approvals/draft-note`
 
 It also keeps the older alert explanation surface aligned with the same bounded output discipline:
@@ -120,6 +121,20 @@ Approval note draft uses bounded linked-record context when available, such as:
 
 It remains advisory-only and does not approve, close, or mutate any record directly.
 
+Incident draft uses bounded supplied context such as:
+
+- raw operator notes
+- linked alert, task, or pond identifiers when available
+- severity or urgency hints when supplied
+- short recent linked-record context when available
+
+It:
+
+- turns rough operator notes into a clearer incident draft for review
+- preserves factual meaning instead of inventing measurements or approvals
+- supports bounded bilingual output and bounded tone modes
+- remains advisory-only and does not create or mutate any critical record directly
+
 Alert explanation uses bounded alert context such as:
 
 - alert severity, source, status, and review state
@@ -154,6 +169,7 @@ Recommended checks:
 - open the dashboard page and confirm the bounded dashboard assistant answer renders
 - open the reports page and confirm daily summary plus shift handover render
 - confirm the reports page now shows incident rewrite plus approval note draft cards
+- confirm the reports page now also shows the incident draft card
 - open the alerts workbench and confirm the explanation card shows observed facts, likely factors, immediate checks, and escalation considerations
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
 
@@ -161,7 +177,6 @@ Recommended checks:
 
 Still deferred for later AI branches:
 
-- incident drafting expansion
 - broader AI chat
 - treatment recommendation logic
 - any AI-driven critical write authority

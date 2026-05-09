@@ -559,7 +559,8 @@ export class RuntimeDiagnosticsService {
           "shift_handover_generate",
           "dashboard_assistant_query",
           "incident_rewrite",
-          "approval_note_draft"
+          "approval_note_draft",
+          "incident_draft"
         ],
         supportedOutputModes: ["english_only", "bilingual"],
         bilingualTasks: [
@@ -567,14 +568,16 @@ export class RuntimeDiagnosticsService {
           "shift_handover_generate",
           "dashboard_assistant_query",
           "incident_rewrite",
-          "approval_note_draft"
+          "approval_note_draft",
+          "incident_draft"
         ],
         toneTasks: [
           "daily_farm_summary",
           "shift_handover_generate",
           "dashboard_assistant_query",
           "incident_rewrite",
-          "approval_note_draft"
+          "approval_note_draft",
+          "incident_draft"
         ],
         warnings: operatorAssistanceRuntime.warnings
       },

@@ -28,6 +28,19 @@ describe("Operator assistance service", () => {
     };
 
     const ponds = {
+      getById: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          id: "pond-1",
+          createdAt: "2026-05-08T06:00:00.000Z",
+          updatedAt: "2026-05-08T06:00:00.000Z",
+          name: "North Pond 1",
+          code: "NP-01",
+          farmId: "farm-1",
+          kind: "pond",
+          status: "active"
+        }
+      }),
       list: vi.fn().mockResolvedValue({
         ok: true,
         data: {
@@ -275,6 +288,36 @@ describe("Operator assistance service", () => {
     expect(alerts.getById).toHaveBeenCalledWith("alert-1");
   });
 
+  it("returns a deterministic bounded incident draft using linked context and bilingual output", async () => {
+    const { service, aiRepository, alerts, tasks, ponds } = createService();
+
+    const incidentDraft = await service.generateIncidentDraft({
+      rawOperatorNotes: "oxygen warning seen at north pond aerator checked and repeat sample logged",
+      linkedAlertId: "alert-1",
+      linkedTaskId: "task-1",
+      linkedPondId: "pond-1",
+      severity: "high",
+      urgencyHint: "high",
+      categoryHint: "water_quality",
+      outputMode: "bilingual",
+      tone: "audit"
+    });
+
+    expect(incidentDraft.metadata.taskLabel).toBe("incident_draft");
+    expect(incidentDraft.metadata.mode).toBe("fallback");
+    expect(incidentDraft.metadata.output.outputMode).toBe("bilingual");
+    expect(incidentDraft.metadata.output.tone).toBe("audit");
+    expect(incidentDraft.keyFacts.length).toBeGreaterThan(0);
+    expect(incidentDraft.draftEnglish).toContain("Audit note:");
+    expect(incidentDraft.draftHindi).toBeTruthy();
+    expect(incidentDraft.audit.fallbackUsed).toBe(true);
+    expect(aiRepository.saveRequestRecord).toHaveBeenCalledTimes(1);
+    expect(aiRepository.saveResponseRecord).toHaveBeenCalledTimes(1);
+    expect(alerts.getById).toHaveBeenCalledWith("alert-1");
+    expect(tasks.getById).toHaveBeenCalledWith("task-1");
+    expect(ponds.getById).toHaveBeenCalledWith("pond-1");
+  });
+
   it("keeps openai mode config-safe when credentials are missing", () => {
     process.env.AQUAPULSE_AI_OPERATOR_ASSISTANCE_MODE = "openai";
 
@@ -286,6 +329,7 @@ describe("Operator assistance service", () => {
     expect(runtime.supportedTasks).toContain("dashboard_assistant_query");
     expect(runtime.supportedTasks).toContain("incident_rewrite");
     expect(runtime.supportedTasks).toContain("approval_note_draft");
+    expect(runtime.supportedTasks).toContain("incident_draft");
     expect(runtime.warnings.map((warning) => warning.code)).toContain("OPENAI_API_KEY_MISSING");
   });
 });

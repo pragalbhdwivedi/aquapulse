@@ -3,6 +3,7 @@ import type {
   AlertQueueSummary,
   AiApprovalNoteDraftResponse,
   AiDashboardQueryResponse,
+  AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
   AiTextRewriteResponse,
@@ -279,9 +280,10 @@ export async function getReportsPageData(): Promise<{
   dailySummary: AiPondsSummarizeResponse;
   handover: AiHandoverGenerateResponse;
   incidentRewrite: AiTextRewriteResponse;
+  incidentDraft: AiIncidentsDraftResponse;
   approvalNote: AiApprovalNoteDraftResponse;
 }> {
-  const [ponds, alerts, dailySummary, handover, incidentRewrite, approvalNote] = await Promise.all([
+  const [ponds, alerts, dailySummary, handover, incidentRewrite, incidentDraft, approvalNote] = await Promise.all([
     pondsRepository.list(defaultPondsQuery),
     alertsRepository.list(defaultAlertsQuery),
     pondsRepository.summarize({
@@ -302,6 +304,17 @@ export async function getReportsPageData(): Promise<{
       linkedRecordType: "alert",
       linkedRecordId: "alert-1"
     }),
+    aiRepository.draftIncident({
+      rawOperatorNotes: "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
+      linkedAlertId: "alert-1",
+      linkedTaskId: "task-1",
+      linkedPondId: "pond-1",
+      severity: "high",
+      urgencyHint: "high",
+      categoryHint: "water_quality",
+      outputMode: "bilingual",
+      tone: "operator"
+    }),
     aiRepository.draftApprovalNote({
       recordType: "alert",
       recordId: "alert-1",
@@ -318,6 +331,7 @@ export async function getReportsPageData(): Promise<{
     dailySummary: dailySummary.data,
     handover: handover.data,
     incidentRewrite: incidentRewrite.data,
+    incidentDraft: incidentDraft.data,
     approvalNote: approvalNote.data
   };
 }

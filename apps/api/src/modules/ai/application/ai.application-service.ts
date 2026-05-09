@@ -313,7 +313,68 @@ export class AiApplicationService {
       }
     };
   }
-  async draftIncident(_input: DraftIncidentDto): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>> { return { ok: true, data: { draftTitle: "Placeholder incident draft", draftBody: "This is a placeholder incident draft." } }; }
+  async draftIncident(input: DraftIncidentDto): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>> {
+    if (this.operatorAssistanceService) {
+      return { ok: true, data: await this.operatorAssistanceService.generateIncidentDraft(input) };
+    }
+
+    const tone = input.tone ?? "operator";
+    const outputMode = input.outputMode ?? "english_only";
+    const draftEnglish = `${input.rawOperatorNotes.trim() || "No operator note was supplied."} This draft remains advisory-only and still needs supervisor review before it is used in any incident workflow.`;
+
+    return {
+      ok: true,
+      data: {
+        headline: "Fallback incident draft is available, but no operator assistance service was attached.",
+        incidentSummary:
+          "The incident draft stayed on the bounded fallback path because no operator assistance service was attached.",
+        keyFacts: [
+          input.rawOperatorNotes.trim() ? `Source note: ${input.rawOperatorNotes.trim()}` : "No operator note was supplied.",
+          input.severity ? `Severity hint: ${input.severity}.` : "No severity hint was supplied."
+        ],
+        likelyImpact:
+          "Operator review is still required before this wording is used in any critical incident workflow.",
+        immediateActionsSuggested: [
+          "Confirm the factual details against the linked operational record before using this draft.",
+          "Keep the final incident record under human review."
+        ],
+        escalationNeed:
+          "Escalate only after an operator or supervisor verifies that the underlying condition and evidence justify it.",
+        draftEnglish,
+        draftHindi:
+          outputMode === "bilingual"
+            ? `Hindi draft: ${draftEnglish}`
+            : undefined,
+        missingInformationNote:
+          input.rawOperatorNotes.trim().length < 24
+            ? "The source note is brief, so the fallback draft stayed general."
+            : undefined,
+        metadata: {
+          taskLabel: "incident_draft",
+          advisoryOnly: true,
+          generatedAt: "2026-05-09T00:00:00.000Z",
+          mode: "fallback",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "application_service_placeholder",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode,
+            primaryLanguage: "english",
+            bilingual: outputMode === "bilingual",
+            tone
+          }
+        },
+        audit: {
+          requestId: "placeholder-request",
+          responseId: "placeholder-response",
+          requestLoggedAt: "2026-05-09T00:00:00.000Z",
+          responseLoggedAt: "2026-05-09T00:00:00.000Z",
+          fallbackUsed: true
+        }
+      }
+    };
+  }
   async draftApprovalNote(
     input: ApprovalNoteDraftDto
   ): Promise<ApiSuccessEnvelope<AiApprovalNoteDraftResponse>> {

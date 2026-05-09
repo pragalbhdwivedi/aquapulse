@@ -9,6 +9,8 @@ import type {
   AiDashboardSupportingFact,
   AiHandoverGenerateRequest,
   AiHandoverGenerateResponse,
+  AiIncidentsDraftRequest,
+  AiIncidentsDraftResponse,
   AiIncidentRewriteRequest,
   AiIncidentRewriteResponse,
   AiOperatorAttentionItem,
@@ -29,6 +31,7 @@ import {
   aiApprovalNoteDraftResponseSchema,
   aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
+  aiIncidentDraftResponseSchema,
   aiIncidentRewriteResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
@@ -42,6 +45,7 @@ import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.por
 import {
   type ApprovalNoteDraftPromptPayload,
   type DashboardAssistantPromptPayload,
+  type IncidentDraftPromptPayload,
   type IncidentRewritePromptPayload,
   OpenAiOperatorAssistanceClient,
   type DailyFarmSummaryPromptPayload,
@@ -290,7 +294,8 @@ export class OperatorAssistanceService {
         "shift_handover_generate",
         "dashboard_assistant_query",
         "incident_rewrite",
-        "approval_note_draft"
+        "approval_note_draft",
+        "incident_draft"
       ] as const,
       supportedOutputModes: ["english_only", "bilingual"] as const,
       bilingualTasks: [
@@ -298,14 +303,16 @@ export class OperatorAssistanceService {
         "shift_handover_generate",
         "dashboard_assistant_query",
         "incident_rewrite",
-        "approval_note_draft"
+        "approval_note_draft",
+        "incident_draft"
       ] as const,
       toneTasks: [
         "daily_farm_summary",
         "shift_handover_generate",
         "dashboard_assistant_query",
         "incident_rewrite",
-        "approval_note_draft"
+        "approval_note_draft",
+        "incident_draft"
       ] as const,
       warnings: this.runtime.warnings
     };
@@ -548,6 +555,54 @@ export class OperatorAssistanceService {
     };
 
     return aiIncidentRewriteResponseSchema.parse(withAudit);
+  }
+
+  async generateIncidentDraft(
+    input: AiIncidentsDraftRequest
+  ): Promise<AiIncidentsDraftResponse> {
+    const generatedAt = new Date().toISOString();
+    const requestRecord = await this.logRequest("incident_draft", {
+      ...input,
+      generatedAt
+    });
+    const promptPayload = await this.buildIncidentDraftPromptPayload(input);
+
+    let response = this.buildIncidentDraftFallback(generatedAt, input, promptPayload);
+
+    if (this.runtime.configured) {
+      try {
+        const openAiResponse = await this.openAiClient.generateIncidentDraft(promptPayload);
+        if (openAiResponse) {
+          response = {
+            ...openAiResponse,
+            metadata: buildOperatorAssistanceMetadata(
+              "incident_draft",
+              generatedAt,
+              this.runtime.modelLabel,
+              true,
+              input,
+              input.tone ?? "operator"
+            ),
+            audit: response.audit
+          };
+        }
+      } catch {
+        // Stay on the deterministic fallback path.
+      }
+    }
+
+    const responseRecord = await this.logResponse(requestRecord.id, this.runtime.modelLabel, response);
+    const withAudit = {
+      ...response,
+      audit: this.buildAuditMetadata(
+        generatedAt,
+        requestRecord.id,
+        responseRecord.id,
+        !this.runtime.configured || response.metadata.mode === "fallback"
+      )
+    };
+
+    return aiIncidentDraftResponseSchema.parse(withAudit);
   }
 
   async generateApprovalNoteDraft(
@@ -869,6 +924,81 @@ export class OperatorAssistanceService {
         input.linkedRecordType && input.linkedRecordId
           ? `${input.linkedRecordType}:${input.linkedRecordId}`
           : undefined
+    };
+  }
+
+  private async buildIncidentDraftPromptPayload(
+    input: AiIncidentsDraftRequest
+  ): Promise<IncidentDraftPromptPayload> {
+    let linkedAlertLabel: string | undefined;
+    let linkedTaskLabel: string | undefined;
+    let linkedPondLabel: string | undefined;
+    let statusLabel: string | undefined;
+    let severityLabel = input.severity;
+    const recentContext: string[] = [];
+
+    if (input.linkedAlertId) {
+      const alert = (await this.alertsApplicationService.getById(input.linkedAlertId)).data;
+      linkedAlertLabel = alert.title;
+      statusLabel = alert.status;
+      severityLabel = severityLabel ?? alert.severity;
+      recentContext.push(
+        ...pickTopStrings([
+          alert.latestNote ? `Latest alert note: ${alert.latestNote}` : "",
+          `Alert source: ${alert.source}.`,
+          ...(alert.actionHistory ?? []).slice(-3).map((entry) => `${entry.action} at ${entry.timestamp}`)
+        ])
+      );
+
+      if (!input.linkedPondId && alert.pondId) {
+        input = {
+          ...input,
+          linkedPondId: alert.pondId
+        };
+      }
+    }
+
+    if (input.linkedTaskId) {
+      const task = (await this.tasksApplicationService.getById(input.linkedTaskId)).data;
+      linkedTaskLabel = task.title;
+      recentContext.push(
+        ...pickTopStrings([
+          `Task status: ${task.status}.`,
+          task.pondId ? `Linked task pond: ${task.pondId}.` : "",
+          `Task updated at ${task.updatedAt}.`
+        ])
+      );
+
+      if (!input.linkedPondId && task.pondId) {
+        input = {
+          ...input,
+          linkedPondId: task.pondId
+        };
+      }
+    }
+
+    if (input.linkedPondId) {
+      const pond = (await this.pondsApplicationService.getById(input.linkedPondId)).data;
+      linkedPondLabel = pond.name;
+      recentContext.push(`Linked pond: ${pond.name} (${pond.code}).`);
+    }
+
+    return {
+      taskLabel: "incident_draft",
+      rawOperatorNotes: input.rawOperatorNotes.trim(),
+      outputMode: input.outputMode ?? "english_only",
+      tone: input.tone ?? "operator",
+      linkedAlertId: input.linkedAlertId,
+      linkedAlertLabel,
+      linkedTaskId: input.linkedTaskId,
+      linkedTaskLabel,
+      linkedPondId: input.linkedPondId,
+      linkedPondLabel,
+      severityLabel,
+      urgencyHint: input.urgencyHint,
+      categoryHint: input.categoryHint?.trim() || undefined,
+      statusLabel,
+      recentContext: pickTopStrings(recentContext)
     };
   }
 
@@ -1311,6 +1441,91 @@ export class OperatorAssistanceService {
     };
   }
 
+  private buildIncidentDraftFallback(
+    generatedAt: string,
+    input: AiIncidentsDraftRequest,
+    promptPayload: IncidentDraftPromptPayload
+  ): AiIncidentsDraftResponse {
+    const normalizedNotes = normalizeOperatorText(input.rawOperatorNotes);
+    const subjectLabel =
+      promptPayload.linkedAlertLabel ??
+      promptPayload.linkedTaskLabel ??
+      promptPayload.linkedPondLabel ??
+      "linked farm issue";
+    const factualNote =
+      normalizedNotes.length > 0
+        ? normalizedNotes.endsWith(".")
+          ? normalizedNotes
+          : `${normalizedNotes}.`
+        : "No operator notes were supplied yet.";
+    const severityFragment = promptPayload.severityLabel
+      ? ` Severity is currently treated as ${promptPayload.severityLabel}.`
+      : "";
+    const urgencyFragment = promptPayload.urgencyHint
+      ? ` Urgency hint: ${promptPayload.urgencyHint}.`
+      : "";
+    const statusFragment = promptPayload.statusLabel ? ` Current status: ${promptPayload.statusLabel}.` : "";
+    const categoryFragment = promptPayload.categoryHint ? ` Category hint: ${promptPayload.categoryHint}.` : "";
+    const incidentSummary = `${subjectLabel}: ${factualNote}${severityFragment}${urgencyFragment}${statusFragment}${categoryFragment}`.trim();
+    const headline = prefixToneLabel(`Incident draft for ${subjectLabel}`, input.tone ?? "operator");
+    const keyFacts = pickTopStrings([
+      normalizedNotes ? `Source note: ${normalizedNotes}` : "No source note was supplied.",
+      promptPayload.linkedAlertLabel ? `Linked alert: ${promptPayload.linkedAlertLabel}` : "",
+      promptPayload.linkedTaskLabel ? `Linked task: ${promptPayload.linkedTaskLabel}` : "",
+      promptPayload.linkedPondLabel ? `Linked pond: ${promptPayload.linkedPondLabel}` : "",
+      promptPayload.severityLabel ? `Severity hint: ${promptPayload.severityLabel}` : "",
+      promptPayload.urgencyHint ? `Urgency hint: ${promptPayload.urgencyHint}` : "",
+      ...promptPayload.recentContext
+    ]);
+    const likelyImpact =
+      promptPayload.severityLabel === "critical" || promptPayload.severityLabel === "high"
+        ? "The incident may require quick supervisor review because the linked context suggests elevated operational risk."
+        : "The incident should be reviewed and recorded clearly before any supervisory decision is made.";
+    const immediateActionsSuggested = pickTopStrings([
+      "Verify the note against the latest linked operational record before using this draft.",
+      promptPayload.linkedAlertLabel
+        ? "Confirm whether the linked alert condition is still active and documented."
+        : "",
+      promptPayload.linkedTaskLabel
+        ? "Check whether the linked task is still pending or already updated elsewhere."
+        : "",
+      "Keep the final incident record under human review because this output is advisory-only."
+    ]);
+    const escalationNeed =
+      promptPayload.severityLabel === "critical"
+        ? "Escalation is likely to need supervisor review, but only after a human verifies the underlying evidence."
+        : "Escalation may be considered if the verified facts show ongoing risk, but this draft does not approve or trigger it.";
+    const draftEnglish = prefixToneLabel(
+      `${incidentSummary} Immediate follow-up should stay tied to verified facts, documented checks, and human review before any escalation or closure wording is used.`,
+      input.tone ?? "operator"
+    );
+    const missingInformationNote =
+      normalizedNotes.length < 24
+        ? "The source note is brief, so the incident draft stayed general and may still need more factual detail."
+        : undefined;
+
+    return {
+      headline,
+      incidentSummary,
+      keyFacts,
+      likelyImpact,
+      immediateActionsSuggested,
+      escalationNeed,
+      draftEnglish,
+      draftHindi: withOptionalHindi(draftEnglish, input),
+      missingInformationNote,
+      metadata: buildOperatorAssistanceMetadata(
+        "incident_draft",
+        generatedAt,
+        this.runtime.modelLabel,
+        false,
+        input,
+        input.tone ?? "operator"
+      ),
+      audit: this.buildAuditMetadata(generatedAt, "pending", "pending", true)
+    };
+  }
+
   private buildApprovalNoteDraftFallback(
     generatedAt: string,
     input: AiApprovalNoteDraftRequest,
@@ -1410,6 +1625,7 @@ export class OperatorAssistanceService {
       | AiHandoverGenerateResponse
       | AiDashboardQueryResponse
       | AiIncidentRewriteResponse
+      | AiIncidentsDraftResponse
       | AiApprovalNoteDraftResponse
   ): Promise<AiResponseRecord> {
     const generatedAt = new Date().toISOString();

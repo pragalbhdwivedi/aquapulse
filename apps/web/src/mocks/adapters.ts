@@ -1033,8 +1033,64 @@ export const aiMockAdapter: AiApiClient = {
       }
     });
   },
-  async draftIncident(_input: AiIncidentsDraftRequest) { return ok({ draftTitle: "Placeholder incident draft", draftBody: "Placeholder incident body." }); }
-  ,
+  async draftIncident(input: AiIncidentsDraftRequest) {
+    const notes = input.rawOperatorNotes.trim();
+    const summary = `${notes || "No operator note was supplied."} This mock incident draft stays advisory-only and still requires human review before it is used in any record workflow.`;
+    return ok({
+      headline: `Incident draft for ${input.linkedPondId ? `pond ${input.linkedPondId}` : "linked farm issue"}`,
+      incidentSummary: summary,
+      keyFacts: [
+        notes ? `Source note: ${notes}` : "No source note was supplied.",
+        input.severity ? `Severity hint: ${input.severity}` : "No severity hint was supplied.",
+        input.linkedAlertId ? `Linked alert: ${input.linkedAlertId}` : "",
+        input.linkedTaskId ? `Linked task: ${input.linkedTaskId}` : ""
+      ].filter(Boolean),
+      likelyImpact:
+        input.severity === "critical" || input.severity === "high"
+          ? "The linked issue may require quick supervisor review after the facts are verified."
+          : "The incident wording should be reviewed before it is used in any escalation or closure workflow.",
+      immediateActionsSuggested: [
+        "Verify the source note against the linked operational record.",
+        "Keep the final incident draft under human review."
+      ],
+      escalationNeed:
+        input.severity === "critical"
+          ? "Escalation is likely to need supervisor review after manual verification."
+          : "Escalate only if verified evidence shows that the issue is ongoing or worsening.",
+      draftEnglish: summary,
+      draftHindi:
+        input.outputMode === "bilingual"
+          ? `Hindi draft: ${summary}`
+          : undefined,
+      missingInformationNote:
+        notes.length < 24
+          ? "The source note is brief, so this mock draft stayed general."
+          : undefined,
+      metadata: {
+        taskLabel: "incident_draft",
+        advisoryOnly: true,
+        generatedAt: "2026-05-09T10:00:00.000Z",
+        mode: "fallback",
+        modelLabel: "gpt-5-nano",
+        sourceLabel: "frontend_mock_fallback",
+        usedLiveOpenAi: false,
+        providerPath: "deterministic_fallback",
+        output: {
+          outputMode: input.outputMode ?? "english_only",
+          primaryLanguage: "english",
+          bilingual: input.outputMode === "bilingual",
+          tone: input.tone ?? "operator"
+        }
+      },
+      audit: {
+        requestId: "mock-incident-draft-request",
+        responseId: "mock-incident-draft-response",
+        requestLoggedAt: "2026-05-09T10:00:00.000Z",
+        responseLoggedAt: "2026-05-09T10:00:00.000Z",
+        fallbackUsed: true
+      }
+    });
+  },
   async draftApprovalNote(input: AiApprovalNoteDraftRequest) {
     const draftNote = `${input.recordType}: Verify the latest evidence before using this advisory draft in any approval workflow.`;
     return ok({

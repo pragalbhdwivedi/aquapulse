@@ -99,6 +99,8 @@ describe("Frontend query layer", () => {
     expect(reports.handover.nextShiftNote).toBeTruthy();
     expect(reports.incidentRewrite.metadata.taskLabel).toBe("incident_rewrite");
     expect(reports.incidentRewrite.rewrittenEnglish).toBeTruthy();
+    expect(reports.incidentDraft.metadata.taskLabel).toBe("incident_draft");
+    expect(reports.incidentDraft.draftEnglish).toBeTruthy();
     expect(reports.approvalNote.metadata.taskLabel).toBe("approval_note_draft");
     expect(reports.approvalNote.reviewRequired).toBe(true);
   });

@@ -201,7 +201,41 @@ describe("HTTP route-handler parity", () => {
           }
         }
       }),
-      draftIncident: vi.fn().mockResolvedValue({ ok: true, data: { draftTitle: "Placeholder", draftBody: "Placeholder" } }),
+      draftIncident: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder incident draft",
+          incidentSummary: "Placeholder incident summary",
+          keyFacts: ["Placeholder fact"],
+          likelyImpact: "Placeholder impact",
+          immediateActionsSuggested: ["Placeholder check"],
+          escalationNeed: "Placeholder escalation",
+          draftEnglish: "Placeholder draft",
+          metadata: {
+            taskLabel: "incident_draft",
+            advisoryOnly: true,
+            generatedAt: "2026-05-09T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback",
+            output: {
+              outputMode: "english_only",
+              primaryLanguage: "english",
+              bilingual: false,
+              tone: "operator"
+            }
+          },
+          audit: {
+            requestId: "request-draft",
+            responseId: "response-draft",
+            requestLoggedAt: "2026-05-09T00:00:00.000Z",
+            responseLoggedAt: "2026-05-09T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
       draftApprovalNote: vi.fn().mockResolvedValue({
         ok: true,
         data: {

@@ -220,7 +220,8 @@ const aiOperatorAssistanceMetadataSchema = z.object({
     "shift_handover_generate",
     "dashboard_assistant_query",
     "incident_rewrite",
-    "approval_note_draft"
+    "approval_note_draft",
+    "incident_draft"
   ]),
   advisoryOnly: z.literal(true),
   mode: z.enum(["fallback", "openai_nano"]),
@@ -369,6 +370,34 @@ export const aiApprovalNoteDraftResponseSchema = z.object({
   missingInformationNote: z.string().min(1).optional(),
   metadata: aiOperatorAssistanceMetadataSchema.extend({
     taskLabel: z.literal("approval_note_draft")
+  }),
+  audit: aiOperatorAssistanceAuditMetadataSchema
+});
+
+export const aiIncidentDraftRequestSchema = z.object({
+  rawOperatorNotes: z.string().min(1),
+  linkedAlertId: z.string().min(1).optional(),
+  linkedTaskId: z.string().min(1).optional(),
+  linkedPondId: z.string().min(1).optional(),
+  severity: z.enum(["low", "medium", "high", "critical"]).optional(),
+  urgencyHint: z.enum(["low", "medium", "high"]).optional(),
+  categoryHint: z.string().min(1).optional(),
+  outputMode: z.enum(["english_only", "bilingual"]).optional(),
+  tone: z.enum(["operator", "formal", "management", "audit"]).optional()
+});
+
+export const aiIncidentDraftResponseSchema = z.object({
+  headline: z.string().min(1),
+  incidentSummary: z.string().min(1),
+  keyFacts: z.array(z.string().min(1)),
+  likelyImpact: z.string().min(1),
+  immediateActionsSuggested: z.array(z.string().min(1)),
+  escalationNeed: z.string().min(1),
+  draftEnglish: z.string().min(1),
+  draftHindi: z.string().min(1).optional(),
+  missingInformationNote: z.string().min(1).optional(),
+  metadata: aiOperatorAssistanceMetadataSchema.extend({
+    taskLabel: z.literal("incident_draft")
   }),
   audit: aiOperatorAssistanceAuditMetadataSchema
 });

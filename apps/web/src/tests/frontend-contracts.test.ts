@@ -53,12 +53,19 @@ describe("Frontend contract boundaries", () => {
 
   it("AI repository methods keep the dashboard contract stable", async () => {
     const repositories = createRepositories(createMockApiClients());
-    const [result, rewrite, approvalNote] = await Promise.all([
+    const [result, rewrite, incidentDraft, approvalNote] = await Promise.all([
       repositories.ai.queryDashboard({ question: "What needs attention today?" }),
       repositories.ai.rewriteText({
         originalText: "oxygen low north pond rechecked sample taken",
         tone: "operator",
         outputMode: "bilingual"
+      }),
+      repositories.ai.draftIncident({
+        rawOperatorNotes: "oxygen low north pond rechecked sample taken",
+        linkedAlertId: "alert-1",
+        severity: "high",
+        outputMode: "bilingual",
+        tone: "operator"
       }),
       repositories.ai.draftApprovalNote({
         recordType: "alert",
@@ -71,6 +78,8 @@ describe("Frontend contract boundaries", () => {
     expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expect(rewrite.data.metadata.taskLabel).toBe("incident_rewrite");
     expect(rewrite.data.rewrittenEnglish).toContain("Operator note:");
+    expect(incidentDraft.data.metadata.taskLabel).toBe("incident_draft");
+    expect(incidentDraft.data.draftEnglish).toContain("advisory-only");
     expect(approvalNote.data.metadata.taskLabel).toBe("approval_note_draft");
     expect(approvalNote.data.reviewRequired).toBe(true);
     expectTypeOf<typeof result>().toEqualTypeOf<ApiSuccessEnvelope<AiDashboardQueryResponse>>();

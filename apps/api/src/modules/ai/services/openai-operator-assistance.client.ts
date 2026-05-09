@@ -2,6 +2,7 @@ import type {
   AiApprovalNoteDraftResponse,
   AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
+  AiIncidentsDraftResponse,
   AiIncidentRewriteResponse,
   AiPondsSummarizeResponse
 } from "@aquapulse/types";
@@ -9,6 +10,7 @@ import {
   aiApprovalNoteDraftResponseSchema,
   aiDashboardAssistantResponseSchema,
   aiDailyFarmSummaryResponseSchema,
+  aiIncidentDraftResponseSchema,
   aiIncidentRewriteResponseSchema,
   aiShiftHandoverResponseSchema
 } from "@aquapulse/validation";
@@ -35,6 +37,11 @@ const aiIncidentRewriteContentSchema = aiIncidentRewriteResponseSchema.omit({
 });
 
 const aiApprovalNoteDraftContentSchema = aiApprovalNoteDraftResponseSchema.omit({
+  metadata: true,
+  audit: true
+});
+
+const aiIncidentDraftContentSchema = aiIncidentDraftResponseSchema.omit({
   metadata: true,
   audit: true
 });
@@ -139,6 +146,24 @@ export interface ApprovalNoteDraftPromptPayload {
   readonly severityLabel?: string;
   readonly promptNote?: string;
   readonly recentTimeline: string[];
+}
+
+export interface IncidentDraftPromptPayload {
+  readonly taskLabel: "incident_draft";
+  readonly rawOperatorNotes: string;
+  readonly outputMode: "english_only" | "bilingual";
+  readonly tone: "operator" | "formal" | "management" | "audit";
+  readonly linkedAlertId?: string;
+  readonly linkedAlertLabel?: string;
+  readonly linkedTaskId?: string;
+  readonly linkedTaskLabel?: string;
+  readonly linkedPondId?: string;
+  readonly linkedPondLabel?: string;
+  readonly severityLabel?: "low" | "medium" | "high" | "critical";
+  readonly urgencyHint?: "low" | "medium" | "high";
+  readonly categoryHint?: string;
+  readonly statusLabel?: string;
+  readonly recentContext: string[];
 }
 
 interface OpenAiOperatorAssistanceClientOptions {
@@ -250,19 +275,32 @@ export class OpenAiOperatorAssistanceClient {
     return aiApprovalNoteDraftContentSchema.parse(parsed);
   }
 
+  async generateIncidentDraft(
+    context: IncidentDraftPromptPayload
+  ): Promise<Omit<AiIncidentsDraftResponse, "metadata" | "audit"> | null> {
+    const parsed = await this.execute("incident_draft", context);
+    if (!parsed) {
+      return null;
+    }
+
+    return aiIncidentDraftContentSchema.parse(parsed);
+  }
+
   private async execute(
     taskLabel:
       | "daily_farm_summary"
       | "shift_handover_generate"
       | "dashboard_assistant_query"
       | "incident_rewrite"
-      | "approval_note_draft",
+      | "approval_note_draft"
+      | "incident_draft",
     payload:
       | DailyFarmSummaryPromptPayload
       | ShiftHandoverPromptPayload
       | DashboardAssistantPromptPayload
       | IncidentRewritePromptPayload
       | ApprovalNoteDraftPromptPayload
+      | IncidentDraftPromptPayload
   ): Promise<Record<string, unknown> | null> {
     if (!this.config.configured || !this.config.apiKey) {
       return null;

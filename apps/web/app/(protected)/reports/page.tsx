@@ -75,6 +75,29 @@ export default async function ReportsPage() {
           borderRadius: "0.75rem"
         }}
       >
+        <strong>Incident Draft</strong>
+        <p>{reports.incidentDraft.headline}</p>
+        <p>{reports.incidentDraft.incidentSummary}</p>
+        <p>Key facts: {reports.incidentDraft.keyFacts.join(" | ")}</p>
+        <p>Likely impact: {reports.incidentDraft.likelyImpact}</p>
+        <p>Immediate checks: {reports.incidentDraft.immediateActionsSuggested.join(" | ")}</p>
+        <p>Escalation: {reports.incidentDraft.escalationNeed}</p>
+        <p>Draft: {reports.incidentDraft.draftEnglish}</p>
+        {reports.incidentDraft.draftHindi ? <p>Hindi draft: {reports.incidentDraft.draftHindi}</p> : null}
+        {reports.incidentDraft.missingInformationNote ? <p>{reports.incidentDraft.missingInformationNote}</p> : null}
+        <p>
+          Mode: {reports.incidentDraft.metadata.mode} / {reports.incidentDraft.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output: {reports.incidentDraft.metadata.output.outputMode} / Tone: {reports.incidentDraft.metadata.output.tone ?? "operator"}
+        </p>
+      </section>
+      <section
+        style={{
+          display: "grid",
+          gap: "0.5rem",
+          padding: "0.85rem",
+          border: "1px solid rgba(148, 163, 184, 0.25)",
+          borderRadius: "0.75rem"
+        }}
+      >
         <strong>Approval Note Draft</strong>
         <p>{reports.approvalNote.headline}</p>
         <p>{reports.approvalNote.draftNote}</p>

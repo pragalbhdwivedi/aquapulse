@@ -493,7 +493,8 @@ export type AiOperatorAssistanceTaskLabel =
   | "shift_handover_generate"
   | "dashboard_assistant_query"
   | "incident_rewrite"
-  | "approval_note_draft";
+  | "approval_note_draft"
+  | "incident_draft";
 
 export interface AiOperatorAssistanceMetadata {
   readonly taskLabel: AiOperatorAssistanceTaskLabel;
@@ -657,14 +658,30 @@ export interface AiApprovalNoteDraftResponse {
 export type AiTextRewriteRequest = AiIncidentRewriteRequest;
 export type AiTextRewriteResponse = AiIncidentRewriteResponse;
 
-export interface AiIncidentsDraftRequest {
-  readonly incidentSummary: string;
-  readonly severity: AlertSeverity;
+export type AiIncidentDraftUrgency = "low" | "medium" | "high";
+
+export interface AiIncidentsDraftRequest extends AiOutputPreferences {
+  readonly rawOperatorNotes: string;
+  readonly linkedAlertId?: EntityId;
+  readonly linkedTaskId?: EntityId;
+  readonly linkedPondId?: EntityId;
+  readonly severity?: AlertSeverity;
+  readonly urgencyHint?: AiIncidentDraftUrgency;
+  readonly categoryHint?: string;
 }
 
 export interface AiIncidentsDraftResponse {
-  readonly draftTitle: string;
-  readonly draftBody: string;
+  readonly headline: string;
+  readonly incidentSummary: string;
+  readonly keyFacts: string[];
+  readonly likelyImpact: string;
+  readonly immediateActionsSuggested: string[];
+  readonly escalationNeed: string;
+  readonly draftEnglish: string;
+  readonly draftHindi?: string;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface PondsListQueryRequest extends ListQueryRequest {

@@ -73,7 +73,7 @@ For AI alert explanations:
 
 For AI operator assistance:
 
-- `aiOperatorAssistance.mode = fallback` means daily farm summary, shift handover, dashboard assistant, incident rewrite, and approval note draft are running on the deterministic backend fallback path
+- `aiOperatorAssistance.mode = fallback` means daily farm summary, shift handover, dashboard assistant, incident rewrite, incident draft, and approval note draft are running on the deterministic backend fallback path
 - `aiOperatorAssistance.mode = openai_nano` means the backend is configured to attempt the provider-backed Responses path
 - `aiOperatorAssistance.fallbackActive = true` means AquaPulse is intentionally staying on the safe degraded advisory path
 - `aiOperatorAssistance.supportedTasks` lists the currently bounded operator-assistance surfaces exposed in this branch
