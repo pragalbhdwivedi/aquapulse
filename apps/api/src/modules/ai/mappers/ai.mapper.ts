@@ -40,7 +40,12 @@ export function toQueryAiInput(input: QueryAiDto): AiResponseLogQueryContract {
   return toRepositoryListQuery(input, {
     requestId: input.requestId,
     status: input.status,
-    model: input.model
+    model: input.model,
+    requestType: input.requestType,
+    providerMode: input.providerMode,
+    createdAfter: input.createdAfter,
+    createdBefore: input.createdBefore,
+    relatedRecordId: input.relatedRecordId
   });
 }
 

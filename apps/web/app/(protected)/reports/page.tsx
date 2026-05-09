@@ -1,12 +1,94 @@
-import { getReportsPageData } from "@web/queries";
+import Link from "next/link";
+import { getReportsPageDataWithHistory } from "@web/queries";
 import { PageShell } from "../_components/page-shell";
 
-export default async function ReportsPage() {
-  const reports = await getReportsPageData();
+type ReportsHistoryFilter = NonNullable<Parameters<typeof getReportsPageDataWithHistory>[0]>;
+
+export default async function ReportsPage({
+  searchParams
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const task = typeof resolvedSearchParams?.task === "string" ? resolvedSearchParams.task : undefined;
+  const mode = typeof resolvedSearchParams?.mode === "string" ? resolvedSearchParams.mode : undefined;
+  const reports = await getReportsPageDataWithHistory({
+    requestType: task as ReportsHistoryFilter["requestType"],
+    providerMode:
+      mode === "fallback" || mode === "provider_backed"
+        ? mode
+        : undefined
+  });
+  const historyLinks = [
+    { href: "/reports", label: "All history" },
+    { href: "/reports?mode=fallback", label: "Fallback only" },
+    { href: "/reports?mode=provider_backed", label: "Provider-backed only" },
+    { href: "/reports?task=incident_draft", label: "Incident drafts" },
+    { href: "/reports?task=approval_note_draft", label: "Approval notes" },
+    { href: "/reports?task=alerts_explain", label: "Alert explanations" }
+  ];
 
   return (
     <PageShell title="Reports" description="Placeholder reports route using the repository and query layer.">
       <p>Data points: {reports.ponds.items.length + reports.alerts.items.length}</p>
+      <section
+        style={{
+          display: "grid",
+          gap: "0.5rem",
+          padding: "0.85rem",
+          border: "1px solid rgba(148, 163, 184, 0.25)",
+          borderRadius: "0.75rem"
+        }}
+      >
+        <strong>AI Usage History</strong>
+        <p>
+          Recent outputs from the bounded AI request/response log seam. Filter: {task ?? "all tasks"} /{" "}
+          {mode ?? "all modes"}
+        </p>
+        <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap" }}>
+          {historyLinks.map((item) => (
+            <Link key={item.href} href={item.href}>
+              {item.label}
+            </Link>
+          ))}
+        </div>
+        <p>
+          Entries: {reports.history.page.totalItems} / Showing: {reports.history.items.length}
+        </p>
+        {reports.history.items.map((item) => (
+          <article
+            key={item.id}
+            style={{
+              display: "grid",
+              gap: "0.35rem",
+              padding: "0.75rem",
+              border: "1px solid rgba(148, 163, 184, 0.2)",
+              borderRadius: "0.65rem"
+            }}
+          >
+            <strong>{item.requestType ?? "unknown_task"}</strong>
+            <p>
+              Mode: {item.providerMode ?? "unknown"} / Path: {item.providerPath ?? "unknown"} / Model: {item.model}
+            </p>
+            <p>
+              Logged: {item.createdAt} / Related records: {item.relatedRecordIds?.join(", ") ?? "none"}
+            </p>
+            <p>Preview: {item.outputPreview ?? "No preview available."}</p>
+            <details>
+              <summary>Copy-ready output</summary>
+              <pre
+                style={{
+                  margin: 0,
+                  whiteSpace: "pre-wrap",
+                  overflowWrap: "anywhere"
+                }}
+              >
+                {item.outputText}
+              </pre>
+            </details>
+          </article>
+        ))}
+      </section>
       <section
         style={{
           display: "grid",

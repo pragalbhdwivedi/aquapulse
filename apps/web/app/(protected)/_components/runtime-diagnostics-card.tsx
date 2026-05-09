@@ -599,6 +599,14 @@ export function RuntimeDiagnosticsCard({
             AI operator assistance provider: {backendProbe.runtime.aiOperatorAssistance.providerPath} / Fallback active: {backendProbe.runtime.aiOperatorAssistance.fallbackActive ? "yes" : "no"} / Bilingual tasks: {(backendProbe.runtime.aiOperatorAssistance.bilingualTasks ?? []).join(", ")} / Tone tasks: {(backendProbe.runtime.aiOperatorAssistance.toneTasks ?? []).join(", ")}
           </span>
         ) : null}
+        {backendProbe?.runtime?.aiHistory ? (
+          <span>
+            AI history: {backendProbe.runtime.aiHistory.enabled ? "enabled" : "disabled"} / Source:{" "}
+            {backendProbe.runtime.aiHistory.sourceLabel} / Provider metadata:{" "}
+            {backendProbe.runtime.aiHistory.providerMetadataAvailable ? "available" : "unavailable"} / Filters:{" "}
+            {backendProbe.runtime.aiHistory.filterFields.join(", ")}
+          </span>
+        ) : null}
         {backendProbe?.runtime ? (
           <span>
             AI cache: {backendProbe.runtime.aiExplanations.cacheEnabled ? "enabled" : "disabled"} / Manual attach: {backendProbe.runtime.aiExplanations.attachmentAvailable ? "available" : "unavailable"} / Feedback: {backendProbe.runtime.aiExplanations.feedbackEnabled ? "enabled" : "disabled"}

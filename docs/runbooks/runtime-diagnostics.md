@@ -80,4 +80,11 @@ For AI operator assistance:
 - `aiOperatorAssistance.bilingualTasks` lists which bounded tasks can return bilingual output
 - `aiOperatorAssistance.toneTasks` lists which bounded tasks accept bounded tone shaping
 
+For AI usage history:
+
+- `aiHistory.enabled = true` means the bounded AI history review surface is wired on top of the existing request/response log seam
+- `aiHistory.sourceLabel = ai_request_response_log` shows that history comes from the current backend log path instead of a second analytics store
+- `aiHistory.providerMetadataAvailable = true` means history items can distinguish fallback vs provider-backed output when metadata is present
+- `aiHistory.filterFields` lists the bounded filters supported by the current history read surface
+
 These diagnostics are intentionally lightweight. They are for runtime clarity, not full monitoring or production observability.

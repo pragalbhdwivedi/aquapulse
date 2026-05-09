@@ -6,6 +6,7 @@ import type {
   AiHandoverGenerateResponse,
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
+  AiRequestRecord,
   AlertExplanationFeedbackRecord,
   AiResponseRecord,
   AiTextRewriteResponse,
@@ -30,6 +31,156 @@ import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.con
 import { AlertExplanationService } from "../services/alert-explanation.service";
 import { OperatorAssistanceService } from "../services/operator-assistance.service";
 
+function parseAiOutputText(outputText: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(outputText) as unknown;
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Keep the bounded history view readable even when older records are plain text.
+  }
+
+  return null;
+}
+
+function toProviderMode(
+  parsedOutput: Record<string, unknown> | null
+): AiResponseRecord["providerMode"] {
+  const metadata = parsedOutput?.metadata;
+  if (typeof metadata !== "object" || metadata === null) {
+    return "unknown";
+  }
+
+  if ("usedLiveOpenAi" in metadata && (metadata as { usedLiveOpenAi?: unknown }).usedLiveOpenAi === true) {
+    return "provider_backed";
+  }
+
+  if ("mode" in metadata) {
+    return (metadata as { mode?: unknown }).mode === "fallback" ? "fallback" : "provider_backed";
+  }
+
+  return "unknown";
+}
+
+function toProviderPath(
+  parsedOutput: Record<string, unknown> | null
+): AiResponseRecord["providerPath"] {
+  const metadata = parsedOutput?.metadata;
+  if (typeof metadata !== "object" || metadata === null) {
+    return undefined;
+  }
+
+  const providerPath = (metadata as { providerPath?: unknown }).providerPath;
+  return providerPath === "deterministic_fallback" || providerPath === "openai_responses_api"
+    ? providerPath
+    : undefined;
+}
+
+function toOutputPreview(parsedOutput: Record<string, unknown> | null, outputText: string): string {
+  const previewCandidateKeys = [
+    "headline",
+    "summary",
+    "directAnswer",
+    "incidentSummary",
+    "draftEnglish",
+    "draftNote",
+    "rewrittenEnglish",
+    "explanation"
+  ] as const;
+
+  for (const key of previewCandidateKeys) {
+    const value = parsedOutput?.[key];
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+
+  return outputText.trim().slice(0, 220);
+}
+
+function toRelatedRecordIds(
+  requestRecord: AiRequestRecord | undefined
+): string[] | undefined {
+  if (!requestRecord) {
+    return undefined;
+  }
+
+  const payload = requestRecord.inputPayload;
+  const values = [
+    payload.alertId,
+    payload.recordId,
+    payload.linkedRecordId,
+    payload.linkedAlertId,
+    payload.linkedTaskId,
+    payload.linkedPondId,
+    payload.pondId,
+    payload.taskId
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+
+  return values.length > 0 ? [...new Set(values)] : undefined;
+}
+
+function enrichAiResponseRecord(
+  record: AiResponseRecord,
+  requestRecord: AiRequestRecord | undefined
+): AiResponseRecord {
+  const parsedOutput = parseAiOutputText(record.outputText);
+  const advisoryOnly = parsedOutput?.metadata;
+  return {
+    ...record,
+    requestType: requestRecord?.requestType,
+    providerMode: toProviderMode(parsedOutput),
+    providerPath: toProviderPath(parsedOutput),
+    outputPreview: toOutputPreview(parsedOutput, record.outputText),
+    relatedRecordIds: toRelatedRecordIds(requestRecord),
+    advisoryOnly:
+      typeof advisoryOnly === "object" &&
+      advisoryOnly !== null &&
+      "advisoryOnly" in advisoryOnly &&
+      (advisoryOnly as { advisoryOnly?: unknown }).advisoryOnly === true
+        ? true
+        : undefined
+  };
+}
+
+function filterAiHistoryRecord(
+  record: AiResponseRecord,
+  query: AiResponseLogQueryContract
+): boolean {
+  if (query.requestId && record.requestId !== query.requestId) {
+    return false;
+  }
+  if (query.status && record.status !== query.status) {
+    return false;
+  }
+  if (query.model && record.model !== query.model) {
+    return false;
+  }
+  if (query.requestType && record.requestType !== query.requestType) {
+    return false;
+  }
+  if (query.providerMode && record.providerMode !== query.providerMode) {
+    return false;
+  }
+  if (query.relatedRecordId && !record.relatedRecordIds?.includes(query.relatedRecordId)) {
+    return false;
+  }
+  if (query.createdAfter && Date.parse(record.createdAt) < Date.parse(query.createdAfter)) {
+    return false;
+  }
+  if (query.createdBefore && Date.parse(record.createdAt) > Date.parse(query.createdBefore)) {
+    return false;
+  }
+  if (query.search) {
+    const haystack = `${record.outputPreview ?? ""} ${record.outputText} ${record.requestType ?? ""}`.toLowerCase();
+    if (!haystack.includes(query.search.toLowerCase())) {
+      return false;
+    }
+  }
+  return true;
+}
+
 @Injectable()
 export class AiApplicationService {
   constructor(
@@ -40,8 +191,49 @@ export class AiApplicationService {
 
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.create(_input) }; }
   async update(_id: string, _input: UpdateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.update(_id, _input) }; }
-  async list(_query: AiResponseLogQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> { return { ok: true, data: await this.aiRepository.list(_query) }; }
-  async getById(_id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.getById(_id) }; }
+  async list(query: AiResponseLogQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> {
+    const baseQuery = {
+      ...query,
+      page: 1,
+      pageSize: Math.max(query.pageSize ?? 20, 100)
+    };
+    const [responses, requests] = await Promise.all([
+      this.aiRepository.list(baseQuery),
+      this.aiRepository.listRequests({
+        page: 1,
+        pageSize: 100
+      })
+    ]);
+    const requestMap = new Map(requests.items.map((item) => [item.id, item]));
+    const filteredItems = responses.items
+      .map((item) => enrichAiResponseRecord(item, requestMap.get(item.requestId)))
+      .filter((item) => filterAiHistoryRecord(item, query));
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const pagedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
+
+    return {
+      ok: true,
+      data: {
+        items: pagedItems,
+        page: {
+          page,
+          pageSize,
+          totalItems: filteredItems.length,
+          totalPages: Math.max(1, Math.ceil(filteredItems.length / pageSize))
+        }
+      }
+    };
+  }
+  async getById(id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>> {
+    const record = await this.aiRepository.getById(id);
+    const requests = await this.aiRepository.listRequests({
+      page: 1,
+      pageSize: 100
+    });
+    const requestRecord = requests.items.find((item) => item.id === record.requestId);
+    return { ok: true, data: enrichAiResponseRecord(record, requestRecord) };
+  }
   async explainAlert(_input: ExplainAlertDto): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>> {
     if (this.alertExplanationService) {
       return { ok: true, data: await this.alertExplanationService.explainAlert(_input) };

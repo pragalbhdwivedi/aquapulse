@@ -12,6 +12,7 @@ This branch adds the first broader backend-controlled AI operator-assistance sur
 It also keeps the older alert explanation surface aligned with the same bounded output discipline:
 
 - alert explanation via `POST /api/ai/alerts/explain`
+- AI usage history and review via the existing `GET /api/ai` log seam
 
 Both flows are advisory-only. They do not:
 
@@ -160,6 +161,13 @@ Backend runtime diagnostics also expose `aiExplanations` with:
 - whether bilingual output is supported
 - whether bounded tone shaping is supported
 
+Backend runtime diagnostics now also expose `aiHistory` with:
+
+- whether AI usage history is enabled
+- confirmation that history is sourced from the existing request/response log seam
+- whether provider/fallback metadata is available on history items
+- which bounded filter fields are supported
+
 ## Local verification
 
 Recommended checks:
@@ -170,8 +178,26 @@ Recommended checks:
 - open the reports page and confirm daily summary plus shift handover render
 - confirm the reports page now shows incident rewrite plus approval note draft cards
 - confirm the reports page now also shows the incident draft card
+- confirm the reports page now also shows recent AI usage history with task type and fallback/provider labels
 - open the alerts workbench and confirm the explanation card shows observed facts, likely factors, immediate checks, and escalation considerations
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
+
+## AI history review
+
+The bounded AI history view shows:
+
+- recent generated outputs from the existing request/response log seam
+- task type labels such as summary, handover, dashboard assistant, rewrite, incident draft, approval note draft, and alert explanation
+- provider-backed vs fallback metadata when available
+- request timestamps, model labels, and related record identifiers when available
+- copy-ready raw output text for bounded operator reuse
+
+It does not:
+
+- create approvals
+- mutate alerts or tasks
+- become a general AI chat history surface
+- expose provider secrets or raw tokens
 
 ## Intentionally deferred
 
@@ -180,3 +206,4 @@ Still deferred for later AI branches:
 - broader AI chat
 - treatment recommendation logic
 - any AI-driven critical write authority
+- full AI analytics or reinforcement dashboards

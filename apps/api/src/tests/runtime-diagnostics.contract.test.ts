@@ -105,6 +105,11 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiOperatorAssistance?.bilingualTasks).toContain("incident_draft");
     expect(diagnostics.aiOperatorAssistance?.toneTasks).toContain("approval_note_draft");
     expect(diagnostics.aiOperatorAssistance?.toneTasks).toContain("incident_draft");
+    expect(diagnostics.aiHistory?.enabled).toBe(true);
+    expect(diagnostics.aiHistory?.sourceLabel).toBe("ai_request_response_log");
+    expect(diagnostics.aiHistory?.providerMetadataAvailable).toBe(true);
+    expect(diagnostics.aiHistory?.filterFields).toContain("requestType");
+    expect(diagnostics.aiHistory?.filterFields).toContain("providerMode");
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");
     expect(diagnostics.alerts.localAiExplainBridgeExpectedPath).toBe("/api/ai/alerts");
     expect(diagnostics.alertsLiveUpdates?.enabled).toBe(false);

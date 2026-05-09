@@ -93,6 +93,8 @@ describe("Frontend query layer", () => {
     expect(alerts.explanation).toContain("Placeholder");
     expect(alerts.summary.assignmentCounts.unassigned).toBeGreaterThanOrEqual(0);
     expect(audit.items[0]?.resourceType).toBe("alert");
+    expect(reports.history.items.length).toBeGreaterThan(0);
+    expect(reports.history.items[0]?.requestType).toBeTruthy();
     expect(reports.dailySummary.metadata.taskLabel).toBe("daily_farm_summary");
     expect(reports.dailySummary.pendingActions.length).toBeGreaterThan(0);
     expect(reports.handover.metadata.taskLabel).toBe("shift_handover_generate");

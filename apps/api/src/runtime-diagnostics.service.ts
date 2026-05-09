@@ -581,6 +581,20 @@ export class RuntimeDiagnosticsService {
         ],
         warnings: operatorAssistanceRuntime.warnings
       },
+      aiHistory: {
+        enabled: true,
+        advisoryOnly: true,
+        sourceLabel: "ai_request_response_log",
+        providerMetadataAvailable: true,
+        filterFields: [
+          "requestType",
+          "providerMode",
+          "createdAfter",
+          "createdBefore",
+          "relatedRecordId"
+        ],
+        warnings: []
+      },
       alerts: {
         workbenchCutoverAvailable: true,
         postgresReadCutoverAvailable: true,

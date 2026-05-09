@@ -53,7 +53,8 @@ describe("Frontend contract boundaries", () => {
 
   it("AI repository methods keep the dashboard contract stable", async () => {
     const repositories = createRepositories(createMockApiClients());
-    const [result, rewrite, incidentDraft, approvalNote] = await Promise.all([
+    const [history, result, rewrite, incidentDraft, approvalNote] = await Promise.all([
+      repositories.ai.list({ page: 1, pageSize: 5, providerMode: "fallback" }),
       repositories.ai.queryDashboard({ question: "What needs attention today?" }),
       repositories.ai.rewriteText({
         originalText: "oxygen low north pond rechecked sample taken",
@@ -74,6 +75,8 @@ describe("Frontend contract boundaries", () => {
       })
     ]);
 
+    expect(history.data.items.length).toBeGreaterThan(0);
+    expect(history.data.items[0]?.providerMode).toBeTruthy();
     expect(result.data.answer).toContain("Start with");
     expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expect(rewrite.data.metadata.taskLabel).toBe("incident_rewrite");

@@ -22,6 +22,7 @@ import type {
   AiHandoverGenerateResponse,
   AiIncidentsDraftRequest,
   AiIncidentsDraftResponse,
+  AiResponseRecord,
   AiPondsSummarizeRequest,
   AiPondsSummarizeResponse,
   AiTextRewriteRequest,
@@ -58,6 +59,7 @@ import type {
   AquaPulseClientRuntimeEnv
 } from "../clients/runtime-config";
 import type {
+  AiListQuery,
   AlertsListQuery,
   AuditListQuery,
   BatchesListQuery,
@@ -132,6 +134,8 @@ export interface FeedRepository {
 }
 
 export interface AiRepository {
+  list(query?: AiListQuery): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>>;
+  getById(id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>>;
   rewriteText(input: AiTextRewriteRequest): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>>;
   queryDashboard(input: AiDashboardQueryRequest): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>>;
   generateHandover(input: AiHandoverGenerateRequest): Promise<ApiSuccessEnvelope<AiHandoverGenerateResponse>>;
@@ -281,6 +285,12 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       }
     },
     ai: {
+      list(query) {
+        return clients.ai.list(query);
+      },
+      getById(id: string) {
+        return clients.ai.getById(id);
+      },
       rewriteText(input: AiTextRewriteRequest) {
         return clients.ai.rewriteText(input);
       },

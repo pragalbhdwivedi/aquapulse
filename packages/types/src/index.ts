@@ -334,6 +334,12 @@ export interface AiResponseRecord extends BaseEntity {
   readonly status: "draft" | "completed" | "rejected";
   readonly outputText: string;
   readonly model: string;
+  readonly requestType?: AiRequestRecord["requestType"];
+  readonly providerMode?: "fallback" | "provider_backed" | "unknown";
+  readonly providerPath?: "deterministic_fallback" | "openai_responses_api";
+  readonly outputPreview?: string;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly?: boolean;
 }
 
 export interface AiRequestRecord extends BaseEntity {
@@ -787,6 +793,11 @@ export interface AiResponseLogListQueryRequest extends ListQueryRequest {
   readonly requestId?: EntityId;
   readonly status?: AiResponseRecord["status"];
   readonly model?: string;
+  readonly requestType?: AiRequestRecord["requestType"];
+  readonly providerMode?: "fallback" | "provider_backed";
+  readonly createdAfter?: ISODateString;
+  readonly createdBefore?: ISODateString;
+  readonly relatedRecordId?: EntityId;
 }
 
 export type PlaceholderMutationRequest = {
@@ -2091,6 +2102,16 @@ export interface BackendRuntimeDiagnostics {
     readonly supportedOutputModes?: AiStructuredOutputMode[];
     readonly bilingualTasks?: AiOperatorAssistanceTaskLabel[];
     readonly toneTasks?: AiOperatorAssistanceTaskLabel[];
+    readonly warnings: RuntimeWarning[];
+  };
+  readonly aiHistory?: {
+    readonly enabled: boolean;
+    readonly advisoryOnly: true;
+    readonly sourceLabel: "ai_request_response_log";
+    readonly providerMetadataAvailable: boolean;
+    readonly filterFields: Array<
+      "requestType" | "providerMode" | "createdAfter" | "createdBefore" | "relatedRecordId"
+    >;
     readonly warnings: RuntimeWarning[];
   };
   readonly alerts: BackendAlertsRuntimeDiagnostics;

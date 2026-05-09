@@ -6,6 +6,7 @@ import type {
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
+  AiResponseRecord,
   AiTextRewriteResponse,
   AlertSummary,
   ApiSuccessEnvelope,
@@ -275,6 +276,8 @@ export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQu
 }
 
 export async function getReportsPageData(): Promise<{
+  history: ListResponse<AiResponseRecord>;
+  highlightedHistory?: AiResponseRecord;
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   dailySummary: AiPondsSummarizeResponse;
@@ -283,9 +286,32 @@ export async function getReportsPageData(): Promise<{
   incidentDraft: AiIncidentsDraftResponse;
   approvalNote: AiApprovalNoteDraftResponse;
 }> {
-  const [ponds, alerts, dailySummary, handover, incidentRewrite, incidentDraft, approvalNote] = await Promise.all([
+  return getReportsPageDataWithHistory();
+}
+
+export async function getReportsPageDataWithHistory(filters?: {
+  requestType?: AiResponseRecord["requestType"];
+  providerMode?: AiResponseRecord["providerMode"] extends "unknown" ? never : "fallback" | "provider_backed";
+}): Promise<{
+  history: ListResponse<AiResponseRecord>;
+  highlightedHistory?: AiResponseRecord;
+  ponds: ListResponse<PondSummary>;
+  alerts: ListResponse<AlertSummary>;
+  dailySummary: AiPondsSummarizeResponse;
+  handover: AiHandoverGenerateResponse;
+  incidentRewrite: AiTextRewriteResponse;
+  incidentDraft: AiIncidentsDraftResponse;
+  approvalNote: AiApprovalNoteDraftResponse;
+}> {
+  const [ponds, alerts, history, dailySummary, handover, incidentRewrite, incidentDraft, approvalNote] = await Promise.all([
     pondsRepository.list(defaultPondsQuery),
     alertsRepository.list(defaultAlertsQuery),
+    aiRepository.list({
+      page: 1,
+      pageSize: 8,
+      requestType: filters?.requestType,
+      providerMode: filters?.providerMode
+    }),
     pondsRepository.summarize({
       generatedForDate: "2026-04-13T00:00:00.000Z",
       includeMissingDataSignals: true,
@@ -326,6 +352,8 @@ export async function getReportsPageData(): Promise<{
   ]);
 
   return {
+    history: history.data,
+    highlightedHistory: history.data.items[0],
     ponds: ponds.data,
     alerts: alerts.data,
     dailySummary: dailySummary.data,

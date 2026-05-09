@@ -863,7 +863,12 @@ export const aiMockAdapter: AiApiClient = {
         (!query?.requestId || item.requestId === query.requestId) &&
         (!query?.status || item.status === query.status) &&
         (!query?.model || item.model === query.model) &&
-        matchesSearch(item.outputText, query?.search)
+        (!query?.requestType || item.requestType === query.requestType) &&
+        (!query?.providerMode || item.providerMode === query.providerMode) &&
+        (!query?.relatedRecordId || item.relatedRecordIds?.includes(query.relatedRecordId)) &&
+        (!query?.createdAfter || Date.parse(item.createdAt) >= Date.parse(query.createdAfter)) &&
+        (!query?.createdBefore || Date.parse(item.createdAt) <= Date.parse(query.createdBefore)) &&
+        matchesSearch(`${item.outputPreview ?? ""} ${item.outputText} ${item.requestType ?? ""}`, query?.search)
     );
     return ok(list(items, normalizedQuery));
   },
