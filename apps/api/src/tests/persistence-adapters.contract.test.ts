@@ -90,7 +90,40 @@ describe("Persistence adapter skeletons", () => {
       }),
       databaseConfig: createTestDatabaseConfig()
     });
-    const aiRepository: AiRepositoryPort = new PostgresAiRepository();
+    const aiRepository: AiRepositoryPort = PostgresAiRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        resolveRows(statement) {
+          if (statement.includes("from ai_requests")) {
+            return [{
+              id: "ai-request-1",
+              request_type: "dashboard_assistant_query",
+              requested_by: "user-1",
+              input_payload: { question: "What needs attention today?" },
+              status: "completed",
+              created_at: "2026-05-09T06:20:00.000Z",
+              updated_at: "2026-05-09T06:20:00.000Z",
+              total_count: 1
+            }] as never[];
+          }
+
+          if (statement.includes("from ai_responses")) {
+            return [{
+              id: "ai-response-1",
+              request_id: "ai-request-1",
+              status: "completed",
+              output_text: "{\"headline\":\"Dashboard assistant\"}",
+              model: "gpt-5-nano",
+              created_at: "2026-05-09T06:20:05.000Z",
+              updated_at: "2026-05-09T06:20:05.000Z",
+              total_count: 1
+            }] as never[];
+          }
+
+          return [];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
 
     const [ponds, alerts, alertSavedViews, attachments, batches, feed, tasks, waterQuality, ai] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 20 }),

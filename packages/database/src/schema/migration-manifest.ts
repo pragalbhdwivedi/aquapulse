@@ -11,7 +11,7 @@ export interface DatabaseMigrationManifest {
 }
 
 export const databaseMigrationManifest: DatabaseMigrationManifest = {
-  schemaVersion: "0002_audit_persistence_foundation",
+  schemaVersion: "0003_ai_log_persistence_foundation",
   migrations: [
     {
       id: "0001_core_schema",
@@ -26,6 +26,13 @@ export const databaseMigrationManifest: DatabaseMigrationManifest = {
       file: "0002_audit_persistence_foundation.sql",
       description:
         "Add durable audit event storage and request-context metadata for bounded internal runtime auditing."
+    },
+    {
+      id: "0003_ai_log_persistence_foundation",
+      name: "ai log persistence foundation",
+      file: "0003_ai_log_persistence_foundation.sql",
+      description:
+        "Add durable AI request and response log storage for bounded advisory-only operator assistance history."
     }
   ]
 } as const;

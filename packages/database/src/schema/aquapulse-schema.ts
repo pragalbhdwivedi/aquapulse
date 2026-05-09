@@ -30,7 +30,9 @@ export const AQUAPULSE_SCHEMA_TABLES = {
   alertActionHistory: "alert_action_history",
   savedAlertViews: "saved_alert_views",
   auditEvents: "audit_events",
-  auditEventMetadata: "audit_event_metadata"
+  auditEventMetadata: "audit_event_metadata",
+  aiRequests: "ai_requests",
+  aiResponses: "ai_responses"
 } as const;
 
 export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
@@ -206,6 +208,44 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       }
     ],
     indexes: ["idx_audit_event_metadata_actor_created_at", "idx_audit_event_metadata_request_id"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "request_type", type: "text" },
+      { name: "requested_by", type: "text", nullable: true },
+      { name: "input_payload", type: "jsonb", defaultExpression: "'{}'::jsonb" },
+      { name: "status", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    indexes: ["idx_ai_requests_type_status_created_at", "idx_ai_requests_requested_by_created_at"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiResponses,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "request_id", type: "text" },
+      { name: "status", type: "text" },
+      { name: "output_text", type: "text" },
+      { name: "model", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "request_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: [
+      "idx_ai_responses_request_created_at",
+      "idx_ai_responses_status_created_at",
+      "idx_ai_responses_model_created_at"
+    ]
   }
 ] as const;
 
