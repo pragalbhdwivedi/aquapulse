@@ -9,7 +9,13 @@ export default async function PondsPage() {
   const ponds = await getPondsPageData();
 
   return (
-    <PageShell title="Ponds" description="Placeholder pond list using the repository and query layer.">
+    <PageShell
+      title="Ponds"
+      description="Pond list for operator walkthroughs, with bounded detail reads and a safe create flow that remains auth-aware without forcing full SSO locally."
+    >
+      <p>
+        Active pond list: {ponds.items.length} item(s). Open a pond to review water-quality context, manual follow-up, and AI-assisted summaries.
+      </p>
       <ul>
         {ponds.items.map((pond) => (
           <li key={pond.id}>

@@ -11,6 +11,18 @@ import { PageShell } from "../_components/page-shell";
 type ReportsHistoryFilter = NonNullable<Parameters<typeof getReportsPageDataWithHistory>[0]>;
 type ReportsSearchParams = Record<string, string | string[] | undefined>;
 
+const sectionCardStyle = {
+  display: "grid",
+  gap: "0.6rem",
+  padding: "0.95rem",
+  border: "1px solid rgba(148, 163, 184, 0.25)",
+  borderRadius: "0.85rem"
+} as const;
+
+const subtleTextStyle = {
+  color: "#94a3b8"
+} as const;
+
 function getSingleSearchParam(
   searchParams: ReportsSearchParams | undefined,
   key: string
@@ -115,6 +127,54 @@ function destinationLabel(destination: AiHistoryReuseDestination): string {
     case "approval_note_draft":
       return "Approval Note Draft";
   }
+}
+
+function taskLabelLabel(task?: string): string {
+  switch (task) {
+    case "daily_farm_summary":
+      return "Daily farm summary";
+    case "shift_handover_generate":
+      return "Shift handover";
+    case "dashboard_assistant_query":
+      return "Dashboard assistant";
+    case "incident_rewrite":
+      return "Incident rewrite";
+    case "incident_draft":
+      return "Incident draft";
+    case "approval_note_draft":
+      return "Approval note draft";
+    case "alerts_explain":
+      return "Alert explanation";
+    default:
+      return task ?? "Unknown task";
+  }
+}
+
+function providerModeLabel(providerMode?: string, providerPath?: string): string {
+  const mode =
+    providerMode === "provider_backed"
+      ? "Provider-backed"
+      : providerMode === "fallback"
+        ? "Fallback"
+        : "Unknown mode";
+
+  return providerPath ? `${mode} via ${providerPath}` : mode;
+}
+
+function renderMetadataLine({
+  mode,
+  outputMode,
+  tone
+}: {
+  mode: string;
+  outputMode: string;
+  tone?: string;
+}) {
+  return (
+    <p style={{ color: "#cbd5e1" }}>
+      Mode: {mode} / Output: {outputMode} / Tone: {tone ?? "operator"} / Advisory-only review required
+    </p>
+  );
 }
 
 function getCurrentDraftTextForDestination(
@@ -255,21 +315,29 @@ export default async function ReportsPage({
   const selectedCompare = reports.selectedCompare;
 
   return (
-    <PageShell title="Reports" description="Placeholder reports route using the repository and query layer.">
-      <p>Data points: {reports.ponds.items.length + reports.alerts.items.length}</p>
+    <PageShell
+      title="Reports"
+      description="Review-ready AI assistance workspace for summaries, handovers, rewrites, drafts, and bounded history reuse."
+    >
+      <section style={sectionCardStyle}>
+        <strong>Operator Assistance Review Flow</strong>
+        <p style={subtleTextStyle}>
+          Use this page for bounded AI walkthroughs: generate a draft, review the result, reuse from history if it helps, compare differences, and only then copy or continue editing manually.
+        </p>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <span>Ponds in view: {reports.ponds.items.length}</span>
+          <span>Alerts in view: {reports.alerts.items.length}</span>
+          <span>History items shown: {reports.history.items.length}</span>
+          <span>Reusable history items: {reports.supportedHistoryPrefills.length}</span>
+        </div>
+      </section>
       <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
+        style={sectionCardStyle}
       >
         <strong>AI Usage History</strong>
         <p>
-          Recent outputs from the bounded AI request/response log seam. Filter: {task ?? "all tasks"} /{" "}
-          {mode ?? "all modes"}
+          Recent outputs from the bounded AI request/response log seam. Current filter:{" "}
+          {taskLabelLabel(task)} / {mode === "provider_backed" ? "provider-backed only" : mode === "fallback" ? "fallback only" : "all modes"}
         </p>
         <div style={{ display: "flex", gap: "0.65rem", flexWrap: "wrap" }}>
           {historyLinks.map((item) => (
@@ -280,6 +348,9 @@ export default async function ReportsPage({
         </div>
         <p>
           Entries: {reports.history.page.totalItems} / Showing: {reports.history.items.length}
+        </p>
+        <p style={subtleTextStyle}>
+          History remains read-only. Reuse and compare helpers only prefill or review text; they never save or mutate an operational record by themselves.
         </p>
         {reports.history.items.map((item) => {
           const reusablePrefill = getAiHistoryReusePrefill(item);
@@ -295,14 +366,12 @@ export default async function ReportsPage({
                 borderRadius: "0.65rem"
               }}
             >
-              <strong>{item.requestType ?? "unknown_task"}</strong>
-              <p>
-                Mode: {item.providerMode ?? "unknown"} / Path: {item.providerPath ?? "unknown"} / Model: {item.model}
-              </p>
+              <strong>{taskLabelLabel(item.requestType)}</strong>
+              <p>{providerModeLabel(item.providerMode, item.providerPath)} / Model: {item.model}</p>
               <p>
                 Logged: {item.createdAt} / Related records: {item.relatedRecordIds?.join(", ") ?? "none"}
               </p>
-              <p>Preview: {item.outputPreview ?? "No preview available."}</p>
+              <p>Preview: {item.outputPreview ?? "Structured output is available below."}</p>
               {reusablePrefill ? (
                 <p>
                   <Link
@@ -313,10 +382,10 @@ export default async function ReportsPage({
                   >
                     Reuse in {destinationLabel(reusablePrefill.destinationType)}
                   </Link>{" "}
-                  <span>Prefill only. Review and submit manually.</span>
+                  <span>Prefill only. Review, compare, and submit manually.</span>
                 </p>
               ) : (
-                <p>Reuse helper not available for this task type.</p>
+                <p style={subtleTextStyle}>Reuse helper is not available for this history item.</p>
               )}
               <details>
                 <summary>Copy-ready output</summary>
@@ -334,58 +403,38 @@ export default async function ReportsPage({
           );
         })}
       </section>
-      <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
-      >
+      <section style={sectionCardStyle}>
         <strong>Generate Daily Summary</strong>
+        <p style={subtleTextStyle}>
+          Use this for a farm-wide briefing. Treat the result as an operator summary, not an automated instruction set.
+        </p>
         <p>{reports.dailySummary.headline}</p>
         {reports.dailySummary.headlineHindi ? <p>Hindi draft: {reports.dailySummary.headlineHindi}</p> : null}
         <p>Highlights: {reports.dailySummary.keyHighlights.join(" | ")}</p>
         <p>Pending actions: {reports.dailySummary.pendingActions.join(" | ")}</p>
-        <p>
-          Mode: {reports.dailySummary.metadata.mode} /{" "}
-          {reports.dailySummary.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output:{" "}
-          {reports.dailySummary.metadata.output.outputMode} / Tone:{" "}
-          {reports.dailySummary.metadata.output.tone ?? "operator"}
-        </p>
+        {renderMetadataLine({
+          mode: reports.dailySummary.metadata.usedLiveOpenAi ? "provider-backed" : "fallback",
+          outputMode: reports.dailySummary.metadata.output.outputMode,
+          tone: reports.dailySummary.metadata.output.tone
+        })}
       </section>
-      <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
-      >
+      <section style={sectionCardStyle}>
         <strong>Generate Shift Handover</strong>
+        <p style={subtleTextStyle}>
+          Use this for next-shift review. It is meant to speed up handovers, but still needs operator confirmation.
+        </p>
         <p>{reports.handover.headline}</p>
         {reports.handover.headlineHindi ? <p>Hindi draft: {reports.handover.headlineHindi}</p> : null}
         <p>Pending items: {reports.handover.pendingItems.join(" | ")}</p>
         <p>Next shift note: {reports.handover.nextShiftNote}</p>
         {reports.handover.nextShiftNoteHindi ? <p>Hindi draft: {reports.handover.nextShiftNoteHindi}</p> : null}
-        <p>
-          Mode: {reports.handover.metadata.mode} /{" "}
-          {reports.handover.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output:{" "}
-          {reports.handover.metadata.output.outputMode} / Tone:{" "}
-          {reports.handover.metadata.output.tone ?? "operator"}
-        </p>
+        {renderMetadataLine({
+          mode: reports.handover.metadata.usedLiveOpenAi ? "provider-backed" : "fallback",
+          outputMode: reports.handover.metadata.output.outputMode,
+          tone: reports.handover.metadata.output.tone
+        })}
       </section>
-      <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
-      >
+      <section style={sectionCardStyle}>
         <strong>Incident Rewrite</strong>
         {selectedPrefill?.destinationType === "incident_rewrite" ? (
           <p>
@@ -393,6 +442,9 @@ export default async function ReportsPage({
             <Link href={clearPrefillHref}>Clear prefill</Link>
           </p>
         ) : null}
+        <p style={subtleTextStyle}>
+          Start with rough operator text, then regenerate, compare, or copy manually. This does not create or update an incident record by itself.
+        </p>
         <form method="get" style={{ display: "grid", gap: "0.45rem" }}>
           {task ? <input type="hidden" name="task" value={task} /> : null}
           {mode ? <input type="hidden" name="mode" value={mode} /> : null}
@@ -429,22 +481,13 @@ export default async function ReportsPage({
         {reports.incidentRewrite.clarificationNote ? (
           <p>{reports.incidentRewrite.clarificationNote}</p>
         ) : null}
-        <p>
-          Mode: {reports.incidentRewrite.metadata.mode} /{" "}
-          {reports.incidentRewrite.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output:{" "}
-          {reports.incidentRewrite.metadata.output.outputMode} / Tone:{" "}
-          {reports.incidentRewrite.metadata.output.tone ?? reports.incidentRewrite.tone}
-        </p>
+        {renderMetadataLine({
+          mode: reports.incidentRewrite.metadata.usedLiveOpenAi ? "provider-backed" : "fallback",
+          outputMode: reports.incidentRewrite.metadata.output.outputMode,
+          tone: reports.incidentRewrite.metadata.output.tone ?? reports.incidentRewrite.tone
+        })}
       </section>
-      <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
-      >
+      <section style={sectionCardStyle}>
         <strong>Incident Draft</strong>
         {selectedPrefill?.destinationType === "incident_draft" ? (
           <p>
@@ -452,6 +495,9 @@ export default async function ReportsPage({
             <Link href={clearPrefillHref}>Clear prefill</Link>
           </p>
         ) : null}
+        <p style={subtleTextStyle}>
+          Review before use. This is a generated draft for operator editing, not a saved incident record.
+        </p>
         <form method="get" style={{ display: "grid", gap: "0.45rem" }}>
           {task ? <input type="hidden" name="task" value={task} /> : null}
           {mode ? <input type="hidden" name="mode" value={mode} /> : null}
@@ -489,22 +535,13 @@ export default async function ReportsPage({
         <p>Draft: {reports.incidentDraft.draftEnglish}</p>
         {reports.incidentDraft.draftHindi ? <p>Hindi draft: {reports.incidentDraft.draftHindi}</p> : null}
         {reports.incidentDraft.missingInformationNote ? <p>{reports.incidentDraft.missingInformationNote}</p> : null}
-        <p>
-          Mode: {reports.incidentDraft.metadata.mode} /{" "}
-          {reports.incidentDraft.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output:{" "}
-          {reports.incidentDraft.metadata.output.outputMode} / Tone:{" "}
-          {reports.incidentDraft.metadata.output.tone ?? "operator"}
-        </p>
+        {renderMetadataLine({
+          mode: reports.incidentDraft.metadata.usedLiveOpenAi ? "provider-backed" : "fallback",
+          outputMode: reports.incidentDraft.metadata.output.outputMode,
+          tone: reports.incidentDraft.metadata.output.tone
+        })}
       </section>
-      <section
-        style={{
-          display: "grid",
-          gap: "0.5rem",
-          padding: "0.85rem",
-          border: "1px solid rgba(148, 163, 184, 0.25)",
-          borderRadius: "0.75rem"
-        }}
-      >
+      <section style={sectionCardStyle}>
         <strong>Approval Note Draft</strong>
         {selectedPrefill?.destinationType === "approval_note_draft" ? (
           <p>
@@ -512,6 +549,9 @@ export default async function ReportsPage({
             <Link href={clearPrefillHref}>Clear prefill</Link>
           </p>
         ) : null}
+        <p style={subtleTextStyle}>
+          Use this to shape review wording only. It does not approve, close, or post anything automatically.
+        </p>
         <form method="get" style={{ display: "grid", gap: "0.45rem" }}>
           {task ? <input type="hidden" name="task" value={task} /> : null}
           {mode ? <input type="hidden" name="mode" value={mode} /> : null}
@@ -545,12 +585,11 @@ export default async function ReportsPage({
         <p>Rationale: {reports.approvalNote.rationaleSummary}</p>
         <p>Next checks: {reports.approvalNote.suggestedNextChecks.join(" | ")}</p>
         <p>Review required: {reports.approvalNote.reviewRequired ? "yes" : "no"}</p>
-        <p>
-          Mode: {reports.approvalNote.metadata.mode} /{" "}
-          {reports.approvalNote.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Output:{" "}
-          {reports.approvalNote.metadata.output.outputMode} / Tone:{" "}
-          {reports.approvalNote.metadata.output.tone ?? "formal"}
-        </p>
+        {renderMetadataLine({
+          mode: reports.approvalNote.metadata.usedLiveOpenAi ? "provider-backed" : "fallback",
+          outputMode: reports.approvalNote.metadata.output.outputMode,
+          tone: reports.approvalNote.metadata.output.tone ?? "formal"
+        })}
       </section>
     </PageShell>
   );

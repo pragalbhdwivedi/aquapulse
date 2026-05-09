@@ -25,8 +25,13 @@ export default async function FeedPage() {
       : undefined;
 
   return (
-    <PageShell title="Feed" description="Minimal feed route with the third write vertical slice wired in.">
-      <p>Entries: {feed?.items.length ?? 0}</p>
+    <PageShell
+      title="Feed"
+      description="Recent feed activity with bounded protected reads and operator create/update actions that stay local-safe by default."
+    >
+      <p>
+        Recent feed log: {feed?.items.length ?? 0} item(s). Review the latest entry, confirm the recent history, then add or revise feed notes manually.
+      </p>
       <ul>
         {(feed?.items ?? []).map((entry) => (
           <li key={entry.id}>

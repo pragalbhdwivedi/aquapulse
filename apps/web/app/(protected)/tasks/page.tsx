@@ -20,8 +20,13 @@ export default async function TasksPage() {
       : undefined;
 
   return (
-    <PageShell title="Tasks" description="Placeholder tasks route using the repository and query layer.">
-      <p>Tasks: {tasks.items.length}</p>
+    <PageShell
+      title="Tasks"
+      description="Operator follow-up queue with bounded task reads, create/update actions, and safe auth-aware behavior."
+    >
+      <p>
+        Open task view: {tasks.items.length} item(s). Start with manual follow-up work that still needs an owner, update, or completion check.
+      </p>
       <ul>
         {tasks.items.map((task) => (
           <li key={task.id}>

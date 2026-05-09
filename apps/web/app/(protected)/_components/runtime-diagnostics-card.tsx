@@ -91,6 +91,12 @@ export function RuntimeDiagnosticsCard({
   });
   const nonAlertOperatorSummary = deriveNonAlertOperatorAccessSummary(diagnostics.session);
   const nonAlertReadSummary = deriveNonAlertReadAccessSummary(diagnostics.session);
+  const operatorReadinessLabel =
+    diagnostics.mode.safeFallbackActive && diagnostics.session.availabilityState !== "unauthenticated"
+      ? "safe for local walkthrough"
+      : diagnostics.session.availabilityState === "unauthenticated"
+        ? "session-limited"
+        : "runtime-ready";
 
   return (
     <section
@@ -103,6 +109,28 @@ export function RuntimeDiagnosticsCard({
       }}
     >
       <strong>{title}</strong>
+      <section
+        style={{
+          display: "grid",
+          gap: "0.4rem",
+          padding: "0.75rem",
+          border: "1px solid rgba(148, 163, 184, 0.18)",
+          borderRadius: "0.65rem",
+          background: "rgba(15, 23, 42, 0.18)"
+        }}
+      >
+        <strong>Quick Read</strong>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
+          <span>Operator readiness: {operatorReadinessLabel}</span>
+          <span>Auth: {diagnostics.auth.effectiveMode}</span>
+          <span>Session: {diagnostics.session.availabilityState}</span>
+          <span>AI assistance: {backendProbe?.runtime?.aiOperatorAssistance?.mode ?? "frontend-derived"}</span>
+          <span>History reuse: {backendProbe?.runtime?.aiHistory?.reuseFromHistoryEnabled ? "enabled" : "available via frontend flow"}</span>
+        </div>
+        <span style={{ color: "#94a3b8" }}>
+          Use the detailed lines below for technical UAT checks. The summary above is meant to help demos and operator walkthroughs land quickly.
+        </span>
+      </section>
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
         <span>Global runtime: {diagnostics.mode.effectiveMode}</span>
         <span>Auth runtime: {diagnostics.auth.effectiveMode}</span>

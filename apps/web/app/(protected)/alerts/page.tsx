@@ -73,9 +73,14 @@ export default async function AlertsPage() {
         : "Summary reads are staying on the safe bypass path. Showing a queue-derived fallback summary.";
 
   return (
-    <PageShell title="Alerts" description="Placeholder alerts route using the repository and query layer.">
-      <p>Alerts: {alertsPage.alerts.items.length}</p>
-      <p>AI explanation: {alertsPage.explanation}</p>
+    <PageShell
+      title="Alerts"
+      description="Alerts workbench for triage, review, and advisory explanation, with protected reads that stay explicit about fallback and auth state."
+    >
+      <p>
+        Queue view: {alertsPage.alerts.items.length} alert(s). Start with the list state below, then use the bounded explanation surface as advisory guidance before taking manual action.
+      </p>
+      <p>AI explanation preview: {alertsPage.explanation}</p>
       <AlertsActionList
         initialAlerts={alertsPage.alerts.items}
         initialSummary={alertsPage.summary}
