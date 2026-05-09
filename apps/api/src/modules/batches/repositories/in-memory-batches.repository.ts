@@ -15,6 +15,33 @@ const batch: BatchSummary = {
   lifecycleStage: "growing"
 };
 
+function matchesBatchQuery(batchItem: BatchSummary, query: BatchesListQueryContract): boolean {
+  if (query.batchId && batchItem.id !== query.batchId) {
+    return false;
+  }
+
+  if (query.readablePondIds && !query.readablePondIds.includes(batchItem.pondId)) {
+    return false;
+  }
+
+  if (query.pondId && batchItem.pondId !== query.pondId) {
+    return false;
+  }
+
+  if (query.lifecycleStage && batchItem.lifecycleStage !== query.lifecycleStage) {
+    return false;
+  }
+
+  if (query.search?.trim()) {
+    const haystack = `${batchItem.name} ${batchItem.species}`.toLowerCase();
+    if (!haystack.includes(query.search.trim().toLowerCase())) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 @Injectable()
 export class InMemoryBatchesRepository implements BatchesRepositoryPort {
   async create(_input: CreateBatchesDto): Promise<BatchSummary> {
@@ -30,6 +57,15 @@ export class InMemoryBatchesRepository implements BatchesRepositoryPort {
   }
 
   async list(_query: BatchesListQueryContract): Promise<ListResponse<BatchSummary>> {
-    return { items: [batch], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
+    const items = matchesBatchQuery(batch, _query) ? [batch] : [];
+    return {
+      items,
+      page: {
+        page: _query.page,
+        pageSize: _query.pageSize,
+        totalItems: items.length,
+        totalPages: 1
+      }
+    };
   }
 }

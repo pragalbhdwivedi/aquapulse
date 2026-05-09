@@ -1,6 +1,7 @@
 import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
+  createPlaceholderBatchRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
   createPlaceholderTaskRow,
@@ -34,6 +35,12 @@ import {
 } from "../modules/pond-responsibility/adapters/postgres-pond-responsibility.repository";
 import type { PondResponsibilityRepositoryPort } from "../modules/pond-responsibility/ports/pond-responsibility-repository.port";
 import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
+import {
+  buildBatchByIdQueryPlan,
+  buildBatchesListQueryPlan,
+  PostgresBatchesRepository
+} from "../modules/batches/adapters/postgres-batches.repository";
+import type { BatchesRepositoryPort } from "../modules/batches/ports/batches-repository.port";
 import {
   buildFeedByIdQueryPlan,
   buildFeedListQueryPlan,
@@ -160,6 +167,64 @@ describe("Postgres read adapter slices", () => {
       pondId: "pond-42",
       active: true,
       effectiveAt: "2026-05-10T12:00:00.000Z"
+    });
+  });
+
+  it("batches adapter keeps pond-filtered list semantics aligned with responsibility-ready query inputs", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: BatchesRepositoryPort = PostgresBatchesRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [
+          {
+            ...createPlaceholderBatchRow({
+              id: "batch-42",
+              pond_id: "pond-42",
+              lifecycle_stage: "growing"
+            }),
+            total_count: 1
+          }
+        ]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const item = await repository.getById("batch-42");
+    const list = await repository.list({
+      page: 2,
+      pageSize: 10,
+      pondId: "pond-42",
+      lifecycleStage: "growing",
+      readablePondIds: ["pond-42"],
+      search: "tilapia"
+    });
+
+    expect(item.id).toBe("batch-42");
+    expect(item.pondId).toBe("pond-42");
+    expect(list.items[0]?.id).toBe("batch-42");
+    expect(list.page.totalItems).toBe(1);
+    expect(recordedQueries).toHaveLength(2);
+    expect(recordedQueries[0]).toEqual({
+      statement: "batches.getById",
+      params: ["batch-42"]
+    });
+    expect(recordedQueries[1]).toEqual({
+      statement: "batches.list",
+      params: [2, 10, null, ["pond-42"], "pond-42", "growing", "tilapia"]
+    });
+    expect(buildBatchByIdQueryPlan("batch-42").filters).toEqual({ id: "batch-42" });
+    expect(
+      buildBatchesListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        readablePondIds: ["pond-42"],
+        lifecycleStage: "growing"
+      }).filters
+    ).toEqual({
+      batchId: undefined,
+      readablePondIds: ["pond-42"],
+      pondId: undefined,
+      lifecycleStage: "growing",
+      search: undefined
     });
   });
 

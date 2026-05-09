@@ -1,6 +1,7 @@
 import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
+  createPlaceholderBatchRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
   createPlaceholderPondResponsibilityRow,
@@ -86,7 +87,12 @@ describe("Persistence adapter skeletons", () => {
         databaseConfig: createTestDatabaseConfig()
       });
     const attachmentsRepository: AttachmentsRepositoryPort = new PostgresAttachmentsRepository();
-    const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
+    const batchesRepository: BatchesRepositoryPort = PostgresBatchesRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: [createPlaceholderBatchRow({ id: "batch-1" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const feedRepository: FeedRepositoryPort = PostgresFeedRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory([], {
         rows: [createPlaceholderFeedRow({ id: "feed-1" })]

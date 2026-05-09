@@ -35,8 +35,22 @@ export function buildBatchesListQueryPlan(query: BatchesListQueryContract): Comp
   return createListQueryPlan({
     key: "batches.list",
     query,
-    params: [query.page, query.pageSize, query.pondId ?? null, query.lifecycleStage ?? null, query.search ?? null],
-    filters: { pondId: query.pondId, lifecycleStage: query.lifecycleStage, search: query.search }
+    params: [
+      query.page,
+      query.pageSize,
+      query.batchId ?? null,
+      query.readablePondIds ?? null,
+      query.pondId ?? null,
+      query.lifecycleStage ?? null,
+      query.search ?? null
+    ],
+    filters: {
+      batchId: query.batchId,
+      readablePondIds: query.readablePondIds,
+      pondId: query.pondId,
+      lifecycleStage: query.lifecycleStage,
+      search: query.search
+    }
   });
 }
 
@@ -92,11 +106,29 @@ export class PostgresBatchesRepository implements BatchesRepositoryPort {
   }
 
   async list(query: BatchesListQueryContract): Promise<ListResponse<BatchSummary>> {
-    return this.gateway.executeMappedList(buildBatchesListQueryPlan(query), batchRowMapper, {
-      page: query.page,
-      pageSize: query.pageSize,
-      fallbackRows: [createPlaceholderBatchRow()]
-    });
+    const rows = await this.gateway.executeRows<BatchRow>(buildBatchesListQueryPlan(query));
+
+    if (rows.length === 0) {
+      return {
+        items: [],
+        page: {
+          page: query.page,
+          pageSize: query.pageSize,
+          totalItems: 0,
+          totalPages: 1
+        }
+      };
+    }
+
+    return {
+      items: rows.map((row) => batchRowMapper.toDomain(row)),
+      page: {
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems: rows.length,
+        totalPages: Math.max(1, Math.ceil(rows.length / query.pageSize))
+      }
+    };
   }
 
   private get gateway(): PostgresRowGateway {
@@ -112,7 +144,8 @@ export const POSTGRES_BATCHES_IMPLEMENTATION_PLAN = {
   writeMethods: ["create", "update"],
   rowSource: "batches",
   queryNotes: [
-    "shape search-driven batch list retrieval through compiled list plans",
+    "shape search-driven batch list retrieval through compiled plans",
+    "carry pond responsibility filters through readable pond identifiers when provided",
     "keep read and mutation execution on the shared Postgres row gateway"
   ],
   mappingNotes: [
