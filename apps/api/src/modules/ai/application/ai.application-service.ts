@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
@@ -30,6 +30,18 @@ import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.por
 import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.contract";
 import { AlertExplanationService } from "../services/alert-explanation.service";
 import { OperatorAssistanceService } from "../services/operator-assistance.service";
+import { createNotFoundResponse } from "../../../common/api/response-mapper";
+
+interface AiHistoryRequesterScope {
+  readonly id: string;
+  readonly provider: "keycloak" | "local";
+}
+
+function shouldScopeAiHistoryByRequester(
+  requester: AiHistoryRequesterScope | undefined
+): requester is AiHistoryRequesterScope & { readonly provider: "keycloak" } {
+  return requester?.provider === "keycloak" && requester.id.trim().length > 0;
+}
 
 function parseAiOutputText(outputText: string): Record<string, unknown> | null {
   try {
@@ -191,25 +203,35 @@ export class AiApplicationService {
 
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.create(_input) }; }
   async update(_id: string, _input: UpdateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.update(_id, _input) }; }
-  async list(query: AiResponseLogQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> {
+  async list(
+    query: AiResponseLogQueryContract,
+    requester?: AiHistoryRequesterScope
+  ): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>> {
+    const scopedQuery: AiResponseLogQueryContract = shouldScopeAiHistoryByRequester(requester)
+      ? {
+          ...query,
+          requestedBy: requester.id
+        }
+      : query;
     const baseQuery = {
-      ...query,
+      ...scopedQuery,
       page: 1,
-      pageSize: Math.max(query.pageSize ?? 20, 100)
+      pageSize: Math.max(scopedQuery.pageSize ?? 20, 100)
     };
     const [responses, requests] = await Promise.all([
       this.aiRepository.list(baseQuery),
       this.aiRepository.listRequests({
         page: 1,
-        pageSize: 100
+        pageSize: baseQuery.pageSize,
+        requestedBy: scopedQuery.requestedBy
       })
     ]);
     const requestMap = new Map(requests.items.map((item) => [item.id, item]));
     const filteredItems = responses.items
       .map((item) => enrichAiResponseRecord(item, requestMap.get(item.requestId)))
-      .filter((item) => filterAiHistoryRecord(item, query));
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
+      .filter((item) => filterAiHistoryRecord(item, scopedQuery));
+    const page = scopedQuery.page ?? 1;
+    const pageSize = scopedQuery.pageSize ?? 20;
     const pagedItems = filteredItems.slice((page - 1) * pageSize, page * pageSize);
 
     return {
@@ -225,11 +247,27 @@ export class AiApplicationService {
       }
     };
   }
-  async getById(id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>> {
+  async getById(
+    id: string,
+    requester?: AiHistoryRequesterScope
+  ): Promise<ApiSuccessEnvelope<AiResponseRecord>> {
     const record = await this.aiRepository.getById(id);
+    if (shouldScopeAiHistoryByRequester(requester)) {
+      const visibleRecords = await this.aiRepository.list({
+        page: 1,
+        pageSize: 1,
+        requestId: record.requestId,
+        requestedBy: requester.id
+      });
+
+      if (visibleRecords.items.length === 0) {
+        throw new NotFoundException(createNotFoundResponse("AI history record").error);
+      }
+    }
     const requests = await this.aiRepository.listRequests({
       page: 1,
-      pageSize: 100
+      pageSize: 100,
+      requestedBy: shouldScopeAiHistoryByRequester(requester) ? requester.id : undefined
     });
     const requestRecord = requests.items.find((item) => item.id === record.requestId);
     return { ok: true, data: enrichAiResponseRecord(record, requestRecord) };

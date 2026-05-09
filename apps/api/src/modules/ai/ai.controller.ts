@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
@@ -63,12 +63,17 @@ export class AiController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async list(
-    @Query() query: QueryAiDto
+    @Query() query: QueryAiDto,
+    @Req()
+    request?: {
+      user?: AuthenticatedUserSession | null;
+    }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ai.list>> {
     return delegateList(
       query,
       toQueryAiInput,
-      (mappedQuery) => this.aiApplicationService.list(mappedQuery),
+      (mappedQuery) =>
+        this.aiApplicationService.list(mappedQuery, resolveAiHistoryRequesterScope(request?.user)),
       toAiListResponse
     );
   }
@@ -94,9 +99,18 @@ export class AiController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req()
+    request?: {
+      user?: AuthenticatedUserSession | null;
+    }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ai.getById>> {
-    return delegateGetById(id, (resourceId) => this.aiApplicationService.getById(resourceId), toAiItemResponse);
+    return delegateGetById(
+      id,
+      (resourceId) =>
+        this.aiApplicationService.getById(resourceId, resolveAiHistoryRequesterScope(request?.user)),
+      toAiItemResponse
+    );
   }
 
   // Specialized AI handlers
@@ -211,4 +225,17 @@ export class AiController {
       toAiApprovalNoteDraftResponse
     );
   }
+}
+
+function resolveAiHistoryRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local" } | undefined {
+  if (!user?.id || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider
+  };
 }

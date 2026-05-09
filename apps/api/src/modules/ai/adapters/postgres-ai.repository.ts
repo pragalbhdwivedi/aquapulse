@@ -342,20 +342,26 @@ export class PostgresAiRepository implements AiRepositoryPort {
     const pageSize = query.pageSize ?? 20;
     const filters: string[] = [];
     const params: unknown[] = [];
+    const needsRequestJoin = Boolean(query.requestedBy);
 
     if (query.requestId) {
       params.push(query.requestId);
-      filters.push(`request_id = $${params.length}`);
+      filters.push(`responses.request_id = $${params.length}`);
     }
 
     if (query.status) {
       params.push(query.status);
-      filters.push(`status = $${params.length}`);
+      filters.push(`responses.status = $${params.length}`);
     }
 
     if (query.model) {
       params.push(query.model);
-      filters.push(`model = $${params.length}`);
+      filters.push(`responses.model = $${params.length}`);
+    }
+
+    if (query.requestedBy) {
+      params.push(query.requestedBy);
+      filters.push(`requests.requested_by = $${params.length}`);
     }
 
     const whereClause = filters.length > 0 ? `where ${filters.join(" and ")}` : "";
@@ -370,17 +376,18 @@ export class PostgresAiRepository implements AiRepositoryPort {
         const result = await client.query<AiResponseListRow>(
           `
             select
-              id,
-              request_id,
-              status,
-              output_text,
-              model,
-              created_at,
-              updated_at,
+              responses.id,
+              responses.request_id,
+              responses.status,
+              responses.output_text,
+              responses.model,
+              responses.created_at,
+              responses.updated_at,
               count(*) over()::int as total_count
-            from ${AQUAPULSE_SCHEMA_TABLES.aiResponses}
+            from ${AQUAPULSE_SCHEMA_TABLES.aiResponses} responses
+            ${needsRequestJoin ? `inner join ${AQUAPULSE_SCHEMA_TABLES.aiRequests} requests on requests.id = responses.request_id` : ""}
             ${whereClause}
-            order by created_at desc, id desc
+            order by responses.created_at desc, responses.id desc
             limit ${limitParam}
             offset ${offsetParam}
           `,
@@ -411,6 +418,12 @@ export class PostgresAiRepository implements AiRepositoryPort {
         }
         if (query.model && item.model !== query.model) {
           return false;
+        }
+        if (query.requestedBy) {
+          const request = this.fallbackRequests.get(item.requestId);
+          if (request?.requestedBy !== query.requestedBy) {
+            return false;
+          }
         }
         return true;
       });
