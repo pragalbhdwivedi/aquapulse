@@ -25,7 +25,7 @@ Tell one simple story:
 
 ### Dashboard
 
-- Show the high-level counts and “what needs attention first” framing.
+- Show the high-level counts and "what needs attention first" framing.
 - Emphasize that this page is the entry point for the rest of the walkthrough.
 
 ### Alerts Workbench
@@ -62,7 +62,7 @@ Tell one simple story:
 
 ### Reports / AI Surfaces
 
-- Walk through generate -> review -> reuse -> compare.
+- Walk through `generate -> review -> reuse -> compare`.
 - Use one or two examples only:
   - incident rewrite
   - incident draft
@@ -72,7 +72,7 @@ Tell one simple story:
 ### Runtime Diagnostics
 
 - Use only for technical audiences or when someone asks why a surface is blocked, bypassed, or degraded.
-- Start with the “Quick Read” block before opening the detailed lines.
+- Start with the `Quick Read` block before opening the detailed lines.
 
 ## What Fallback / Protected / Advisory States Mean
 
@@ -128,7 +128,7 @@ Tell one simple story:
 
 ### Diagnostics / Technical Review
 
-- Is the “Quick Read” summary understandable before the detailed lines?
+- Is the `Quick Read` summary understandable before the detailed lines?
 - Can a reviewer explain fallback, protected, and local-safe behavior after reading it?
 
 ## Local Demo Mode

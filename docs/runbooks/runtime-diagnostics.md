@@ -8,6 +8,8 @@ AquaPulse now exposes a small diagnostics foundation for local development and s
 - API health endpoint: `/api/health`
 - API runtime endpoint: `/api/diagnostics/runtime`
 
+The runtime page begins with a `Quick Read` summary meant for operator demos, UAT reviewers, and stakeholder walkthroughs. The detailed lines below it are intended for technical follow-up when someone needs to explain why a surface is protected, bypassed, degraded, or fallback-backed.
+
 Optional local probe envs:
 
 ```env
