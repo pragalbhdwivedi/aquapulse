@@ -13,10 +13,29 @@ const baseTask: TaskSummary = {
   pondId: "pond-1"
 };
 
+const otherAssignedTask: TaskSummary = {
+  id: "task-2",
+  createdAt: "2026-04-13T03:00:00.000Z",
+  updatedAt: "2026-04-13T03:00:00.000Z",
+  title: "Review feeder calibration at south pond",
+  status: "in_progress",
+  assigneeId: "user-2",
+  pondId: "pond-2"
+};
+
+const unassignedTask: TaskSummary = {
+  id: "task-3",
+  createdAt: "2026-04-13T06:00:00.000Z",
+  updatedAt: "2026-04-13T06:00:00.000Z",
+  title: "Check backup aeration checklist",
+  status: "done",
+  pondId: "pond-1"
+};
+
 const taskStore = new WeakMap<InMemoryTasksRepository, TaskSummary[]>();
 
 function getTasks(repository: InMemoryTasksRepository): TaskSummary[] {
-  return taskStore.get(repository) ?? [baseTask];
+  return taskStore.get(repository) ?? [baseTask, otherAssignedTask, unassignedTask];
 }
 
 function createPage(items: TaskSummary[], page = 1, pageSize = 20): ListResponse<TaskSummary> {
@@ -34,7 +53,7 @@ function createPage(items: TaskSummary[], page = 1, pageSize = 20): ListResponse
 @Injectable()
 export class InMemoryTasksRepository implements TasksRepositoryPort {
   constructor() {
-    taskStore.set(this, [baseTask]);
+    taskStore.set(this, [baseTask, otherAssignedTask, unassignedTask]);
   }
 
   async create(input: TaskCreateRequest): Promise<TaskSummary> {
@@ -76,6 +95,7 @@ export class InMemoryTasksRepository implements TasksRepositoryPort {
   async list(query: TasksListQueryContract): Promise<ListResponse<TaskSummary>> {
     const filtered = getTasks(this).filter(
       (item) =>
+        (!query.taskId || item.id === query.taskId) &&
         (!query.assigneeId || item.assigneeId === query.assigneeId) &&
         (!query.pondId || item.pondId === query.pondId) &&
         (!query.status || item.status === query.status) &&

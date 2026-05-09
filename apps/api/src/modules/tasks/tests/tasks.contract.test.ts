@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { NotFoundException } from "@nestjs/common";
 import type { ListResponse, TaskSummary } from "@aquapulse/types";
 import { QueryTasksDto } from "../dto";
 import { toTasksItemResponse, toTasksListResponse } from "../mappers/tasks.mapper";
@@ -35,6 +36,27 @@ describe("Tasks contracts", () => {
 
     expect(repository.list).toHaveBeenCalledOnce();
     expect(result.data.items[0]?.status).toBe("todo");
+  });
+
+  it("application service hides out-of-scope task detail for keycloak users", async () => {
+    const repository: TasksRepositoryPort = {
+      create: vi.fn().mockResolvedValue(task),
+      update: vi.fn().mockResolvedValue(task),
+      getById: vi.fn().mockResolvedValue(task),
+      list: vi.fn().mockResolvedValue({ items: [], page: taskList.page })
+    };
+
+    const service = new TasksApplicationService(repository);
+
+    await expect(
+      service.getById("task-2", { id: "user-1", provider: "keycloak" })
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(repository.list).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 1,
+      taskId: "task-2",
+      assigneeId: "user-1"
+    });
   });
 
   it("controller returns a list envelope for tasks", async () => {

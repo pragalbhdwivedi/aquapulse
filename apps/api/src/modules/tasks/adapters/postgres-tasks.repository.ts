@@ -65,6 +65,10 @@ export function buildTasksListQueryPlan(query: TasksListQueryContract): Compiled
     addCondition("assignee_id = ?", query.assigneeId);
   }
 
+  if (query.taskId) {
+    addCondition("id = ?", query.taskId);
+  }
+
   if (query.pondId) {
     addCondition("pond_id = ?", query.pondId);
   }
@@ -95,6 +99,7 @@ export function buildTasksListQueryPlan(query: TasksListQueryContract): Compiled
     `.trim(),
     params: [...params, query.pageSize, (query.page - 1) * query.pageSize],
     filters: {
+      taskId: query.taskId,
       assigneeId: query.assigneeId,
       pondId: query.pondId,
       status: query.status,
