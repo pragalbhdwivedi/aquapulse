@@ -28,6 +28,18 @@ export interface PondRow {
   readonly updated_at: string;
 }
 
+export interface PondResponsibilityRow {
+  readonly id: string;
+  readonly user_id: string;
+  readonly pond_id: string;
+  readonly responsibility_type: "operator" | "pond_manager" | "supervisor" | "temporary";
+  readonly active: boolean;
+  readonly starts_at?: string;
+  readonly ends_at?: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
 export interface AlertRow {
   readonly id: string;
   readonly title: string;
@@ -380,6 +392,23 @@ export function createPlaceholderAlertRow(overrides: Partial<AlertRow> = {}): Al
     latest_note: "Placeholder alert note.",
     created_at: "2026-04-13T00:00:00.000Z",
     updated_at: "2026-04-13T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+export function createPlaceholderPondResponsibilityRow(
+  overrides: Partial<PondResponsibilityRow> = {}
+): PondResponsibilityRow {
+  return {
+    id: "pond-responsibility-1",
+    user_id: "user-1",
+    pond_id: "pond-1",
+    responsibility_type: "operator",
+    active: true,
+    starts_at: "2026-05-10T00:00:00.000Z",
+    ends_at: undefined,
+    created_at: "2026-05-10T00:00:00.000Z",
+    updated_at: "2026-05-10T00:00:00.000Z",
     ...overrides
   };
 }

@@ -23,6 +23,7 @@ export interface DatabaseTableDefinition {
 
 export const AQUAPULSE_SCHEMA_TABLES = {
   ponds: "ponds",
+  pondResponsibilities: "pond_responsibilities",
   waterQuality: "water_quality",
   feedEntries: "feed_entries",
   tasks: "tasks",
@@ -47,6 +48,32 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       { name: "status", type: "text" },
       { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
       { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.pondResponsibilities,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "user_id", type: "text" },
+      { name: "pond_id", type: "text" },
+      { name: "responsibility_type", type: "text" },
+      { name: "active", type: "boolean", defaultExpression: "true" },
+      { name: "starts_at", type: "timestamptz", nullable: true },
+      { name: "ends_at", type: "timestamptz", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "pond_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.ponds,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: [
+      "idx_pond_responsibilities_user_active_pond",
+      "idx_pond_responsibilities_pond_active_user"
     ]
   },
   {

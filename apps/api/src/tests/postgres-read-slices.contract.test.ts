@@ -27,6 +27,12 @@ import {
   buildUpdatePondQueryPlan
 } from "../modules/ponds/adapters/postgres-ponds.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
+import {
+  buildActivePondResponsibilityByUserAndPondQueryPlan,
+  buildListActivePondResponsibilitiesByUserQueryPlan,
+  PostgresPondResponsibilityRepository
+} from "../modules/pond-responsibility/adapters/postgres-pond-responsibility.repository";
+import type { PondResponsibilityRepositoryPort } from "../modules/pond-responsibility/ports/pond-responsibility-repository.port";
 import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
 import {
   buildFeedByIdQueryPlan,
@@ -93,6 +99,66 @@ describe("Postgres read adapter slices", () => {
       status: "active",
       kind: undefined,
       search: undefined
+    });
+  });
+
+  it("pond responsibility adapter resolves active mappings without changing current resource reads", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: PondResponsibilityRepositoryPort = PostgresPondResponsibilityRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [
+          {
+            id: "responsibility-42",
+            user_id: "user-42",
+            pond_id: "pond-42",
+            responsibility_type: "operator",
+            active: true,
+            starts_at: "2026-05-10T00:00:00.000Z",
+            ends_at: undefined,
+            created_at: "2026-05-10T00:00:00.000Z",
+            updated_at: "2026-05-10T00:00:00.000Z"
+          }
+        ]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const responsibilities = await repository.listActiveByUserId("user-42", "2026-05-10T12:00:00.000Z");
+    const hasResponsibility = await repository.hasActiveResponsibility(
+      "user-42",
+      "pond-42",
+      "2026-05-10T12:00:00.000Z"
+    );
+
+    expect(responsibilities[0]?.pondId).toBe("pond-42");
+    expect(responsibilities[0]?.responsibilityType).toBe("operator");
+    expect(hasResponsibility).toBe(true);
+    expect(recordedQueries).toHaveLength(2);
+    expect(recordedQueries[0]).toEqual({
+      statement: expect.stringContaining("from pond_responsibilities"),
+      params: ["user-42", "2026-05-10T12:00:00.000Z"]
+    });
+    expect(recordedQueries[1]).toEqual({
+      statement: expect.stringContaining("where user_id = $1"),
+      params: ["user-42", "pond-42", "2026-05-10T12:00:00.000Z"]
+    });
+    expect(buildListActivePondResponsibilitiesByUserQueryPlan("user-42", "2026-05-10T12:00:00.000Z").filters)
+      .toEqual({
+        userId: "user-42",
+        active: true,
+        effectiveAt: "2026-05-10T12:00:00.000Z"
+      });
+    expect(
+      buildActivePondResponsibilityByUserAndPondQueryPlan(
+        "user-42",
+        "pond-42",
+        "2026-05-10T12:00:00.000Z"
+      ).filters
+    ).toEqual({
+      userId: "user-42",
+      pondId: "pond-42",
+      active: true,
+      effectiveAt: "2026-05-10T12:00:00.000Z"
     });
   });
 

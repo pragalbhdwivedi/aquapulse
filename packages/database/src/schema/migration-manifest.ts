@@ -11,7 +11,7 @@ export interface DatabaseMigrationManifest {
 }
 
 export const databaseMigrationManifest: DatabaseMigrationManifest = {
-  schemaVersion: "0003_ai_log_persistence_foundation",
+  schemaVersion: "0004_pond_responsibility_foundation",
   migrations: [
     {
       id: "0001_core_schema",
@@ -33,6 +33,13 @@ export const databaseMigrationManifest: DatabaseMigrationManifest = {
       file: "0003_ai_log_persistence_foundation.sql",
       description:
         "Add durable AI request and response log storage for bounded advisory-only operator assistance history."
+    },
+    {
+      id: "0004_pond_responsibility_foundation",
+      name: "pond responsibility foundation",
+      file: "0004_pond_responsibility_foundation.sql",
+      description:
+        "Add durable pond responsibility mapping to support future pond-scoped authorization seams without changing current runtime behavior."
     }
   ]
 } as const;
