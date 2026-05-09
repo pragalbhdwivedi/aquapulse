@@ -2,6 +2,9 @@
 
 This runbook explains the alerts-only opt-in HTTP mode for AquaPulse.
 
+If you want the smallest practical local Postgres-backed alerts stack, use
+`docs/runbooks/alerts-local-postgres-smoke-stack.md` alongside this runbook.
+
 ## What It Is
 
 - By default, the web app stays mock-backed and the API stays on the in-memory path.
@@ -39,6 +42,17 @@ AQUAPULSE_PERSISTENCE_MODE=in-memory
 AQUAPULSE_ENABLE_POSTGRES_ADAPTERS=false
 ```
 
+Optional bounded verification vars:
+
+```env
+AQUAPULSE_ALERTS_VERIFY_WEB_BASE_URL=http://localhost:3000
+AQUAPULSE_ALERTS_VERIFY_API_BASE_URL=http://localhost:4000
+AQUAPULSE_ALERTS_VERIFY_EXPECT_BACKEND_ADAPTER=postgres
+AQUAPULSE_ALERTS_VERIFY_ALERT_ID=alert-1
+AQUAPULSE_ALERTS_VERIFY_ENABLE_MUTATIONS=false
+AQUAPULSE_ALERTS_VERIFY_EXPECT_SEEDED_SMOKE=false
+```
+
 ## Recommended Local Setup
 
 1. Copy `.env.example` into your local env file workflow.
@@ -60,7 +74,9 @@ AQUAPULSE_WEB_LOCAL_API_BACKEND_URL=http://localhost:4000
 ## How The Bridge Works
 
 - The alerts workbench issues HTTP-style requests to `/api/alerts...`.
+- Advisory explanation requests issue HTTP-style requests to `/api/ai/alerts/...`.
 - `apps/web/app/api/alerts/route.ts` and `apps/web/app/api/alerts/[...segments]/route.ts` forward those requests.
+- `apps/web/app/api/ai/alerts/explain/route.ts` and `apps/web/app/api/ai/alerts/explain/[...segments]/route.ts` forward AI explanation requests.
 - The bridge proxies them to `AQUAPULSE_WEB_LOCAL_API_BACKEND_URL`.
 - The page-facing repository/query contracts do not change.
 
@@ -91,6 +107,47 @@ If you already use another local TypeScript runner for the API, keep using it an
 4. Trigger a queue refresh or an alert action.
 5. Confirm requests are reaching the running backend through the local bridge.
 6. If the backend is unavailable, the page should now show a clearer developer-facing failure message instead of silently behaving like mocks.
+
+For a bounded CLI verification pass:
+
+```powershell
+corepack pnpm alerts:verify-runtime
+```
+
+That script verifies:
+
+- backend diagnostics are reachable
+- backend alerts adapter matches `AQUAPULSE_ALERTS_VERIFY_EXPECT_BACKEND_ADAPTER`
+- alerts list, summary, detail, saved views, and AI explanation requests work through the web bridge
+
+If you are using the local seeded smoke stack, also set:
+
+```powershell
+$env:AQUAPULSE_ALERTS_VERIFY_EXPECT_SEEDED_SMOKE='true'
+```
+
+That adds deterministic assertions for the known-good smoke dataset.
+
+To also exercise lifecycle, triage, bulk actions, and saved views against a local dev database-backed alerts adapter:
+
+```powershell
+$env:AQUAPULSE_ALERTS_VERIFY_ENABLE_MUTATIONS='true'
+corepack pnpm alerts:verify-runtime
+```
+
+The mutation checks are intentionally opt-in because they change alert state in the running backend.
+
+## How To Confirm It Is Truly Postgres-Backed
+
+1. Open `/runtime`.
+2. Confirm the diagnostics card shows:
+   - `Alerts runtime: http`
+   - `Backend probe: reachable`
+   - `Backend alerts adapter: postgres`
+   - `Alerts cutover status: HTTP + Postgres alerts cutover verified`
+3. Or run `corepack pnpm alerts:verify-runtime` and confirm the script reports `Backend alerts adapter: postgres`.
+
+If the backend is reachable but still shows `in-memory`, the alerts workbench is using the real HTTP path but not the Postgres-backed alerts adapter yet.
 
 ## What Still Stays Mock By Default
 

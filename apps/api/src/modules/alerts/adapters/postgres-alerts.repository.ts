@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import {
   AQUAPULSE_SCHEMA_TABLES,
-  PlaceholderDatabaseConnectionFactory,
   PostgresRowGateway,
+  PostgresDatabaseConnectionFactory,
   alertActionHistoryRowMapper,
   alertRowMapper,
   alertSavedViewRowMapper,
@@ -34,6 +34,7 @@ import type {
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
   AlertActionHistoryItem,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -166,14 +167,14 @@ function createAlertQueryWhereClause(
 function resolveAlertSort(sortBy: AlertsListQueryContract["sortBy"]): string {
   switch (sortBy) {
     case "createdAt_asc":
-      return "created_at asc";
+      return "created_at asc, id asc";
     case "updatedAt_asc":
-      return "updated_at asc";
+      return "updated_at asc, id asc";
     case "createdAt_desc":
-      return "created_at desc";
+      return "created_at desc, id desc";
     case "updatedAt_desc":
     default:
-      return "updated_at desc";
+      return "updated_at desc, id desc";
   }
 }
 
@@ -360,7 +361,7 @@ export function buildOpenAlertsQueryPlan(): CompiledQueryPlan {
         count(*) over()::int as total_count
       from ${AQUAPULSE_SCHEMA_TABLES.alerts}
       where status = 'open'
-      order by updated_at desc
+      order by updated_at desc, id desc
     `.trim(),
     params: [],
     filters: { status: "open" }
@@ -415,6 +416,25 @@ function createAlertHistoryId(
   occurredAt: string
 ): string {
   return `${alertId}:${action}:${occurredAt}`.replace(/[^a-zA-Z0-9:_-]/g, "-");
+}
+
+function formatAttachedExplanationNote(input: AlertExplanationAttachmentRequest): string {
+  const detailParts = [
+    `AI explanation snapshot (${input.explanation.metadata.mode}/${input.explanation.metadata.modelLabel}/${input.explanation.cache.generation})`,
+    input.explanation.summary,
+    input.explanation.feedbackSummary?.latest
+      ? `Feedback: ${input.explanation.feedbackSummary.latest.value}`
+      : undefined,
+    input.explanation.recommendedChecks[0]?.title
+      ? `Next check: ${input.explanation.recommendedChecks[0].title}`
+      : undefined,
+    input.explanation.suggestedActions[0]?.title
+      ? `Suggested action: ${input.explanation.suggestedActions[0].title}`
+      : undefined,
+    input.note?.trim() ? `Operator note: ${input.note.trim()}` : undefined
+  ].filter(Boolean);
+
+  return detailParts.join(" | ");
 }
 
 function buildAlertMutationQueryPlan(
@@ -635,6 +655,39 @@ export function buildSetAlertReviewStateQueryPlans(
   };
 }
 
+export function buildAttachExplanationQueryPlans(
+  id: string,
+  input: AlertExplanationAttachmentRequest,
+  occurredAt: string
+): AlertMutationPlans {
+  const note = formatAttachedExplanationNote(input);
+  const historyRow = createPlaceholderAlertActionHistoryRow({
+    id: createAlertHistoryId(id, "ai_explanation_snapshot", occurredAt),
+    alert_id: id,
+    action: "ai_explanation_snapshot",
+    note,
+    created_at: occurredAt
+  });
+
+  return {
+    update: buildAlertMutationQueryPlan(
+      "alerts.attachExplanation",
+      `
+        update ${AQUAPULSE_SCHEMA_TABLES.alerts}
+        set
+          latest_note = $2,
+          updated_at = $3
+        where id = $1
+        returning ${ALERT_SELECT_COLUMNS}
+      `.trim(),
+      [id, note, occurredAt],
+      { id, latestNote: note }
+    ),
+    historyInsert: buildAlertHistoryInsertQueryPlan(historyRow),
+    historyRead: buildAlertActionHistoryByAlertIdQueryPlan(id)
+  };
+}
+
 export function buildCreateAlertQueryPlan(row: AlertRowWrite): CompiledQueryPlan {
   return createMutationQueryPlan("alerts.create", row);
 }
@@ -648,7 +701,7 @@ export function buildUpdateAlertQueryPlan(id: string, patch: AlertRowPatch): Com
 
 @Injectable()
 export class PostgresAlertsRepository implements AlertsRepositoryPort {
-  private connectionFactory: DatabaseConnectionFactory = new PlaceholderDatabaseConnectionFactory();
+  private connectionFactory: DatabaseConnectionFactory = new PostgresDatabaseConnectionFactory();
   private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
 
   static forTesting(
@@ -694,8 +747,9 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAcknowledge(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
-      plans: buildAcknowledgeAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
+      plans: buildAcknowledgeAlertQueryPlans(alertId, { note: input.note }, timestamp),
       fallbackPatch: {
         status: "acknowledged",
         latestNote: input.note
@@ -723,8 +777,9 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkResolve(input: AlertBulkLifecycleActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
-      plans: buildResolveAlertQueryPlans(alertId, { note: input.note }, new Date().toISOString()),
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
+      plans: buildResolveAlertQueryPlans(alertId, { note: input.note }, timestamp),
       fallbackPatch: {
         status: "resolved",
         latestNote: input.note
@@ -755,11 +810,12 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   }
 
   async bulkAssign(input: AlertBulkAssignActionRequest): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
       plans: buildAssignAlertQueryPlans(
         alertId,
         { assignedTo: input.assignedTo, note: input.note },
-        new Date().toISOString()
+        timestamp
       ),
       fallbackPatch: {
         assignedTo: input.assignedTo,
@@ -811,7 +867,8 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
   async bulkSetReviewState(
     input: AlertBulkReviewStateActionRequest
   ): Promise<AlertBulkActionResult> {
-    return this.executeBulkAlertMutation(input.alertIds, (alertId) => ({
+    const occurredAt = new Date().toISOString();
+    return this.executeBulkAlertMutation(input.alertIds, occurredAt, (alertId, timestamp) => ({
       plans: buildSetAlertReviewStateQueryPlans(
         alertId,
         {
@@ -819,7 +876,7 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
           reviewLabel: input.reviewLabel,
           note: input.note
         },
-        new Date().toISOString()
+        timestamp
       ),
       fallbackPatch: {
         reviewState: input.reviewState,
@@ -833,6 +890,21 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
         reviewLabel: input.reviewLabel
       }
     }));
+  }
+
+  async attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<AlertSummary> {
+    const note = formatAttachedExplanationNote(input);
+    return this.executeAlertMutation(
+      id,
+      buildAttachExplanationQueryPlans(id, input, input.explanation.cache.cachedAt),
+      {
+        latestNote: note
+      },
+      {
+        action: "ai_explanation_snapshot",
+        note
+      }
+    );
   }
 
   async listSavedViews(): Promise<AlertSavedViewDefinition[]> {
@@ -1024,8 +1096,10 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
 
   private async executeBulkAlertMutation(
     alertIds: readonly string[],
+    occurredAt: string,
     createMutation: (
-      alertId: string
+      alertId: string,
+      occurredAt: string
     ) => {
       readonly plans: AlertMutationPlans;
       readonly fallbackPatch: Partial<AlertSummary>;
@@ -1039,7 +1113,7 @@ export class PostgresAlertsRepository implements AlertsRepositoryPort {
         const updatedAlerts: AlertSummary[] = [];
 
         for (const alertId of alertIds) {
-          const mutation = createMutation(alertId);
+          const mutation = createMutation(alertId, occurredAt);
           const fallbackRow = createPlaceholderAlertRow({
             id: alertId,
             status: mutation.fallbackPatch.status,
@@ -1133,6 +1207,7 @@ export const POSTGRES_ALERTS_IMPLEMENTATION_PLAN = {
     "unassign",
     "setReviewState",
     "bulkSetReviewState",
+    "attachExplanation",
     "saveSavedView",
     "removeSavedView"
   ],

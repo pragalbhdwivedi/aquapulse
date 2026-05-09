@@ -1,16 +1,20 @@
 import type {
   AiAlertsExplainResponse,
   AlertExplanationLikelyCause,
+  AiOutputTone,
   AlertExplanationMetadata,
   AlertExplanationSuggestedStep,
   AlertSummary
 } from "@aquapulse/types";
 import type { AlertExplanationRuntimeConfig } from "../config/alert-explanation.config";
+import { buildStructuredOutputMetadata } from "./ai-output-formatting";
 
 export interface AlertExplanationContext {
   readonly alert: AlertSummary;
   readonly includeRecommendations: boolean;
   readonly historySummary: string[];
+  readonly outputMode: "english_only" | "bilingual";
+  readonly tone: AiOutputTone;
 }
 
 interface OpenAiAlertExplanationClientOptions {
@@ -100,7 +104,8 @@ function normalizeStepList(input: unknown): AlertExplanationSuggestedStep[] {
 
 function buildMetadata(
   now: string,
-  config: AlertExplanationRuntimeConfig
+  config: AlertExplanationRuntimeConfig,
+  context: AlertExplanationContext
 ): AlertExplanationMetadata {
   return {
     advisoryOnly: true,
@@ -108,7 +113,15 @@ function buildMetadata(
     mode: "openai_nano",
     modelLabel: config.modelLabel,
     sourceLabel: "openai_responses_api",
-    usedLiveOpenAi: true
+    usedLiveOpenAi: true,
+    providerPath: "openai_responses_api",
+    output: buildStructuredOutputMetadata(
+      {
+        outputMode: context.outputMode,
+        tone: context.tone
+      },
+      context.tone
+    )
   };
 }
 
@@ -145,14 +158,22 @@ export class OpenAiAlertExplanationClient {
       },
       historySummary: context.historySummary,
       includeRecommendations: context.includeRecommendations,
+      outputMode: context.outputMode,
+      tone: context.tone,
       requiredFields: [
+        "headline",
         "summary",
         "explanation",
+        "likelyFactors",
+        "immediateChecks",
+        "escalationConsiderations",
+        "observedFacts",
         "likelyCauses",
         "recommendedChecks",
         "suggestedActions",
         "confidenceNote",
-        "advisoryDisclaimer"
+        "advisoryDisclaimer",
+        "missingInformationNote"
       ]
     };
 
@@ -202,8 +223,16 @@ export class OpenAiAlertExplanationClient {
     const recommendations = Array.isArray(parsed.recommendations)
       ? parsed.recommendations.filter((item): item is string => typeof item === "string")
       : [];
+    const likelyCauses = normalizeCauseList(parsed.likelyCauses);
+    const likelyFactors = normalizeCauseList(parsed.likelyFactors);
+    const recommendedChecks = normalizeStepList(parsed.recommendedChecks);
+    const immediateChecks = normalizeStepList(parsed.immediateChecks);
 
     return {
+      headline:
+        typeof parsed.headline === "string"
+          ? parsed.headline
+          : `${context.alert.severity.toUpperCase()} ${context.alert.source} alert: ${context.alert.title}`,
       summary:
         typeof parsed.summary === "string"
           ? parsed.summary
@@ -212,10 +241,22 @@ export class OpenAiAlertExplanationClient {
         typeof parsed.explanation === "string"
           ? parsed.explanation
           : `This alert may reflect a ${context.alert.source} condition that should be reviewed by an operator.`,
+      explanationHindi:
+        typeof parsed.explanationHindi === "string"
+          ? parsed.explanationHindi
+          : undefined,
       recommendations,
-      likelyCauses: normalizeCauseList(parsed.likelyCauses),
-      recommendedChecks: normalizeStepList(parsed.recommendedChecks),
+      likelyCauses,
+      likelyFactors: likelyFactors.length > 0 ? likelyFactors : likelyCauses,
+      recommendedChecks,
+      immediateChecks: immediateChecks.length > 0 ? immediateChecks : recommendedChecks,
       suggestedActions: normalizeStepList(parsed.suggestedActions),
+      escalationConsiderations: Array.isArray(parsed.escalationConsiderations)
+        ? parsed.escalationConsiderations.filter((item): item is string => typeof item === "string")
+        : [],
+      observedFacts: Array.isArray(parsed.observedFacts)
+        ? parsed.observedFacts.filter((item): item is string => typeof item === "string")
+        : [],
       confidenceNote:
         typeof parsed.confidenceNote === "string"
           ? parsed.confidenceNote
@@ -224,7 +265,18 @@ export class OpenAiAlertExplanationClient {
         typeof parsed.advisoryDisclaimer === "string"
           ? parsed.advisoryDisclaimer
           : "Advisory only. Review the alert in context before taking any operational action.",
-      metadata: buildMetadata(this.now(), this.config)
+      missingInformationNote:
+        typeof parsed.missingInformationNote === "string"
+          ? parsed.missingInformationNote
+          : undefined,
+      metadata: buildMetadata(this.now(), this.config, context),
+      cache: {
+        status: "fresh",
+        cachedAt: this.now(),
+        freshness: "fresh",
+        explanationVersion: "v1",
+        generation: "fresh_openai_nano"
+      }
     };
   }
 }

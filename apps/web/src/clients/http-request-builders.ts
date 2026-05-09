@@ -65,12 +65,15 @@ export function buildHttpRequestFromInvocation<
   const adaptedRequest = invocation.adaptRequest(request as never);
   const requestObject =
     request && typeof request === "object" ? (request as Record<string, unknown>) : {};
+  const query =
+    adaptedRequest.query ??
+    (invocation.method === "GET" ? normalizeListQueryToHttpParams(requestObject) : undefined);
 
   return {
     endpointId: invocation.endpointId,
     method: invocation.method,
     path: buildRoutePath(invocation.path, requestObject),
-    query: adaptedRequest.query ?? normalizeListQueryToHttpParams(requestObject),
+    query,
     body: normalizeRequestBody(adaptedRequest.body),
     headers
   };

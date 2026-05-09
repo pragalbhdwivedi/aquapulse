@@ -1,35 +1,94 @@
 import { getDashboardPageData } from "@web/queries";
 import { defaultAlertWorkbenchOwner, deriveOwnerAlertIndicators } from "@web/features/alert-workbench";
-import { readFrontendRuntimeDiagnostics } from "@web/features/runtime-diagnostics";
+import { readResolvedFrontendRuntimeDiagnostics } from "@web/features/auth-session-server";
 import { PageShell } from "../_components/page-shell";
 import { RuntimeDiagnosticsCard } from "../_components/runtime-diagnostics-card";
 
 export default async function DashboardPage() {
   const dashboard = await getDashboardPageData();
-  const runtimeDiagnostics = readFrontendRuntimeDiagnostics({
-    NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
-    NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
-    NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
-    NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
-    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_MODE,
-    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_BASE_URL,
-    NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_HTTP_TRANSPORT,
-    AQUAPULSE_WEB_LOCAL_API_BACKEND_URL: process.env.AQUAPULSE_WEB_LOCAL_API_BACKEND_URL
-  });
+  const runtimeDiagnostics = await readResolvedFrontendRuntimeDiagnostics();
   const ownerIndicators = deriveOwnerAlertIndicators(
     dashboard.alertSummary,
     defaultAlertWorkbenchOwner
   );
 
   return (
-    <PageShell title="Dashboard" description="Placeholder dashboard routed through repository and query abstractions.">
-      <p>Active ponds: {dashboard.ponds.items.length}</p>
-      <p>Open alerts: {dashboard.alerts.items.length}</p>
-      <p>Assigned alerts: {dashboard.alertSummary.assignmentCounts.assigned}</p>
-      <p>Under review: {dashboard.alertSummary.reviewStateCounts.underReview}</p>
-      <p>{ownerIndicators.ownerId} assigned: {ownerIndicators.assignedAlerts}</p>
-      <p>Pending tasks: {dashboard.tasks.items.length}</p>
-      <p>AI summary: {dashboard.answer.answer}</p>
+    <PageShell
+      title="Dashboard"
+      description="Operational overview for operator walkthroughs, with a bounded advisory assistant and safe local fallback behavior."
+    >
+      <section
+        style={{
+          display: "grid",
+          gap: "0.75rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))"
+        }}
+      >
+        {[
+          { label: "Active ponds", value: dashboard.ponds.items.length, note: "Current monitored ponds" },
+          { label: "Open alerts", value: dashboard.alerts.items.length, note: "Items needing review or action" },
+          { label: "Assigned alerts", value: dashboard.alertSummary.assignmentCounts.assigned, note: "Already owned by operators" },
+          { label: "Under review", value: dashboard.alertSummary.reviewStateCounts.underReview, note: "Triage already in progress" },
+          { label: "Pending tasks", value: dashboard.tasks.items.length, note: "Manual follow-up still open" },
+          { label: `${ownerIndicators.ownerId} assigned`, value: ownerIndicators.assignedAlerts, note: "Current owner workload snapshot" }
+        ].map((item) => (
+          <article
+            key={item.label}
+            style={{
+              display: "grid",
+              gap: "0.25rem",
+              padding: "0.85rem",
+              border: "1px solid rgba(148, 163, 184, 0.25)",
+              borderRadius: "0.75rem"
+            }}
+          >
+            <strong>{item.label}</strong>
+            <span style={{ fontSize: "1.6rem", lineHeight: 1.1 }}>{item.value}</span>
+            <span style={{ color: "#94a3b8" }}>{item.note}</span>
+          </article>
+        ))}
+      </section>
+      <section
+        aria-label="Dashboard assistant"
+        style={{
+          display: "grid",
+          gap: "0.6rem",
+          padding: "0.95rem",
+          border: "1px solid rgba(148, 163, 184, 0.25)",
+          borderRadius: "0.85rem"
+        }}
+      >
+        <div style={{ display: "grid", gap: "0.25rem" }}>
+          <strong>Dashboard Assistant</strong>
+          <span style={{ color: "#94a3b8" }}>
+            Advisory-only guidance for operator review. Use it to decide what to check first, then confirm in the live workflow.
+          </span>
+        </div>
+        <h2 style={{ margin: 0 }}>{dashboard.answer.headline}</h2>
+        {dashboard.answer.headlineHindi ? <p>Hindi draft: {dashboard.answer.headlineHindi}</p> : null}
+        <p>{dashboard.answer.directAnswer}</p>
+        {dashboard.answer.directAnswerHindi ? <p>Hindi draft: {dashboard.answer.directAnswerHindi}</p> : null}
+        <p style={{ color: "#cbd5e1" }}>
+          Mode: {dashboard.answer.metadata.usedLiveOpenAi ? "provider-backed" : "fallback"} / Provider path:{" "}
+          {dashboard.answer.metadata.providerPath} / Output: {dashboard.answer.metadata.output.outputMode} / Tone:{" "}
+          {dashboard.answer.metadata.output.tone ?? "operator"}
+        </p>
+        {dashboard.answer.priorityItems.length > 0 ? (
+          <div style={{ display: "grid", gap: "0.35rem" }}>
+            <strong>What needs attention first</strong>
+            <ul style={{ margin: 0, paddingLeft: "1.25rem" }}>
+              {dashboard.answer.priorityItems.map((item) => (
+                <li key={`${item.pondId ?? "farm"}-${item.label}`}>
+                  {item.label}: {item.detail}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {dashboard.answer.missingInformationNote ? (
+          <p style={{ color: "#fbbf24" }}>{dashboard.answer.missingInformationNote}</p>
+        ) : null}
+      </section>
       <RuntimeDiagnosticsCard diagnostics={runtimeDiagnostics} />
     </PageShell>
   );

@@ -54,4 +54,12 @@ describe("Tasks write flow", () => {
     expect(created.data.title).toBe("Inspect paddlewheel motor");
     expect(listed.data.items[0]?.pondId).toBe("pond-1");
   });
+
+  it("keeps bounded tasks detail reads structurally compatible with existing repository clients", async () => {
+    const repositories = createRepositories(createMockApiClients());
+    const detail = await repositories.tasks.getById("task-1");
+
+    expect(detail.data.id).toBe("task-1");
+    expect(detail.data.title).toBeTruthy();
+  });
 });

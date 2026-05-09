@@ -4,6 +4,9 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -13,14 +16,19 @@ import type {
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
   AttachmentMetadata,
+  CurrentSessionPayload,
   EndpointRequest,
   EndpointResponse,
   ListResponse,
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
+  PondCreateRequest,
+  PondUpdateRequest,
+  PondSummary,
   TaskCreateRequest,
   TaskUpdateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
@@ -138,6 +146,9 @@ function createAlertBulkActionHandler<TItem, TInput>(
 }
 
 export interface AquaPulseEndpointHandlers {
+  auth: {
+    session: EndpointHandler<EndpointCatalog["auth"]["session"]>;
+  };
   ponds: {
     create: EndpointHandler<EndpointCatalog["ponds"]["create"]>;
     list: EndpointHandler<EndpointCatalog["ponds"]["list"]>;
@@ -153,6 +164,8 @@ export interface AquaPulseEndpointHandlers {
     listSavedViews: EndpointHandler<EndpointCatalog["alerts"]["listSavedViews"]>;
     saveSavedView: EndpointHandler<EndpointCatalog["alerts"]["saveSavedView"]>;
     removeSavedView: EndpointHandler<EndpointCatalog["alerts"]["removeSavedView"]>;
+    attachExplanation: EndpointHandler<EndpointCatalog["alerts"]["attachExplanation"]>;
+    submitExplanationFeedback: EndpointHandler<EndpointCatalog["alerts"]["submitExplanationFeedback"]>;
     update: EndpointHandler<EndpointCatalog["alerts"]["update"]>;
     acknowledge: EndpointHandler<EndpointCatalog["alerts"]["acknowledge"]>;
     bulkAcknowledge: EndpointHandler<EndpointCatalog["alerts"]["bulkAcknowledge"]>;
@@ -212,6 +225,7 @@ export interface AquaPulseEndpointHandlers {
     rewriteText: EndpointHandler<EndpointCatalog["ai"]["rewriteText"]>;
     queryDashboard: EndpointHandler<EndpointCatalog["ai"]["queryDashboard"]>;
     draftIncident: EndpointHandler<EndpointCatalog["ai"]["draftIncident"]>;
+    draftApprovalNote: EndpointHandler<EndpointCatalog["ai"]["draftApprovalNote"]>;
   };
 }
 
@@ -269,11 +283,39 @@ export function createEndpointHandlersFromClients(
   clients: AquaPulseApiClients
 ): AquaPulseEndpointHandlers {
   return {
+    auth: {
+      session: async () => clients.auth.getSession()
+    },
     ponds: {
-      create: createMutationFromDetailHandler(clients.ponds),
+      create:
+        "create" in clients.ponds
+          ? createCreateHandler(clients.ponds as typeof clients.ponds & {
+              create: (input: PondCreateRequest) => Promise<{
+                ok: true;
+                data: PondSummary;
+              }>;
+            })
+          : createMutationFromValue({
+              id: "pond-1",
+              createdAt: "2026-04-13T00:00:00.000Z",
+              updatedAt: "2026-04-13T00:00:00.000Z",
+              name: "North Pond 1",
+              code: "NP-01",
+              farmId: "farm-1",
+              kind: "pond" as const,
+              status: "active" as const
+            }),
       list: createListHandler(clients.ponds, { page: 1, pageSize: 20 }),
       getById: createDetailHandler(clients.ponds),
-      update: createMutationFromDetailHandler(clients.ponds),
+      update:
+        "update" in clients.ponds
+          ? createUpdateHandler(clients.ponds as typeof clients.ponds & {
+              update: (id: string, input: PondUpdateRequest) => Promise<{
+                ok: true;
+                data: EndpointResponse<EndpointCatalog["ponds"]["getById"]>["data"];
+              }>;
+            })
+          : createMutationFromDetailHandler(clients.ponds),
       summarize: async (request) => clients.ponds.summarize(request)
     },
     alerts: {
@@ -316,6 +358,38 @@ export function createEndpointHandlersFromClients(
               (clients.alerts as typeof clients.alerts & AlertSavedViewCapableClient<AlertSavedViewDefinition[]>).removeSavedView(input.id)
             )
           : createMutationFromValue([]),
+      attachExplanation:
+        "attachExplanation" in clients.alerts
+          ? createDirectHandler(
+              (request: { readonly id: string; readonly body: AlertExplanationAttachmentRequest }) =>
+                (
+                  clients.alerts as typeof clients.alerts & {
+                    attachExplanation: (
+                      id: string,
+                      input: AlertExplanationAttachmentRequest
+                    ) => Promise<{ ok: true; data: AlertSummary }>;
+                  }
+                ).attachExplanation(request.id, request.body)
+            )
+          : createMutationFromDetailHandler(clients.alerts),
+      submitExplanationFeedback:
+        "submitExplanationFeedback" in clients.alerts
+          ? createDirectHandler((request: AlertExplanationFeedbackRequest) =>
+              (
+                clients.alerts as typeof clients.alerts & {
+                  submitExplanationFeedback: (
+                    input: AlertExplanationFeedbackRequest
+                  ) => Promise<{ ok: true; data: AlertExplanationFeedbackRecord }>;
+                }
+              ).submitExplanationFeedback(request)
+            )
+          : createMutationFromValue({
+              alertId: "alert-1",
+              value: "neutral",
+              submittedAt: "2026-04-16T00:00:00.000Z",
+              generation: "fresh_fallback",
+              sourceMode: "fallback"
+            }),
       update: createMutationFromDetailHandler(clients.alerts),
       acknowledge:
         "acknowledge" in clients.alerts
@@ -472,7 +546,15 @@ export function createEndpointHandlersFromClients(
         EndpointRequest<EndpointCatalog["waterQuality"]["list"]>
       >(clients.waterQuality, { page: 1, pageSize: 20, pondId: "pond-1" }),
       getById: createDetailHandler(clients.waterQuality),
-      update: createMutationFromDetailHandler(clients.waterQuality)
+      update:
+        "update" in clients.waterQuality
+          ? createUpdateHandler(clients.waterQuality as typeof clients.waterQuality & {
+              update: (id: string, input: WaterQualityUpdateRequest) => Promise<{
+                ok: true;
+                data: WaterQualityReading;
+              }>;
+            })
+          : createMutationFromDetailHandler(clients.waterQuality)
     },
     ai: {
       create: createMutationFromDetailHandler(clients.ai),
@@ -484,16 +566,22 @@ export function createEndpointHandlersFromClients(
       generateHandover: async (request) => clients.ai.generateHandover(request),
       rewriteText: async (request) => clients.ai.rewriteText(request),
       queryDashboard: async (request) => clients.ai.queryDashboard(request),
-      draftIncident: async (request) => clients.ai.draftIncident(request)
+      draftIncident: async (request) => clients.ai.draftIncident(request),
+      draftApprovalNote: async (request) => clients.ai.draftApprovalNote(request)
     }
   };
 }
 
 export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHandlers): AquaPulseApiClients {
   return {
+    auth: {
+      getSession: () => handlers.auth.session({})
+    },
     ponds: {
+      create: (input) => handlers.ponds.create(input),
       list: (query) => handlers.ponds.list(query ?? { page: 1, pageSize: 20 }),
       getById: (id) => handlers.ponds.getById({ id }),
+      update: (id, input) => handlers.ponds.update({ id, body: input }),
       summarize: (input) => handlers.ponds.summarize(input)
     },
     alerts: {
@@ -503,6 +591,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       listSavedViews: () => handlers.alerts.listSavedViews({}),
       saveSavedView: (input) => handlers.alerts.saveSavedView(input),
       removeSavedView: (id) => handlers.alerts.removeSavedView({ id }),
+      attachExplanation: (id, input) => handlers.alerts.attachExplanation({ id, body: input }),
+      submitExplanationFeedback: (input) => handlers.alerts.submitExplanationFeedback(input),
       acknowledge: (id, input) => handlers.alerts.acknowledge({ id, body: input }),
       bulkAcknowledge: (input) => handlers.alerts.bulkAcknowledge(input),
       resolve: (id, input) => handlers.alerts.resolve({ id, body: input }),
@@ -537,7 +627,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
     waterQuality: {
       create: (input) => handlers.waterQuality.create(input),
       list: (query) => handlers.waterQuality.list(query),
-      getById: (id) => handlers.waterQuality.getById({ id })
+      getById: (id) => handlers.waterQuality.getById({ id }),
+      update: (id, input) => handlers.waterQuality.update({ id, body: input })
     },
     audit: {
       list: (query) => handlers.audit.list(query ?? { page: 1, pageSize: 20 }),
@@ -549,7 +640,8 @@ export function createClientsFromEndpointHandlers(handlers: AquaPulseEndpointHan
       rewriteText: (input) => handlers.ai.rewriteText(input),
       queryDashboard: (input) => handlers.ai.queryDashboard(input),
       generateHandover: (input) => handlers.ai.generateHandover(input),
-      draftIncident: (input) => handlers.ai.draftIncident(input)
+      draftIncident: (input) => handlers.ai.draftIncident(input),
+      draftApprovalNote: (input) => handlers.ai.draftApprovalNote(input)
     }
   };
 }

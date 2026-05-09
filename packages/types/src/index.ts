@@ -79,6 +79,13 @@ export interface PondSummary extends BaseEntity {
   readonly status: "active" | "maintenance" | "inactive";
 }
 
+export interface PondCreateRequest {
+  readonly name: string;
+  readonly code: string;
+  readonly farmId: EntityId;
+  readonly kind: PondSummary["kind"];
+}
+
 export interface BatchSummary extends BaseEntity {
   readonly name: string;
   readonly pondId: EntityId;
@@ -97,6 +104,13 @@ export interface WaterQualityReading extends BaseEntity {
 export interface WaterQualityCreateRequest {
   readonly pondId: EntityId;
   readonly recordedAt: ISODateString;
+  readonly temperatureC?: number;
+  readonly ph?: number;
+}
+
+export interface WaterQualityUpdateRequest {
+  readonly pondId?: EntityId;
+  readonly recordedAt?: ISODateString;
   readonly temperatureC?: number;
   readonly ph?: number;
 }
@@ -122,6 +136,14 @@ export interface FeedUpdateRequest {
   readonly feedType?: string;
   readonly quantityKg?: number;
   readonly fedAt?: ISODateString;
+}
+
+export interface PondUpdateRequest {
+  readonly name?: string;
+  readonly code?: string;
+  readonly farmId?: EntityId;
+  readonly kind?: PondSummary["kind"];
+  readonly status?: PondSummary["status"];
 }
 
 export interface TaskSummary extends BaseEntity {
@@ -271,7 +293,8 @@ export interface AlertActionHistoryItem {
     | "resolved"
     | "assigned"
     | "unassigned"
-    | "review_state_changed";
+    | "review_state_changed"
+    | "ai_explanation_snapshot";
   readonly note?: string;
   readonly timestamp: ISODateString;
   readonly assignedTo?: EntityId;
@@ -311,10 +334,89 @@ export interface AiResponseRecord extends BaseEntity {
   readonly status: "draft" | "completed" | "rejected";
   readonly outputText: string;
   readonly model: string;
+  readonly requestType?: AiRequestRecord["requestType"];
+  readonly providerMode?: "fallback" | "provider_backed" | "unknown";
+  readonly providerPath?: "deterministic_fallback" | "openai_responses_api";
+  readonly outputPreview?: string;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly?: boolean;
+}
+
+export type AiHistoryReuseDestination =
+  | "incident_rewrite"
+  | "incident_draft"
+  | "approval_note_draft";
+
+interface AiHistoryReusePrefillBase {
+  readonly sourceHistoryId: EntityId;
+  readonly sourceTaskType: AiRequestRecord["requestType"];
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly sourceCreatedAt?: ISODateString;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly: true;
+}
+
+export type AiHistoryReusePrefillPayload =
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "incident_rewrite";
+      readonly originalText: string;
+    })
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "incident_draft";
+      readonly rawOperatorNotes: string;
+    })
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "approval_note_draft";
+      readonly promptNote: string;
+    });
+
+export interface AiHistoryCompareInput {
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly sourceHistoryId: EntityId;
+  readonly currentDraftText: string;
+  readonly reusedDraftText: string;
+  readonly sourceTaskType: AiRequestRecord["requestType"];
+  readonly sourceCreatedAt?: ISODateString;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly: true;
+}
+
+export interface AiHistoryCompareResult {
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly changed: boolean;
+  readonly currentDraft: {
+    readonly text: string;
+    readonly textLength: number;
+  };
+  readonly reusedHistoryDraft: {
+    readonly text: string;
+    readonly textLength: number;
+  };
+  readonly sharedLines: string[];
+  readonly currentOnlyLines: string[];
+  readonly reusedOnlyLines: string[];
+  readonly sourceHistory: {
+    readonly sourceHistoryId: EntityId;
+    readonly sourceTaskType: AiRequestRecord["requestType"];
+    readonly sourceCreatedAt?: ISODateString;
+    readonly relatedRecordIds?: EntityId[];
+  };
+  readonly advisoryOnly: true;
 }
 
 export interface AiRequestRecord extends BaseEntity {
-  readonly requestType: "alerts_explain" | "ponds_summarize" | "handover_generate" | "text_rewrite" | "dashboard_query" | "incident_draft";
+  readonly requestType:
+    | "alerts_explain"
+    | "ponds_summarize"
+    | "handover_generate"
+    | "text_rewrite"
+    | "incident_rewrite"
+    | "dashboard_query"
+    | "dashboard_assistant_query"
+    | "approval_note_draft"
+    | "incident_draft"
+    | "daily_farm_summary"
+    | "shift_handover_generate";
   readonly requestedBy?: EntityId;
   readonly inputPayload: Record<string, unknown>;
   readonly status: "queued" | "processing" | "completed" | "failed";
@@ -344,10 +446,29 @@ export interface AiActionDraftRecord extends BaseEntity {
   readonly status: "draft" | "approved" | "rejected";
 }
 
-export interface AiAlertsExplainRequest {
+export type AiStructuredOutputMode = "english_only" | "bilingual";
+export type AiOutputLanguage = "english" | "hindi";
+export type AiOutputTone = "operator" | "formal" | "management" | "audit";
+
+export interface AiOutputPreferences {
+  readonly outputMode?: AiStructuredOutputMode;
+  readonly tone?: AiOutputTone;
+}
+
+export interface AiStructuredOutputMetadata {
+  readonly outputMode: AiStructuredOutputMode;
+  readonly primaryLanguage: AiOutputLanguage;
+  readonly bilingual: boolean;
+  readonly tone?: AiOutputTone;
+}
+
+export interface AiAlertsExplainRequest extends AiOutputPreferences {
   readonly alertId: EntityId;
   readonly includeRecommendations?: boolean;
+  readonly reuseCached?: boolean;
 }
+
+export type AlertExplanationFeedbackValue = "useful" | "not_useful" | "neutral";
 
 export type AlertExplanationCauseCategory =
   | "water_quality"
@@ -377,67 +498,258 @@ export interface AlertExplanationMetadata {
   readonly modelLabel: string;
   readonly sourceLabel: string;
   readonly usedLiveOpenAi: boolean;
+  readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+  readonly output: AiStructuredOutputMetadata;
+}
+
+export interface AlertExplanationCacheState {
+  readonly status: "fresh" | "reused";
+  readonly cachedAt: ISODateString;
+  readonly freshness: "fresh" | "stale";
+  readonly explanationVersion: "v1";
+  readonly generation: "cached_reuse" | "fresh_fallback" | "fresh_openai_nano";
+}
+
+export interface AlertExplanationFeedbackRecord {
+  readonly alertId: EntityId;
+  readonly value: AlertExplanationFeedbackValue;
+  readonly note?: string;
+  readonly submittedAt: ISODateString;
+  readonly generation: AlertExplanationCacheState["generation"];
+  readonly sourceMode: AlertExplanationMetadata["mode"];
+}
+
+export interface AlertExplanationFeedbackSummary {
+  readonly latest?: AlertExplanationFeedbackRecord;
+}
+
+export interface AlertExplanationFeedbackRequest {
+  readonly alertId: EntityId;
+  readonly value: AlertExplanationFeedbackValue;
+  readonly note?: string;
+  readonly explanation: AiAlertsExplainResponse;
 }
 
 export interface AiAlertsExplainResponse {
+  readonly headline: string;
   readonly explanation: string;
+  readonly explanationHindi?: string;
   readonly recommendations: string[];
   readonly summary: string;
   readonly likelyCauses: AlertExplanationLikelyCause[];
+  readonly likelyFactors: AlertExplanationLikelyCause[];
   readonly recommendedChecks: AlertExplanationSuggestedStep[];
+  readonly immediateChecks: AlertExplanationSuggestedStep[];
   readonly suggestedActions: AlertExplanationSuggestedStep[];
+  readonly escalationConsiderations: string[];
+  readonly observedFacts: string[];
   readonly confidenceNote: string;
   readonly advisoryDisclaimer: string;
+  readonly missingInformationNote?: string;
   readonly metadata: AlertExplanationMetadata;
+  readonly cache: AlertExplanationCacheState;
+  readonly feedbackSummary?: AlertExplanationFeedbackSummary;
 }
 
-export interface AiPondsSummarizeRequest {
-  readonly pondId: EntityId;
+export interface AlertExplanationAttachmentRequest {
+  readonly explanation: AiAlertsExplainResponse;
+  readonly note?: string;
+}
+
+export type AiOperatorAssistanceTaskLabel =
+  | "daily_farm_summary"
+  | "shift_handover_generate"
+  | "dashboard_assistant_query"
+  | "incident_rewrite"
+  | "approval_note_draft"
+  | "incident_draft";
+
+export interface AiOperatorAssistanceMetadata {
+  readonly taskLabel: AiOperatorAssistanceTaskLabel;
+  readonly advisoryOnly: true;
+  readonly mode: "fallback" | "openai_nano";
+  readonly generatedAt: ISODateString;
+  readonly modelLabel: string;
+  readonly sourceLabel: string;
+  readonly usedLiveOpenAi: boolean;
+  readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+  readonly output: AiStructuredOutputMetadata;
+}
+
+export interface AiOperatorAssistanceAuditMetadata {
+  readonly requestId: EntityId;
+  readonly responseId: EntityId;
+  readonly requestLoggedAt: ISODateString;
+  readonly responseLoggedAt: ISODateString;
+  readonly fallbackUsed: boolean;
+}
+
+export interface AiOperatorAttentionItem {
+  readonly pondId?: EntityId;
+  readonly pondName: string;
+  readonly reason: string;
+  readonly priority: "low" | "medium" | "high";
+}
+
+export interface AiPondsSummarizeRequest extends AiOutputPreferences {
+  readonly pondId?: EntityId;
+  readonly farmId?: EntityId;
+  readonly generatedForDate?: ISODateString;
   readonly dateRange?: DateRange;
+  readonly includeMissingDataSignals?: boolean;
 }
 
 export interface AiPondsSummarizeResponse {
   readonly summary: string;
+  readonly summaryHindi?: string;
   readonly highlights: string[];
+  readonly headline: string;
+  readonly headlineHindi?: string;
+  readonly keyHighlights: string[];
+  readonly openIssues: string[];
+  readonly pendingActions: string[];
+  readonly pondsNeedingAttention: AiOperatorAttentionItem[];
+  readonly missingDataNotes: string[];
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
-export interface AiHandoverGenerateRequest {
+export interface AiHandoverGenerateRequest extends AiOutputPreferences {
   readonly shiftDate: ISODateString;
   readonly pondIds?: EntityId[];
+  readonly shiftLabel?: string;
+  readonly includeCompletedItems?: boolean;
 }
 
 export interface AiHandoverGenerateResponse {
   readonly summary: string;
+  readonly summaryHindi?: string;
   readonly actionItems: string[];
+  readonly headline: string;
+  readonly headlineHindi?: string;
+  readonly completedThisShift: string[];
+  readonly pendingItems: string[];
+  readonly priorityPonds: AiOperatorAttentionItem[];
+  readonly watchItems: string[];
+  readonly nextShiftNote: string;
+  readonly nextShiftNoteHindi?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
-export interface AiTextRewriteRequest {
-  readonly text: string;
-  readonly tone: "concise" | "formal" | "friendly";
+export interface AiDashboardSupportingFact {
+  readonly label: string;
+  readonly detail: string;
+  readonly pondId?: EntityId;
+  readonly pondName?: string;
+  readonly severity?: "low" | "medium" | "high";
 }
 
-export interface AiTextRewriteResponse {
-  readonly rewrittenText: string;
+export interface AiDashboardPriorityItem {
+  readonly label: string;
+  readonly detail: string;
+  readonly priority: "low" | "medium" | "high";
+  readonly pondId?: EntityId;
+  readonly pondName?: string;
 }
 
-export interface AiDashboardQueryRequest {
+export type AiIncidentRewriteTone = AiOutputTone;
+export type AiLinkedRecordType = "alert" | "task" | "incident";
+
+export interface AiIncidentRewriteRequest {
+  readonly originalText: string;
+  readonly tone: AiIncidentRewriteTone;
+  readonly outputMode?: AiStructuredOutputMode;
+  readonly linkedRecordType?: AiLinkedRecordType;
+  readonly linkedRecordId?: EntityId;
+}
+
+export interface AiIncidentRewriteResponse {
+  readonly originalText: string;
+  readonly rewrittenEnglish: string;
+  readonly rewrittenHindi?: string;
+  readonly tone: AiIncidentRewriteTone;
+  readonly clarificationNote?: string;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
+}
+
+export interface AiDashboardQueryRequest extends AiOutputPreferences {
   readonly question: string;
+  readonly pondId?: EntityId;
   readonly dateRange?: DateRange;
 }
 
 export interface AiDashboardQueryResponse {
+  readonly headline: string;
+  readonly headlineHindi?: string;
+  readonly directAnswer: string;
+  readonly directAnswerHindi?: string;
+  readonly priorityItems: AiDashboardPriorityItem[];
+  readonly supportingFacts: AiDashboardSupportingFact[];
+  readonly recommendedNextChecks: string[];
+  readonly missingInformationNote?: string;
   readonly answer: string;
   readonly relatedMetrics: string[];
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
-export interface AiIncidentsDraftRequest {
-  readonly incidentSummary: string;
-  readonly severity: AlertSeverity;
+export type AiApprovalNoteDraftMode =
+  | "closure_note"
+  | "escalation_justification"
+  | "needs_review"
+  | "pending_verification";
+
+export interface AiApprovalNoteDraftRequest {
+  readonly recordType: AiLinkedRecordType;
+  readonly recordId?: EntityId;
+  readonly mode: AiApprovalNoteDraftMode;
+  readonly promptNote?: string;
+  readonly outputMode?: AiStructuredOutputMode;
+  readonly tone?: AiOutputTone;
+}
+
+export interface AiApprovalNoteDraftResponse {
+  readonly headline: string;
+  readonly draftNote: string;
+  readonly draftNoteHindi?: string;
+  readonly rationaleSummary: string;
+  readonly suggestedNextChecks: string[];
+  readonly reviewRequired: boolean;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
+}
+
+export type AiTextRewriteRequest = AiIncidentRewriteRequest;
+export type AiTextRewriteResponse = AiIncidentRewriteResponse;
+
+export type AiIncidentDraftUrgency = "low" | "medium" | "high";
+
+export interface AiIncidentsDraftRequest extends AiOutputPreferences {
+  readonly rawOperatorNotes: string;
+  readonly linkedAlertId?: EntityId;
+  readonly linkedTaskId?: EntityId;
+  readonly linkedPondId?: EntityId;
+  readonly severity?: AlertSeverity;
+  readonly urgencyHint?: AiIncidentDraftUrgency;
+  readonly categoryHint?: string;
 }
 
 export interface AiIncidentsDraftResponse {
-  readonly draftTitle: string;
-  readonly draftBody: string;
+  readonly headline: string;
+  readonly incidentSummary: string;
+  readonly keyFacts: string[];
+  readonly likelyImpact: string;
+  readonly immediateActionsSuggested: string[];
+  readonly escalationNeed: string;
+  readonly draftEnglish: string;
+  readonly draftHindi?: string;
+  readonly missingInformationNote?: string;
+  readonly metadata: AiOperatorAssistanceMetadata;
+  readonly audit: AiOperatorAssistanceAuditMetadata;
 }
 
 export interface PondsListQueryRequest extends ListQueryRequest {
@@ -543,6 +855,11 @@ export interface AiResponseLogListQueryRequest extends ListQueryRequest {
   readonly requestId?: EntityId;
   readonly status?: AiResponseRecord["status"];
   readonly model?: string;
+  readonly requestType?: AiRequestRecord["requestType"];
+  readonly providerMode?: "fallback" | "provider_backed";
+  readonly createdAfter?: ISODateString;
+  readonly createdBefore?: ISODateString;
+  readonly relatedRecordId?: EntityId;
 }
 
 export type PlaceholderMutationRequest = {
@@ -576,8 +893,16 @@ export function defineEndpoint<TRequest, TResponse>(
 }
 
 export const aquaPulseEndpointCatalog = {
+  auth: {
+    session: defineEndpoint<Record<string, never>, ApiSuccessEnvelope<CurrentSessionPayload>>({
+      id: "auth.session",
+      method: "GET",
+      path: "/api/auth/session",
+      semantics: "detail"
+    })
+  },
   ponds: {
-    create: defineEndpoint<PlaceholderMutationRequest, ApiSuccessEnvelope<PondSummary>>({
+    create: defineEndpoint<PondCreateRequest, ApiSuccessEnvelope<PondSummary>>({
       id: "ponds.create",
       method: "POST",
       path: "/api/ponds",
@@ -595,7 +920,7 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/ponds/:id",
       semantics: "detail"
     }),
-    update: defineEndpoint<{ readonly id: EntityId; readonly body?: PlaceholderMutationRequest }, ApiSuccessEnvelope<PondSummary>>({
+    update: defineEndpoint<{ readonly id: EntityId; readonly body: PondUpdateRequest }, ApiSuccessEnvelope<PondSummary>>({
       id: "ponds.update",
       method: "PATCH",
       path: "/api/ponds/:id",
@@ -729,10 +1054,28 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/alerts/views/:id/remove",
       semantics: "action"
     }),
+    attachExplanation: defineEndpoint<
+      { readonly id: EntityId; readonly body: AlertExplanationAttachmentRequest },
+      ApiSuccessEnvelope<AlertSummary>
+    >({
+      id: "alerts.attachExplanation",
+      method: "POST",
+      path: "/api/alerts/:id/attach-explanation",
+      semantics: "action"
+    }),
     explain: defineEndpoint<AiAlertsExplainRequest, ApiSuccessEnvelope<AiAlertsExplainResponse>>({
       id: "ai.alerts.explain",
       method: "POST",
       path: "/api/ai/alerts/explain",
+      semantics: "action"
+    }),
+    submitExplanationFeedback: defineEndpoint<
+      AlertExplanationFeedbackRequest,
+      ApiSuccessEnvelope<AlertExplanationFeedbackRecord>
+    >({
+      id: "ai.alerts.submitExplanationFeedback",
+      method: "POST",
+      path: "/api/ai/alerts/explain/feedback",
       semantics: "action"
     })
   },
@@ -885,7 +1228,7 @@ export const aquaPulseEndpointCatalog = {
       path: "/api/water-quality/:id",
       semantics: "detail"
     }),
-    update: defineEndpoint<{ readonly id: EntityId; readonly body?: PlaceholderMutationRequest }, ApiSuccessEnvelope<WaterQualityReading>>({
+    update: defineEndpoint<{ readonly id: EntityId; readonly body: WaterQualityUpdateRequest }, ApiSuccessEnvelope<WaterQualityReading>>({
       id: "waterQuality.update",
       method: "PATCH",
       path: "/api/water-quality/:id",
@@ -951,6 +1294,12 @@ export const aquaPulseEndpointCatalog = {
       id: "ai.draftIncident",
       method: "POST",
       path: "/api/ai/incidents/draft",
+      semantics: "action"
+    }),
+    draftApprovalNote: defineEndpoint<AiApprovalNoteDraftRequest, ApiSuccessEnvelope<AiApprovalNoteDraftResponse>>({
+      id: "ai.draftApprovalNote",
+      method: "POST",
+      path: "/api/ai/approvals/draft-note",
       semantics: "action"
     })
   }
@@ -1141,6 +1490,48 @@ export type RuntimeServiceIdentity = "api" | "web";
 export type RuntimeConnectionCheckStatus = "not_attempted" | "configured_only" | "reachable" | "unreachable";
 export type RuntimeTransportMode = "mock" | "proxy" | "direct";
 export type RuntimeProbeStatus = "disabled" | "reachable" | "partial" | "unreachable";
+export type AquaPulseAuthMode = "disabled" | "local" | "keycloak";
+export type AquaPulseAuthProvider = "local" | "keycloak";
+export type AlertsLiveUpdatesConnectionState =
+  | "disabled"
+  | "inactive"
+  | "connecting"
+  | "active"
+  | "degraded"
+  | "unavailable";
+export type AlertsLiveUpdatesSubscriptionAuthState =
+  | "disabled"
+  | "bypassed_local"
+  | "authenticated"
+  | "degraded"
+  | "unavailable";
+export type AlertsLiveUpdatesSubscriptionTransport =
+  | "direct"
+  | "local_proxy_bootstrap";
+export type AlertsLiveUpdatesCredentialMode =
+  | "none"
+  | "direct_bearer"
+  | "ephemeral_ticket";
+export type AlertsLiveUpdatesGatewayPolicy =
+  | "disabled"
+  | "bypassed_local"
+  | "authenticated_operator_required";
+export type AlertsLiveUpdatesLastSubscriptionState =
+  | "authenticated"
+  | "bypassed_local"
+  | "ticket_authenticated"
+  | "ticket_bypassed_local"
+  | "rejected_invalid_ticket"
+  | "rejected_expired_ticket"
+  | "rejected_missing_auth"
+  | "rejected_invalid_auth"
+  | "rejected_insufficient_access";
+export type AlertLiveUpdateEventType =
+  | "alert_created"
+  | "alert_updated"
+  | "alert_lifecycle_changed"
+  | "alert_bulk_action_completed"
+  | "alert_summary_changed";
 
 export interface RuntimeWarning {
   readonly code: string;
@@ -1152,6 +1543,342 @@ export interface RuntimeModeSummary {
   readonly requestedMode?: string;
   readonly effectiveMode: string;
   readonly safeFallbackActive: boolean;
+}
+
+export interface AuthenticatedUserSession {
+  readonly id: EntityId;
+  readonly subject?: string;
+  readonly username?: string;
+  readonly displayName?: string;
+  readonly email?: string;
+  readonly provider: AquaPulseAuthProvider;
+  readonly roles: string[];
+  readonly permissions: string[];
+  readonly claims: Record<string, string | number | boolean | string[] | undefined>;
+}
+
+export interface FrontendAuthRuntimeDiagnostics {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly active: boolean;
+  readonly bypassActive: boolean;
+  readonly keycloakConfigured: boolean;
+  readonly verificationAvailable: boolean;
+  readonly verificationState:
+    | "disabled"
+    | "local_bypass"
+    | "keycloak_incomplete"
+    | "jwks_ready";
+  readonly issuerLabel: string;
+  readonly jwksLabel: string;
+  readonly realm?: string;
+  readonly clientId?: string;
+  readonly firstProtectedSliceLabel: string;
+  readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
+  readonly secondaryProtectedSliceLabel?: string;
+  readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
+  readonly quaternaryProtectedSliceLabel?: string;
+  readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quaternaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quinaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly senaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly senaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly nonAlertsProtectedSliceLabel?: string;
+  readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quaternaryNonAlertsProtectedSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quinaryNonAlertsProtectedSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly senaryNonAlertsProtectedSliceLabel?: string;
+  readonly senaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly septenaryNonAlertsProtectedSliceLabel?: string;
+  readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly forwardingMode:
+    | "bypassed"
+    | "proxy_env_token"
+    | "proxy_cookie"
+    | "proxy_header_passthrough"
+    | "unavailable";
+  readonly forwardingActive: boolean;
+  readonly forwardedAuthPresent: boolean;
+  readonly localDevUserLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface CurrentSessionUserSummary {
+  readonly id: EntityId;
+  readonly username?: string;
+  readonly displayName?: string;
+  readonly email?: string;
+  readonly provider: "local" | "keycloak";
+  readonly roles: string[];
+  readonly permissions: string[];
+  readonly claimKeys: string[];
+  readonly alertsAccessLevel: "none" | "viewer" | "operator";
+  readonly operatorAccess: boolean;
+  readonly alertsAccessSource:
+    | "none"
+    | "viewer_only"
+    | "operator_role"
+    | "alerts_operate_permission";
+}
+
+export type CurrentSessionAvailabilityState =
+  | "disabled"
+  | "local_user"
+  | "authenticated_user"
+  | "unauthenticated"
+  | "degraded";
+
+export type CurrentSessionAuthSource =
+  | "none"
+  | "local_dev_headers"
+  | "local_default_user"
+  | "keycloak_bearer"
+  | "keycloak_missing_bearer";
+
+export interface CurrentSessionPayload {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly availabilityState: CurrentSessionAvailabilityState;
+  readonly authSource: CurrentSessionAuthSource;
+  readonly user?: CurrentSessionUserSummary;
+  readonly sessionPresent: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
+  readonly secondaryProtectedSliceLabel?: string;
+  readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
+  readonly quaternaryProtectedSliceLabel?: string;
+  readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quaternaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quinaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly senaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly senaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly nonAlertsProtectedSliceLabel?: string;
+  readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quaternaryNonAlertsProtectedSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quinaryNonAlertsProtectedSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly senaryNonAlertsProtectedSliceLabel?: string;
+  readonly senaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly septenaryNonAlertsProtectedSliceLabel?: string;
+  readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly verificationState:
+    | "disabled"
+    | "local_bypass"
+    | "not_configured"
+    | "ready"
+    | "verified"
+    | "degraded";
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface FrontendSessionBootstrapStatus {
+  readonly bootstrapEnabled: boolean;
+  readonly bootstrapState: "active" | "bypassed" | "degraded" | "unavailable";
+  readonly sourceOfTruth: "runtime_derived" | "backend_session";
+  readonly currentSessionEndpointStatus:
+    | "not_requested"
+    | "available"
+    | "unreachable"
+    | "degraded";
+  readonly currentSessionAvailable: boolean;
+  readonly availabilityState: CurrentSessionAvailabilityState;
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly sessionPresent: boolean;
+  readonly forwardedAuthPresent: boolean;
+  readonly forwardingActive: boolean;
+  readonly forwardingMode:
+    | "bypassed"
+    | "proxy_env_token"
+    | "proxy_cookie"
+    | "proxy_header_passthrough"
+    | "unavailable";
+  readonly protectedReadGuardedSliceLabel?: string;
+  readonly protectedReadGuardedSliceEnforced: boolean;
+  readonly secondaryProtectedReadGuardedSliceLabel?: string;
+  readonly secondaryProtectedReadGuardedSliceEnforced: boolean;
+  readonly tertiaryProtectedReadGuardedSliceLabel?: string;
+  readonly tertiaryProtectedReadGuardedSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorUiState: "enabled" | "disabled" | "bypassed";
+  readonly secondaryGuardedSliceLabel?: string;
+  readonly secondaryGuardedSliceEnforced: boolean;
+  readonly tertiaryGuardedSliceLabel?: string;
+  readonly tertiaryGuardedSliceEnforced: boolean;
+  readonly quaternaryGuardedSliceLabel?: string;
+  readonly quaternaryGuardedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsReadGuardedSliceLabel?: string;
+  readonly nonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly secondaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly secondaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly tertiaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly quaternaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly quaternaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly quinaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly quinaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly senaryNonAlertsReadGuardedSliceLabel?: string;
+  readonly senaryNonAlertsReadGuardedSliceEnforced?: boolean;
+  readonly nonAlertsGuardedSliceLabel?: string;
+  readonly nonAlertsGuardedSliceEnforced: boolean;
+  readonly secondaryNonAlertsGuardedSliceLabel?: string;
+  readonly secondaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsGuardedSliceLabel?: string;
+  readonly tertiaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly quaternaryNonAlertsGuardedSliceLabel?: string;
+  readonly quaternaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly quinaryNonAlertsGuardedSliceLabel?: string;
+  readonly quinaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly senaryNonAlertsGuardedSliceLabel?: string;
+  readonly senaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly septenaryNonAlertsGuardedSliceLabel?: string;
+  readonly septenaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly octonaryNonAlertsGuardedSliceLabel?: string;
+  readonly octonaryNonAlertsGuardedSliceEnforced: boolean;
+  readonly currentUser?: CurrentSessionUserSummary;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendAuthRuntimeDiagnostics {
+  readonly requestedMode: AquaPulseAuthMode;
+  readonly effectiveMode: AquaPulseAuthMode;
+  readonly active: boolean;
+  readonly bypassActive: boolean;
+  readonly keycloakConfigured: boolean;
+  readonly verificationAvailable: boolean;
+  readonly verificationActive: boolean;
+  readonly verificationBypassed: boolean;
+  readonly issuerLabel: string;
+  readonly jwksLabel: string;
+  readonly realm?: string;
+  readonly clientId?: string;
+  readonly validationStrategy: "disabled" | "local_headers" | "keycloak_bearer_claims";
+  readonly tokenValidation:
+    | "not_applicable"
+    | "not_attempted"
+    | "jwks_ready"
+    | "verified"
+    | "verification_failed";
+  readonly verificationStatus:
+    | "disabled"
+    | "local_bypass"
+    | "not_configured"
+    | "ready"
+    | "verified"
+    | "degraded";
+  readonly lastVerificationAt?: ISODateString;
+  readonly lastVerificationMessage?: string;
+  readonly firstProtectedSliceLabel: string;
+  readonly firstProtectedSliceEnforced: boolean;
+  readonly protectedReadSliceLabel?: string;
+  readonly protectedReadSliceEnforced: boolean;
+  readonly secondaryProtectedReadSliceLabel?: string;
+  readonly secondaryProtectedReadSliceEnforced: boolean;
+  readonly tertiaryProtectedReadSliceLabel?: string;
+  readonly tertiaryProtectedReadSliceEnforced: boolean;
+  readonly protectedOperatorSliceLabel: string;
+  readonly protectedOperatorSliceEnforced: boolean;
+  readonly secondaryProtectedSliceLabel?: string;
+  readonly secondaryProtectedSliceEnforced: boolean;
+  readonly tertiaryProtectedSliceLabel?: string;
+  readonly tertiaryProtectedSliceEnforced: boolean;
+  readonly quaternaryProtectedSliceLabel?: string;
+  readonly quaternaryProtectedSliceEnforced: boolean;
+  readonly nonAlertsOperatorAccessSummaryLabel?: string;
+  readonly nonAlertsOperatorAccessSummaryEnforced: boolean;
+  readonly nonAlertsReadAccessSummaryLabel?: string;
+  readonly nonAlertsReadAccessSummaryEnforced?: boolean;
+  readonly nonAlertsProtectedReadSliceLabel?: string;
+  readonly nonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly secondaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly tertiaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quaternaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly quinaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly senaryNonAlertsProtectedReadSliceLabel?: string;
+  readonly senaryNonAlertsProtectedReadSliceEnforced?: boolean;
+  readonly nonAlertsProtectedSliceLabel?: string;
+  readonly nonAlertsProtectedSliceEnforced: boolean;
+  readonly secondaryNonAlertsProtectedSliceLabel?: string;
+  readonly secondaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly tertiaryNonAlertsProtectedSliceLabel?: string;
+  readonly tertiaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quaternaryNonAlertsProtectedSliceLabel?: string;
+  readonly quaternaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly quinaryNonAlertsProtectedSliceLabel?: string;
+  readonly quinaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly senaryNonAlertsProtectedSliceLabel?: string;
+  readonly senaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly septenaryNonAlertsProtectedSliceLabel?: string;
+  readonly septenaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly octonaryNonAlertsProtectedSliceLabel?: string;
+  readonly octonaryNonAlertsProtectedSliceEnforced: boolean;
+  readonly defaultLocalUserLabel: string;
+  readonly warnings: RuntimeWarning[];
 }
 
 export interface DatabaseRuntimeDiagnostics {
@@ -1182,6 +1909,63 @@ export interface AlertsRuntimeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface FeedRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface PondsRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface WaterQualityRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface TasksRuntimeDiagnostics {
+  readonly requestedMode: "mock" | "http" | "inherit";
+  readonly effectiveMode: "mock" | "http";
+  readonly transport: RuntimeTransportMode;
+  readonly usesLocalProxy: boolean;
+  readonly targetLabel: string;
+  readonly scopeLabel: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface AlertsLiveUpdatesRuntimeDiagnostics {
+  readonly requested: boolean;
+  readonly enabled: boolean;
+  readonly targetLabel: string;
+  readonly connectionState: AlertsLiveUpdatesConnectionState;
+  readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
+  readonly proxyBootstrapPathLabel?: string;
+  readonly proxyBootstrapAvailable: boolean;
+  readonly authMode: AquaPulseAuthMode;
+  readonly websocketAuthConfigured: boolean;
+  readonly currentSessionSufficient: boolean;
+  readonly fallbackMode: "manual_refresh";
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface LocalBridgeDiagnostics {
   readonly routePrefix: string;
   readonly transport: "proxy";
@@ -1193,7 +1977,14 @@ export interface LocalBridgeDiagnostics {
 export interface FrontendRuntimeDiagnostics {
   readonly service: "web";
   readonly mode: RuntimeModeSummary;
+  readonly auth: FrontendAuthRuntimeDiagnostics;
+  readonly session: FrontendSessionBootstrapStatus;
   readonly alerts: AlertsRuntimeDiagnostics;
+  readonly alertsLiveUpdates: AlertsLiveUpdatesRuntimeDiagnostics;
+  readonly ponds: PondsRuntimeDiagnostics;
+  readonly feed: FeedRuntimeDiagnostics;
+  readonly tasks: TasksRuntimeDiagnostics;
+  readonly waterQuality: WaterQualityRuntimeDiagnostics;
   readonly localBridge: LocalBridgeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }
@@ -1209,23 +2000,193 @@ export interface BackendRuntimeProbeDiagnostics {
   readonly warnings: RuntimeWarning[];
 }
 
+export interface BackendAlertsRuntimeDiagnostics {
+  readonly workbenchCutoverAvailable: boolean;
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly localBridgeExpectedPath: string;
+  readonly localAiExplainBridgeExpectedPath: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendWaterQualityRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendFeedRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly localBridgeExpectedPath: string;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendTasksRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendPondsRuntimeDiagnostics {
+  readonly postgresReadCutoverAvailable: boolean;
+  readonly postgresWriteCutoverAvailable: boolean;
+  readonly requestedAdapter?: "in-memory" | "postgres";
+  readonly effectiveAdapter: "in-memory" | "postgres";
+  readonly runtimeSwitchEnabled: boolean;
+  readonly cutoverActive: boolean;
+  readonly databaseConfigured: boolean;
+  readonly connectivityStatus: RuntimeConnectionCheckStatus;
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface AlertLiveUpdateAlertPreview {
+  readonly id: EntityId;
+  readonly status: AlertSummary["status"];
+  readonly severity: AlertSummary["severity"];
+  readonly assignedTo?: EntityId;
+  readonly reviewState?: AlertReviewState;
+  readonly updatedAt: ISODateString;
+}
+
+export interface AlertLiveUpdateEvent {
+  readonly source: "alerts";
+  readonly eventType: AlertLiveUpdateEventType;
+  readonly timestamp: ISODateString;
+  readonly alertId?: EntityId;
+  readonly alertIds?: EntityId[];
+  readonly totalUpdated?: number;
+  readonly changedFields?: string[];
+  readonly alert?: AlertLiveUpdateAlertPreview;
+  readonly summary?: AlertQueueSummary;
+}
+
+export interface AlertsLiveUpdatesSubscriptionStatus {
+  readonly source: "alerts_live_updates";
+  readonly kind: "subscription_status";
+  readonly timestamp: ISODateString;
+  readonly authMode: AquaPulseAuthMode;
+  readonly subscriptionAuthState: "authenticated" | "bypassed_local";
+  readonly message: string;
+}
+
+export interface AlertsLiveUpdatesBootstrapPayload {
+  readonly requested: boolean;
+  readonly enabled: boolean;
+  readonly subscriptionTransport: AlertsLiveUpdatesSubscriptionTransport;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
+  readonly targetLabel: string;
+  readonly webSocketUrl?: string;
+  readonly ticketIssued: boolean;
+  readonly ticketExpiresAt?: ISODateString;
+  readonly subscriptionAuthState: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly authMode: AquaPulseAuthMode;
+  readonly forwardedAuthPresent: boolean;
+  readonly forwardingSource:
+    | "env_token"
+    | "cookie_token"
+    | "authorization_header"
+    | "none";
+  readonly warnings: RuntimeWarning[];
+}
+
+export interface BackendAlertsLiveUpdatesDiagnostics {
+  readonly enabled: boolean;
+  readonly gatewayPath: string;
+  readonly ticketBootstrapPath: string;
+  readonly ticketTtlSeconds: number;
+  readonly gatewayAttached: boolean;
+  readonly activeConnections: number;
+  readonly subscriptionPolicy: AlertsLiveUpdatesGatewayPolicy;
+  readonly credentialMode: AlertsLiveUpdatesCredentialMode;
+  readonly authenticatedConnections: number;
+  readonly bypassedConnections: number;
+  readonly lastTicketIssuedAt?: ISODateString;
+  readonly lastTicketIssuedState?: AlertsLiveUpdatesSubscriptionAuthState;
+  readonly lastSubscriptionAt?: ISODateString;
+  readonly lastSubscriptionState?: AlertsLiveUpdatesLastSubscriptionState;
+  readonly lastSubscriptionReason?: string;
+  readonly lastEventAt?: ISODateString;
+  readonly warnings: RuntimeWarning[];
+}
+
 export interface BackendRuntimeDiagnostics {
   readonly service: "api";
   readonly mode: RuntimeModeSummary;
+  readonly auth?: BackendAuthRuntimeDiagnostics;
   readonly database: DatabaseRuntimeDiagnostics;
   readonly aiExplanations: {
     readonly advisoryOnly: true;
     readonly mode: "fallback" | "openai_nano";
     readonly configured: boolean;
     readonly modelLabel: string;
+    readonly providerPath?: "deterministic_fallback" | "openai_responses_api";
+    readonly cacheEnabled: boolean;
+    readonly attachmentAvailable: boolean;
+    readonly feedbackEnabled: boolean;
+    readonly supportedOutputModes?: AiStructuredOutputMode[];
+    readonly supportedToneModes?: AiOutputTone[];
     readonly warnings: RuntimeWarning[];
   };
-  readonly alerts: {
-    readonly workbenchCutoverAvailable: boolean;
-    readonly postgresReadCutoverAvailable: boolean;
-    readonly postgresWriteCutoverAvailable: boolean;
-    readonly localBridgeExpectedPath: string;
+  readonly aiOperatorAssistance?: {
+    readonly enabled: boolean;
+    readonly advisoryOnly: true;
+    readonly mode: "fallback" | "openai_nano";
+    readonly configured: boolean;
+    readonly modelLabel: string;
+    readonly providerPath: "deterministic_fallback" | "openai_responses_api";
+    readonly fallbackActive: boolean;
+    readonly supportedTasks: AiOperatorAssistanceTaskLabel[];
+    readonly supportedOutputModes?: AiStructuredOutputMode[];
+    readonly bilingualTasks?: AiOperatorAssistanceTaskLabel[];
+    readonly toneTasks?: AiOperatorAssistanceTaskLabel[];
+    readonly warnings: RuntimeWarning[];
   };
+  readonly aiHistory?: {
+    readonly enabled: boolean;
+    readonly advisoryOnly: true;
+    readonly sourceLabel: "ai_request_response_log";
+    readonly providerMetadataAvailable: boolean;
+    readonly reuseFromHistoryEnabled?: boolean;
+    readonly metadataSufficientForPrefill?: boolean;
+    readonly compareFromHistoryEnabled?: boolean;
+    readonly metadataSufficientForCompare?: boolean;
+    readonly supportedReuseDestinations?: AiHistoryReuseDestination[];
+    readonly filterFields: Array<
+      "requestType" | "providerMode" | "createdAfter" | "createdBefore" | "relatedRecordId"
+    >;
+    readonly warnings: RuntimeWarning[];
+  };
+  readonly alerts: BackendAlertsRuntimeDiagnostics;
+  readonly alertsLiveUpdates?: BackendAlertsLiveUpdatesDiagnostics;
+  readonly ponds?: BackendPondsRuntimeDiagnostics;
+  readonly feed?: BackendFeedRuntimeDiagnostics;
+  readonly tasks?: BackendTasksRuntimeDiagnostics;
+  readonly waterQuality: BackendWaterQualityRuntimeDiagnostics;
   readonly warnings: RuntimeWarning[];
 }
 
@@ -1242,6 +2203,8 @@ export function filterAlertsByQuery(
   items: readonly AlertSummary[],
   query: Partial<AlertsListQueryRequest> = {}
 ): AlertSummary[] {
+  const normalizedSearch = query.search?.trim().toLowerCase();
+
   return items.filter(
     (item) =>
       (!query.pondId || item.pondId === query.pondId) &&
@@ -1252,7 +2215,10 @@ export function filterAlertsByQuery(
       (!query.reviewState || item.reviewState === query.reviewState) &&
       (query.hasLatestNote === undefined ||
         (query.hasLatestNote ? Boolean(item.latestNote?.trim()) : !item.latestNote?.trim())) &&
-      (!query.search || item.title.toLowerCase().includes(query.search.toLowerCase()))
+      (!normalizedSearch ||
+        item.title.toLowerCase().includes(normalizedSearch) ||
+        item.source.toLowerCase().includes(normalizedSearch) ||
+        Boolean(item.latestNote?.toLowerCase().includes(normalizedSearch)))
   );
 }
 
@@ -1262,23 +2228,35 @@ export function sortAlertsByQuery(
 ): AlertSummary[] {
   const sorted = [...items];
 
-  switch (sortBy) {
-    case "createdAt_asc":
-      sorted.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-      break;
-    case "updatedAt_asc":
-      sorted.sort((left, right) => left.updatedAt.localeCompare(right.updatedAt));
-      break;
-    case "createdAt_desc":
-      sorted.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-      break;
-    case "updatedAt_desc":
-    default:
-      sorted.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      break;
-  }
+  sorted.sort((left, right) => compareAlertsBySort(left, right, sortBy));
 
   return sorted;
+}
+
+function toAlertSortTimestamp(value: string | undefined): number {
+  return value ? Date.parse(value) : 0;
+}
+
+function compareAlertStrings(left: string | undefined, right: string | undefined): number {
+  return (left ?? "").localeCompare(right ?? "");
+}
+
+export function compareAlertsBySort(
+  left: AlertSummary,
+  right: AlertSummary,
+  sortBy: AlertsListQueryRequest["sortBy"] = "updatedAt_desc"
+): number {
+  switch (sortBy) {
+    case "createdAt_asc":
+      return toAlertSortTimestamp(left.createdAt) - toAlertSortTimestamp(right.createdAt) || compareAlertStrings(left.id, right.id);
+    case "updatedAt_asc":
+      return toAlertSortTimestamp(left.updatedAt) - toAlertSortTimestamp(right.updatedAt) || compareAlertStrings(left.id, right.id);
+    case "createdAt_desc":
+      return toAlertSortTimestamp(right.createdAt) - toAlertSortTimestamp(left.createdAt) || compareAlertStrings(right.id, left.id);
+    case "updatedAt_desc":
+    default:
+      return toAlertSortTimestamp(right.updatedAt) - toAlertSortTimestamp(left.updatedAt) || compareAlertStrings(right.id, left.id);
+  }
 }
 
 export function getAlertQueuePresetQuery(

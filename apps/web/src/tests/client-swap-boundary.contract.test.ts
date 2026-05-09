@@ -22,8 +22,10 @@ describe("Client swap boundary", () => {
       httpRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" })
     ]);
 
-    expect(mockDashboard.data.answer).toContain("Placeholder");
-    expect(httpDashboard.data.answer).toContain("Placeholder");
+    expect(mockDashboard.data.answer).toBe(mockDashboard.data.directAnswer);
+    expect(httpDashboard.data.answer).toBe(httpDashboard.data.directAnswer);
+    expect(mockDashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
+    expect(httpDashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expect(mockAlerts.data.page.page).toBe(1);
     expect(httpAlerts.data.page.pageSize).toBe(20);
   });

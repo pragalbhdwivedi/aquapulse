@@ -1,18 +1,22 @@
 import type {
+  AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
   AiDashboardQueryResponse,
   AiHandoverGenerateResponse,
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
+  AlertExplanationFeedbackRecord,
   AiResponseRecord,
   AiTextRewriteResponse,
   ApiSuccessEnvelope,
   ListResponse
 } from "@aquapulse/types";
 import type {
+  ApprovalNoteDraftDto,
   CreateAiDto,
   DashboardQueryDto,
   DraftIncidentDto,
+  AlertExplanationFeedbackDto,
   ExplainAlertDto,
   GenerateHandoverDto,
   QueryAiDto,
@@ -36,11 +40,22 @@ export function toQueryAiInput(input: QueryAiDto): AiResponseLogQueryContract {
   return toRepositoryListQuery(input, {
     requestId: input.requestId,
     status: input.status,
-    model: input.model
+    model: input.model,
+    requestType: input.requestType,
+    providerMode: input.providerMode,
+    createdAfter: input.createdAfter,
+    createdBefore: input.createdBefore,
+    relatedRecordId: input.relatedRecordId
   });
 }
 
 export function toExplainAlertInput(input: ExplainAlertDto): ExplainAlertDto {
+  return input;
+}
+
+export function toAlertExplanationFeedbackInput(
+  input: AlertExplanationFeedbackDto
+): AlertExplanationFeedbackDto {
   return input;
 }
 
@@ -53,6 +68,10 @@ export function toGenerateHandoverInput(input: GenerateHandoverDto): GenerateHan
 }
 
 export function toRewriteTextInput(input: RewriteTextDto): RewriteTextDto {
+  return input;
+}
+
+export function toDraftApprovalNoteInput(input: ApprovalNoteDraftDto): ApprovalNoteDraftDto {
   return input;
 }
 
@@ -78,6 +97,12 @@ export function toAiAlertsExplainResponse(
   return createItemResponse(item);
 }
 
+export function toAlertExplanationFeedbackResponse(
+  item: AlertExplanationFeedbackRecord
+): ApiSuccessEnvelope<AlertExplanationFeedbackRecord> {
+  return createItemResponse(item);
+}
+
 export function toAiPondsSummarizeResponse(
   item: AiPondsSummarizeResponse
 ): ApiSuccessEnvelope<AiPondsSummarizeResponse> {
@@ -91,6 +116,12 @@ export function toAiHandoverGenerateResponse(
 }
 
 export function toAiTextRewriteResponse(item: AiTextRewriteResponse): ApiSuccessEnvelope<AiTextRewriteResponse> {
+  return createItemResponse(item);
+}
+
+export function toAiApprovalNoteDraftResponse(
+  item: AiApprovalNoteDraftResponse
+): ApiSuccessEnvelope<AiApprovalNoteDraftResponse> {
   return createItemResponse(item);
 }
 

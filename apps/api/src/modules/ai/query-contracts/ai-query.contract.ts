@@ -3,7 +3,18 @@ import type { AiResponseLogListQueryRequest, ListQueryRequest } from "@aquapulse
 export interface AiResponseLogQueryContract extends AiResponseLogListQueryRequest {}
 
 export interface AiRequestLogQueryContract extends ListQueryRequest {
-  readonly requestType?: "alerts_explain" | "ponds_summarize" | "handover_generate" | "text_rewrite" | "dashboard_query" | "incident_draft";
+  readonly requestType?:
+    | "alerts_explain"
+    | "ponds_summarize"
+    | "handover_generate"
+    | "text_rewrite"
+    | "incident_rewrite"
+    | "dashboard_query"
+    | "dashboard_assistant_query"
+    | "approval_note_draft"
+    | "incident_draft"
+    | "daily_farm_summary"
+    | "shift_handover_generate";
   readonly requestedBy?: string;
   readonly status?: "queued" | "processing" | "completed" | "failed";
 }

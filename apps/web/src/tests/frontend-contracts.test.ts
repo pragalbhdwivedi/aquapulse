@@ -9,6 +9,11 @@ import type {
 import type { AlertsListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
 import { createMockApiClients, type AquaPulseApiClients } from "../clients";
 import {
+  buildAiHistoryCompareInput,
+  compareAiHistoryDrafts,
+  getAiHistoryReusePrefill
+} from "../features/ai-history-reuse";
+import {
   createRepositories,
   type AquaPulseRepositories,
   type AlertsRepository,
@@ -28,11 +33,17 @@ describe("Frontend contract boundaries", () => {
     const repositories: AquaPulseRepositories = createRepositories(createMockApiClients());
     const ponds = await repositories.ponds.list({ page: 2, pageSize: 10, status: "active" });
     const explanation = await repositories.alerts.explain({ alertId: "alert-1" });
+    const feedback = await repositories.alerts.submitExplanationFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      explanation: explanation.data
+    });
     const alertDetail = await repositories.alerts.getById("alert-1");
     const alertSummary = await repositories.alerts.summary({ page: 1, pageSize: 20 });
 
     expect(ponds.data.items).toHaveLength(1);
     expect(explanation.data.explanation).toContain("Placeholder");
+    expect(feedback.data.value).toBe("useful");
     expect(alertDetail.data.id).toBe("alert-1");
     expect(alertSummary.data.totalAlerts).toBeGreaterThan(0);
 
@@ -47,9 +58,53 @@ describe("Frontend contract boundaries", () => {
 
   it("AI repository methods keep the dashboard contract stable", async () => {
     const repositories = createRepositories(createMockApiClients());
-    const result = await repositories.ai.queryDashboard({ question: "What needs attention today?" });
+    const [history, result, rewrite, incidentDraft, approvalNote] = await Promise.all([
+      repositories.ai.list({ page: 1, pageSize: 5, providerMode: "fallback" }),
+      repositories.ai.queryDashboard({ question: "What needs attention today?" }),
+      repositories.ai.rewriteText({
+        originalText: "oxygen low north pond rechecked sample taken",
+        tone: "operator",
+        outputMode: "bilingual"
+      }),
+      repositories.ai.draftIncident({
+        rawOperatorNotes: "oxygen low north pond rechecked sample taken",
+        linkedAlertId: "alert-1",
+        severity: "high",
+        outputMode: "bilingual",
+        tone: "operator"
+      }),
+      repositories.ai.draftApprovalNote({
+        recordType: "alert",
+        mode: "needs_review",
+        promptNote: "Need a supervisor note."
+      })
+    ]);
 
-    expect(result.data.answer).toContain("Placeholder");
+    expect(history.data.items.length).toBeGreaterThan(0);
+    expect(history.data.items[0]?.providerMode).toBeTruthy();
+    expect(getAiHistoryReusePrefill(history.data.items.find((item) => item.requestType === "incident_draft")!))
+      .toMatchObject({
+        destinationType: "incident_draft",
+        advisoryOnly: true
+      });
+    const compareInput = buildAiHistoryCompareInput(
+      getAiHistoryReusePrefill(
+        history.data.items.find((item) => item.requestType === "incident_draft")!
+      )!,
+      "Operator note: Oxygen warning was observed and rechecked with a second sample."
+    );
+    const compareResult = compareAiHistoryDrafts(compareInput);
+    expect(compareResult.destinationType).toBe("incident_draft");
+    expect(compareResult.advisoryOnly).toBe(true);
+    expect(compareResult.changed).toBe(true);
+    expect(result.data.answer).toContain("Start with");
+    expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
+    expect(rewrite.data.metadata.taskLabel).toBe("incident_rewrite");
+    expect(rewrite.data.rewrittenEnglish).toContain("Operator note:");
+    expect(incidentDraft.data.metadata.taskLabel).toBe("incident_draft");
+    expect(incidentDraft.data.draftEnglish).toContain("advisory-only");
+    expect(approvalNote.data.metadata.taskLabel).toBe("approval_note_draft");
+    expect(approvalNote.data.reviewRequired).toBe(true);
     expectTypeOf<typeof result>().toEqualTypeOf<ApiSuccessEnvelope<AiDashboardQueryResponse>>();
   });
 

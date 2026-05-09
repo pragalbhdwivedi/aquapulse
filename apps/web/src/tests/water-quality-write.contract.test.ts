@@ -5,6 +5,7 @@ import {
   createWaterQualityEntrySubmitter,
   submitWaterQualityEntry
 } from "../features/water-quality-entry";
+import { submitWaterQualityUpdate } from "../features/water-quality-update";
 
 describe("Water-quality write flow", () => {
   it("supports valid submission through the default mock-backed repository path", async () => {
@@ -58,5 +59,16 @@ describe("Water-quality write flow", () => {
 
     expect(result.data.pondId).toBe("pond-1");
     expect(list.data.items[0]?.pondId).toBe("pond-1");
+  });
+
+  it("returns validation-style failure for invalid bounded update input before calling the client path", async () => {
+    const result = await submitWaterQualityUpdate("wq-1", "pond-1", {
+      recordedAt: ""
+    });
+
+    expect(result.status).toBe("validation_error");
+    if (result.status === "validation_error") {
+      expect(result.fieldErrors.recordedAt).toBeTruthy();
+    }
   });
 });

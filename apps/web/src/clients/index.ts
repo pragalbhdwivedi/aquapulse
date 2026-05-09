@@ -1,4 +1,5 @@
 import type {
+  AuthApiClient,
   AiApiClient,
   AlertsApiClient,
   AttachmentsApiClient,
@@ -27,12 +28,19 @@ import {
   getDefaultClientRuntimeConfig,
   parseClientRuntimeConfig,
   resolveAlertsHttpBaseUrl,
+  resolveFeedHttpBaseUrl,
+  resolvePondsHttpBaseUrl,
+  resolveTasksHttpBaseUrl,
+  resolveWaterQualityHttpBaseUrl,
+  type AquaPulseHttpTransportMode,
   type AquaPulseClientRuntimeConfig,
   type AquaPulseClientRuntimeEnv,
-  type AquaPulseClientRuntimeMode
+  type AquaPulseClientRuntimeMode,
+  type AquaPulseScopedRuntimeMode
 } from "./runtime-config";
 
 export interface AquaPulseApiClients {
+  auth: AuthApiClient;
   ponds: PondsApiClient;
   batches: BatchesApiClient;
   waterQuality: WaterQualityApiClient;
@@ -46,8 +54,83 @@ export interface AquaPulseApiClients {
 
 export type AquaPulseClientSource = AquaPulseClientRuntimeMode;
 
+function resolveScopedFetchBaseUrl(
+  config: AquaPulseClientRuntimeConfig,
+  mode: AquaPulseScopedRuntimeMode | undefined,
+  transport: AquaPulseHttpTransportMode | undefined,
+  resolvedBaseUrl: string | undefined
+): string | undefined {
+  if (mode === "http" && (transport ?? "proxy") === "proxy" && config.localApiBackendUrl) {
+    return config.localApiBackendUrl;
+  }
+
+  return resolvedBaseUrl;
+}
+
 export function createMockApiClients(): AquaPulseApiClients {
   return {
+    auth: {
+      async getSession() {
+        return {
+          ok: true,
+          data: {
+            requestedMode: "disabled",
+            effectiveMode: "disabled",
+            availabilityState: "disabled",
+            authSource: "none",
+            sessionPresent: false,
+            protectedReadSliceLabel: "alerts_list_read",
+            protectedReadSliceEnforced: false,
+            secondaryProtectedReadSliceLabel: "alerts_detail_read",
+            secondaryProtectedReadSliceEnforced: false,
+            tertiaryProtectedReadSliceLabel: "alerts_summary_read",
+            tertiaryProtectedReadSliceEnforced: false,
+            protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+            protectedOperatorSliceEnforced: false,
+            secondaryProtectedSliceLabel: "alerts_triage_actions",
+            secondaryProtectedSliceEnforced: false,
+            tertiaryProtectedSliceLabel: "alerts_bulk_actions",
+            tertiaryProtectedSliceEnforced: false,
+            quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+            quaternaryProtectedSliceEnforced: false,
+            nonAlertsOperatorAccessSummaryLabel: "non_alert_operator_update_access",
+            nonAlertsOperatorAccessSummaryEnforced: false,
+            nonAlertsReadAccessSummaryLabel: "non_alert_read_access",
+            nonAlertsReadAccessSummaryEnforced: false,
+            nonAlertsProtectedReadSliceLabel: "water_quality_detail_read",
+            nonAlertsProtectedReadSliceEnforced: false,
+            secondaryNonAlertsProtectedReadSliceLabel: "feed_detail_read",
+            secondaryNonAlertsProtectedReadSliceEnforced: false,
+            tertiaryNonAlertsProtectedReadSliceLabel: "ponds_detail_read",
+            tertiaryNonAlertsProtectedReadSliceEnforced: false,
+            quaternaryNonAlertsProtectedReadSliceLabel: "tasks_detail_read",
+            quaternaryNonAlertsProtectedReadSliceEnforced: false,
+            quinaryNonAlertsProtectedReadSliceLabel: "water_quality_recent_read",
+            quinaryNonAlertsProtectedReadSliceEnforced: false,
+            senaryNonAlertsProtectedReadSliceLabel: "feed_recent_read",
+            senaryNonAlertsProtectedReadSliceEnforced: false,
+            nonAlertsProtectedSliceLabel: "tasks_update",
+            nonAlertsProtectedSliceEnforced: false,
+            secondaryNonAlertsProtectedSliceLabel: "feed_update",
+            secondaryNonAlertsProtectedSliceEnforced: false,
+            tertiaryNonAlertsProtectedSliceLabel: "ponds_update",
+            tertiaryNonAlertsProtectedSliceEnforced: false,
+            quaternaryNonAlertsProtectedSliceLabel: "water_quality_create",
+            quaternaryNonAlertsProtectedSliceEnforced: false,
+            quinaryNonAlertsProtectedSliceLabel: "water_quality_update",
+            quinaryNonAlertsProtectedSliceEnforced: false,
+            senaryNonAlertsProtectedSliceLabel: "feed_create",
+            senaryNonAlertsProtectedSliceEnforced: false,
+            septenaryNonAlertsProtectedSliceLabel: "tasks_create",
+            septenaryNonAlertsProtectedSliceEnforced: false,
+            octonaryNonAlertsProtectedSliceLabel: "ponds_create",
+            octonaryNonAlertsProtectedSliceEnforced: false,
+            verificationState: "disabled",
+            warnings: []
+          }
+        };
+      }
+    },
     ponds: pondsMockAdapter,
     batches: batchesMockAdapter,
     waterQuality: waterQualityMockAdapter,
@@ -100,7 +183,12 @@ export function createApiClientsFromConfig(
           },
           baseClients,
           executor: createFetchHttpExecutor({
-            baseUrl: resolveAlertsHttpBaseUrl(config)
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.alertsMode,
+              config.alertsHttpTransport,
+              resolveAlertsHttpBaseUrl(config)
+            )
           })
         })
       : config.enablePlaceholderHttp
@@ -110,6 +198,114 @@ export function createApiClientsFromConfig(
     clients = {
       ...clients,
       alerts: alertsHttpClients.alerts
+    };
+  }
+
+  if (config.feedMode === "http") {
+    const feedHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.feedMode,
+              config.feedHttpTransport,
+              resolveFeedHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      feed: feedHttpClients.feed
+    };
+  }
+
+  if (config.pondsMode === "http") {
+    const pondsHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.pondsMode,
+              config.pondsHttpTransport,
+              resolvePondsHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      ponds: pondsHttpClients.ponds
+    };
+  }
+
+  if (config.tasksMode === "http") {
+    const tasksHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.tasksMode,
+              config.tasksHttpTransport,
+              resolveTasksHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      tasks: tasksHttpClients.tasks
+    };
+  }
+
+  if (config.waterQualityMode === "http") {
+    const waterQualityHttpClients = config.enableFetchHttp
+      ? createHttpClientFactory({
+          config: {
+            ...config,
+            mode: "http"
+          },
+          baseClients,
+          executor: createFetchHttpExecutor({
+            baseUrl: resolveScopedFetchBaseUrl(
+              config,
+              config.waterQualityMode,
+              config.waterQualityHttpTransport,
+              resolveWaterQualityHttpBaseUrl(config)
+            )
+          })
+        })
+      : config.enablePlaceholderHttp
+        ? createDelegatedHttpPlaceholderClients(baseClients)
+        : baseClients;
+
+    clients = {
+      ...clients,
+      waterQuality: waterQualityHttpClients.waterQuality
     };
   }
 

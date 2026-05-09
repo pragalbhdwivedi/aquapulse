@@ -6,6 +6,9 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -14,16 +17,20 @@ import type {
   AlertSummary,
   AlertUnassignActionRequest,
   ApiSuccessEnvelope,
+  CurrentSessionPayload,
   EndpointContract,
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
+  PondUpdateRequest,
   PondSummary,
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type { AquaPulseApiClients } from "./index";
@@ -98,8 +105,25 @@ export function createHttpClientFactory({
 
   return {
     ...baseClients,
+    auth: {
+      ...baseClients.auth,
+      getSession() {
+        return invokeCreateEndpoint<CurrentSessionPayload, Record<string, never>>(
+          executor,
+          registry.auth.session,
+          {}
+        );
+      }
+    },
     ponds: {
       ...baseClients.ponds,
+      create(input: PondCreateRequest) {
+        return invokeCreateEndpoint<PondSummary, PondCreateRequest>(
+          executor,
+          registry.ponds.create,
+          input
+        );
+      },
       list(query) {
         return invokeListEndpoint<PondSummary, NonNullable<typeof query> | { page: number; pageSize: number }>(
           executor,
@@ -109,6 +133,13 @@ export function createHttpClientFactory({
       },
       getById(id) {
         return invokeItemEndpoint<PondSummary>(executor, registry.ponds.getById, { id });
+      },
+      update(id: string, input: PondUpdateRequest) {
+        return invokeCreateEndpoint<PondSummary, { readonly id: string; readonly body: PondUpdateRequest }>(
+          executor,
+          registry.ponds.update,
+          { id, body: input }
+        );
       }
     },
     waterQuality: {
@@ -119,6 +150,25 @@ export function createHttpClientFactory({
           registry.waterQuality.create,
           input
         );
+      },
+      list(query) {
+        return invokeListEndpoint<
+          WaterQualityReading,
+          NonNullable<typeof query> | { page: number; pageSize: number }
+        >(executor, registry.waterQuality.list, query ?? { page: 1, pageSize: 20 });
+      },
+      getById(id: string) {
+        return invokeItemEndpoint<WaterQualityReading>(
+          executor,
+          registry.waterQuality.getById,
+          { id }
+        );
+      },
+      update(id: string, input: WaterQualityUpdateRequest) {
+        return invokeCreateEndpoint<
+          WaterQualityReading,
+          { readonly id: string; readonly body: WaterQualityUpdateRequest }
+        >(executor, registry.waterQuality.update, { id, body: input });
       }
     },
     alerts: {
@@ -229,6 +279,19 @@ export function createHttpClientFactory({
           registry.alerts.explain,
           input
         );
+      },
+      attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
+        return invokeCreateEndpoint<
+          AlertSummary,
+          { readonly id: string; readonly body: AlertExplanationAttachmentRequest }
+        >(executor, registry.alerts.attachExplanation, { id, body: input });
+      },
+      submitExplanationFeedback(input: AlertExplanationFeedbackRequest) {
+        return invokeCreateEndpoint<AlertExplanationFeedbackRecord, AlertExplanationFeedbackRequest>(
+          executor,
+          registry.alerts.submitExplanationFeedback,
+          input
+        );
       }
     },
     feed: {
@@ -273,6 +336,9 @@ export function createHttpClientFactory({
           registry.tasks.list,
           query ?? { page: 1, pageSize: 20 }
         );
+      },
+      getById(id: string) {
+        return invokeItemEndpoint<TaskSummary>(executor, registry.tasks.getById, { id });
       },
       update(id: string, input: TaskUpdateRequest) {
         return invokeCreateEndpoint<TaskSummary, { readonly id: string; readonly body: TaskUpdateRequest }>(

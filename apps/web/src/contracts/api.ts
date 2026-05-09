@@ -4,6 +4,9 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -13,6 +16,9 @@ import type {
   AiResponseRecord,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AiApprovalNoteDraftRequest,
+  AiApprovalNoteDraftResponse,
+  CurrentSessionPayload,
   AiResponseLogListQueryRequest,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
@@ -38,6 +44,8 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
+  PondUpdateRequest,
   PondsListQueryRequest,
   PondSummary,
   TaskCreateRequest,
@@ -45,6 +53,7 @@ import type {
   TasksListQueryRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityListQueryRequest,
   WaterQualityReading
 } from "@aquapulse/types";
@@ -78,9 +87,15 @@ export type AiListQuery = AiResponseLogListQueryRequest;
 export const endpointCatalog = aquaPulseEndpointCatalog;
 
 export interface PondsApiClient {
+  create(input: PondCreateRequest): ApiItemContract<PondSummary>;
   list(query?: PondsListQuery): ApiListContract<PondSummary>;
   getById(id: string): ApiItemContract<PondSummary>;
+  update(id: string, input: PondUpdateRequest): ApiItemContract<PondSummary>;
   summarize(input: AiPondsSummarizeRequest): ApiItemContract<AiPondsSummarizeResponse>;
+}
+
+export interface AuthApiClient {
+  getSession(): ApiItemContract<CurrentSessionPayload>;
 }
 
 export interface BatchesApiClient {
@@ -90,6 +105,7 @@ export interface BatchesApiClient {
 
 export interface WaterQualityApiClient {
   create(input: WaterQualityCreateRequest): ApiItemContract<WaterQualityReading>;
+  update(id: string, input: WaterQualityUpdateRequest): ApiItemContract<WaterQualityReading>;
   list(query: WaterQualityListQuery): ApiListContract<WaterQualityReading>;
   getById(id: string): ApiItemContract<WaterQualityReading>;
 }
@@ -111,6 +127,8 @@ export interface AlertsApiClient {
   setReviewState(id: string, input: AlertReviewStateActionRequest): ApiItemContract<AlertSummary>;
   bulkSetReviewState(input: AlertBulkReviewStateActionRequest): ApiItemContract<AlertBulkActionResult>;
   explain(input: AiAlertsExplainRequest): ApiItemContract<AiAlertsExplainResponse>;
+  attachExplanation(id: string, input: AlertExplanationAttachmentRequest): ApiItemContract<AlertSummary>;
+  submitExplanationFeedback(input: AlertExplanationFeedbackRequest): ApiItemContract<AlertExplanationFeedbackRecord>;
 }
 
 export interface TasksApiClient {
@@ -144,4 +162,5 @@ export interface AiApiClient {
   queryDashboard(input: AiDashboardQueryRequest): ApiItemContract<AiDashboardQueryResponse>;
   generateHandover(input: AiHandoverGenerateRequest): ApiItemContract<AiHandoverGenerateResponse>;
   draftIncident(input: AiIncidentsDraftRequest): ApiItemContract<AiIncidentsDraftResponse>;
+  draftApprovalNote(input: AiApprovalNoteDraftRequest): ApiItemContract<AiApprovalNoteDraftResponse>;
 }

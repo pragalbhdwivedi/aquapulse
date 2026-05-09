@@ -12,6 +12,7 @@ import type { AlertsRepository } from "../repositories";
 
 export const defaultAlertWorkbenchOwner = "operator-queue";
 const alertSavedViewsStorageKey = "aquapulse.alert.savedViews";
+const MAX_SAVED_VIEW_STORE_SIZE = 25;
 
 export function getAlertPresetQuery(
   presetId: AlertQueuePresetId,
@@ -26,6 +27,30 @@ export function getAlertSummaryQuery(query: Partial<AlertsListQuery>): AlertsLis
     pageSize: query.pageSize ?? 20,
     ...buildAlertSummaryQuery(query)
   };
+}
+
+export interface AlertQueuePageResetInput {
+  readonly presetId?: AlertQueuePresetId | "custom";
+  readonly savedViewId?: string | null;
+  readonly status?: AlertsListQuery["status"] | "all";
+  readonly hasLatestNote?: boolean;
+  readonly pondId?: string;
+  readonly assignedTo?: string;
+  readonly reviewState?: AlertsListQuery["reviewState"] | "all";
+  readonly sortBy?: AlertsListQuery["sortBy"];
+}
+
+export function buildAlertQueuePageResetKey(input: AlertQueuePageResetInput): string {
+  return JSON.stringify({
+    presetId: input.presetId ?? "custom",
+    savedViewId: input.savedViewId ?? "",
+    status: input.status ?? "all",
+    hasLatestNote: Boolean(input.hasLatestNote),
+    pondId: input.pondId?.trim() ?? "",
+    assignedTo: input.assignedTo?.trim() ?? "",
+    reviewState: input.reviewState ?? "all",
+    sortBy: input.sortBy ?? "updatedAt_desc"
+  });
 }
 
 export function deriveSelectedAlert(
@@ -64,6 +89,14 @@ export function createAlertSavedView(
   };
 }
 
+function capSavedViewStore(
+  views: readonly AlertSavedViewDefinition[]
+): AlertSavedViewDefinition[] {
+  return views.length > MAX_SAVED_VIEW_STORE_SIZE
+    ? [...views].slice(-MAX_SAVED_VIEW_STORE_SIZE)
+    : [...views];
+}
+
 export interface AlertSavedViewsStore {
   list(): AlertSavedViewDefinition[];
   save(input: AlertSavedViewCreateRequest): AlertSavedViewDefinition[];
@@ -83,7 +116,7 @@ export function createAlertSavedViewsStore(
 
   function read(): AlertSavedViewDefinition[] {
     if (!storage) {
-      return memoryState.views;
+      return capSavedViewStore(memoryState.views);
     }
 
     const raw = storage.getItem(alertSavedViewsStorageKey);
@@ -92,17 +125,19 @@ export function createAlertSavedViewsStore(
     }
 
     try {
-      return JSON.parse(raw) as AlertSavedViewDefinition[];
+      return capSavedViewStore(JSON.parse(raw) as AlertSavedViewDefinition[]);
     } catch {
       return [];
     }
   }
 
-  function write(views: AlertSavedViewDefinition[]) {
-    memoryState.views = views;
+  function write(views: AlertSavedViewDefinition[]): AlertSavedViewDefinition[] {
+    const next = capSavedViewStore(views);
+    memoryState.views = next;
     if (storage) {
-      storage.setItem(alertSavedViewsStorageKey, JSON.stringify(views));
+      storage.setItem(alertSavedViewsStorageKey, JSON.stringify(next));
     }
+    return next;
   }
 
   return {
@@ -110,14 +145,10 @@ export function createAlertSavedViewsStore(
       return read();
     },
     save(input) {
-      const next = [...read(), createAlertSavedView(input)];
-      write(next);
-      return next;
+      return write([...read(), createAlertSavedView(input)]);
     },
     remove(id) {
-      const next = read().filter((item) => item.id !== id);
-      write(next);
-      return next;
+      return write(read().filter((item) => item.id !== id));
     }
   };
 }

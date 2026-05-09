@@ -2,8 +2,10 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterce
 import type { EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { CreateFeedDto, QueryFeedDto, UpdateFeedDto } from "./dto";
 import { FeedApplicationService } from "./application/feed.application-service";
@@ -21,6 +23,8 @@ export class FeedController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateFeedDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.create>> {
@@ -34,6 +38,8 @@ export class FeedController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryFeedDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.list>> {
@@ -47,6 +53,8 @@ export class FeedController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdateFeedDto
@@ -61,6 +69,8 @@ export class FeedController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.getById>> {

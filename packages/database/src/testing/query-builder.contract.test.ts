@@ -141,11 +141,13 @@ describe("Shared query builders and write mappers", () => {
         fedAt: "2026-04-14T06:00:00.000Z"
       })
     ).toMatchObject({
-      id: "feed-row-pond-77",
+      id: "feed-pond-77-batch-77-Grower-Feed-42-2026-04-14T06-00-00-000Z",
       pond_id: "pond-77",
       batch_id: "batch-77",
       feed_type: "Grower Feed",
-      quantity_kg: 42
+      quantity_kg: 42,
+      created_at: "2026-04-14T06:00:00.000Z",
+      updated_at: "2026-04-14T06:00:00.000Z"
     });
     expect(mapUpdateFeedInputToRowPatch("feed-77", {})).toEqual({
       id: "feed-77",

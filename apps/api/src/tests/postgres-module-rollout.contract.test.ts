@@ -1,4 +1,5 @@
 import {
+  createPlaceholderPondRow,
   createPlaceholderAttachmentRow,
   createPlaceholderBatchRow,
   createPlaceholderFeedRow,
@@ -33,6 +34,14 @@ import {
   buildUpdateFeedQueryPlan
 } from "../modules/feed/adapters/postgres-feed.repository";
 import type { FeedRepositoryPort } from "../modules/feed/ports/feed-repository.port";
+import {
+  PostgresPondsRepository,
+  buildCreatePondQueryPlan,
+  buildPondByIdQueryPlan,
+  buildPondsListQueryPlan,
+  buildUpdatePondQueryPlan
+} from "../modules/ponds/adapters/postgres-ponds.repository";
+import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import {
   PostgresTasksRepository,
   buildCreateTaskQueryPlan,
@@ -79,18 +88,25 @@ describe("Postgres module rollout adapters", () => {
     expect(attachmentList.items[0]?.resourceId).toBe("alert-42");
     expect(createdAttachment.id).toBe("attachment-42");
     expect(updatedAttachment.id).toBe("attachment-42");
-    expect(buildTaskByIdQueryPlan("task-42").key).toBe("tasks.getById");
+    expect(buildTaskByIdQueryPlan("task-42").filters).toEqual({ id: "task-42" });
     expect(buildTasksListQueryPlan({ page: 1, pageSize: 20, status: "todo" }).filters).toEqual({
       assigneeId: undefined,
       pondId: undefined,
       status: "todo",
       search: undefined
     });
-    expect(buildCreateTaskQueryPlan(createPlaceholderTaskRow({ id: "task-write-1" })).key).toBe("tasks.create");
-    expect(buildUpdateTaskQueryPlan("task-write-2", { id: "task-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
-      "task-write-2",
-      { id: "task-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
-    ]);
+    expect(buildCreateTaskQueryPlan(createPlaceholderTaskRow({ id: "task-write-1" })).filters).toEqual({
+      title: "Inspect aeration equipment",
+      status: "todo",
+      assigneeId: "user-1",
+      pondId: "pond-1"
+    });
+    expect(
+      buildUpdateTaskQueryPlan("task-write-2", {
+        id: "task-write-2",
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).params
+    ).toEqual(["task-write-2", null, null, null, null, "2026-04-13T00:00:00.000Z"]);
     expect(buildAttachmentByIdQueryPlan("attachment-42").key).toBe("attachments.getById");
     expect(buildAttachmentsListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null]);
     expect(buildAttachmentsByResourceQueryPlan("alert", "alert-42").filters).toEqual({
@@ -110,6 +126,10 @@ describe("Postgres module rollout adapters", () => {
       { id: "attachment-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
     expect(taskPlans.length).toBe(4);
+    expect(taskPlans[0]?.statement).toContain("from tasks");
+    expect(taskPlans[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(taskPlans[2]?.statement).toContain("insert into tasks");
+    expect(taskPlans[3]?.statement).toContain("update tasks");
     expect(attachmentPlans.length).toBe(4);
   });
 
@@ -162,14 +182,71 @@ describe("Postgres module rollout adapters", () => {
       "batch-write-2",
       { id: "batch-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
     ]);
-    expect(buildFeedByIdQueryPlan("feed-42").key).toBe("feed.getById");
-    expect(buildFeedListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([1, 20, null, null, null, null]);
-    expect(buildCreateFeedQueryPlan(createPlaceholderFeedRow({ id: "feed-write-1" })).key).toBe("feed.create");
-    expect(buildUpdateFeedQueryPlan("feed-write-2", { id: "feed-write-2", updated_at: "2026-04-13T00:00:00.000Z" }).params).toEqual([
-      "feed-write-2",
-      { id: "feed-write-2", updated_at: "2026-04-13T00:00:00.000Z" }
-    ]);
+    expect(buildFeedByIdQueryPlan("feed-42").filters).toEqual({ id: "feed-42" });
+    expect(buildFeedListQueryPlan({ page: 1, pageSize: 20 }).params).toEqual([20, 0]);
+    expect(
+      buildCreateFeedQueryPlan({
+        pondId: "pond-1",
+        batchId: "batch-1",
+        feedType: "Starter Feed",
+        quantityKg: 18,
+        fedAt: "2026-04-14T06:00:00.000Z"
+      }).filters
+    ).toEqual({
+      pondId: "pond-1",
+      batchId: "batch-1",
+      feedType: "Starter Feed",
+      fedAt: "2026-04-14T06:00:00.000Z"
+    });
+    expect(buildUpdateFeedQueryPlan("feed-write-2", {}).filters).toEqual({
+      id: "feed-write-2"
+    });
     expect(batchPlans.length).toBe(4);
     expect(feedPlans.length).toBe(4);
+  });
+
+  it("ponds adopt the same controlled read/write slice structure", async () => {
+    const pondPlans: RecordedDatabasePlan[] = [];
+    const pondsRepository: PondsRepositoryPort = PostgresPondsRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(pondPlans, {
+        rows: [createPlaceholderPondRow({ id: "pond-42", farm_id: "farm-42" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const [pond, pondList, createdPond, updatedPond] = await Promise.all([
+      pondsRepository.getById("pond-42"),
+      pondsRepository.list({ page: 1, pageSize: 20, farmId: "farm-42", search: "north" }),
+      pondsRepository.create({ id: "pond-write-1" }),
+      pondsRepository.update("pond-write-2", {})
+    ]);
+
+    expect(pond.id).toBe("pond-42");
+    expect(pondList.items[0]?.farmId).toBe("farm-42");
+    expect(createdPond.id).toBe("pond-42");
+    expect(updatedPond.id).toBe("pond-42");
+    expect(buildPondByIdQueryPlan("pond-42").filters).toEqual({ id: "pond-42" });
+    expect(buildPondsListQueryPlan({ page: 1, pageSize: 20, farmId: "farm-42", search: "north" }).filters).toEqual({
+      farmId: "farm-42",
+      status: undefined,
+      kind: undefined,
+      search: "north"
+    });
+    expect(buildCreatePondQueryPlan(createPlaceholderPondRow({ id: "pond-write-1" })).filters).toEqual({
+      farmId: "farm-1",
+      kind: "pond",
+      status: "active"
+    });
+    expect(
+      buildUpdatePondQueryPlan("pond-write-2", {
+        id: "pond-write-2",
+        updated_at: "2026-04-13T00:00:00.000Z"
+      }).params
+    ).toEqual(["pond-write-2", null, null, null, null, null, "2026-04-13T00:00:00.000Z"]);
+    expect(pondPlans.length).toBe(4);
+    expect(pondPlans[0]?.statement).toContain("from ponds");
+    expect(pondPlans[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(pondPlans[2]?.statement).toContain("insert into ponds");
+    expect(pondPlans[3]?.statement).toContain("update ponds");
   });
 });

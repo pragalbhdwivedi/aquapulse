@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { AuthController } from "../auth.controller";
 import { AiController } from "../modules/ai/ai.controller";
 import { AlertsController } from "../modules/alerts/alerts.controller";
 import { AttachmentsController } from "../modules/attachments/attachments.controller";
@@ -31,6 +32,8 @@ describe("HTTP route-handler parity", () => {
       update: vi.fn(),
       list: vi.fn().mockResolvedValue(pondList),
       getById: vi.fn()
+    } as never, {
+      issueSubscriptionBootstrap: vi.fn()
     } as never);
     const tasksController = new TasksController(placeholderService as never, {
       create: vi.fn(),
@@ -132,25 +135,181 @@ describe("HTTP route-handler parity", () => {
             modelLabel: "gpt-5-nano",
             sourceLabel: "test",
             usedLiveOpenAi: false
+          },
+          cache: {
+            status: "fresh",
+            cachedAt: "2026-04-16T00:00:00.000Z",
+            freshness: "fresh",
+            explanationVersion: "v1",
+            generation: "fresh_fallback"
           }
         }
       }),
       summarizePond: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", highlights: [] } }),
       generateHandover: vi.fn().mockResolvedValue({ ok: true, data: { summary: "Placeholder", actionItems: [] } }),
-      rewriteText: vi.fn().mockResolvedValue({ ok: true, data: { rewrittenText: "Placeholder" } }),
-      queryDashboard: vi.fn().mockResolvedValue({ ok: true, data: { answer: "Placeholder", relatedMetrics: [] } }),
-      draftIncident: vi.fn().mockResolvedValue({ ok: true, data: { draftTitle: "Placeholder", draftBody: "Placeholder" } })
+      rewriteText: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          originalText: "Placeholder source",
+          rewrittenEnglish: "Placeholder rewrite",
+          tone: "operator",
+          metadata: {
+            taskLabel: "incident_rewrite",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-rewrite",
+            responseId: "response-rewrite",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
+      queryDashboard: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder dashboard assistant headline",
+          directAnswer: "Placeholder dashboard assistant answer",
+          priorityItems: [],
+          supportingFacts: [],
+          recommendedNextChecks: [],
+          answer: "Placeholder dashboard assistant answer",
+          relatedMetrics: [],
+          metadata: {
+            taskLabel: "dashboard_assistant_query",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-1",
+            responseId: "response-1",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
+      draftIncident: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder incident draft",
+          incidentSummary: "Placeholder incident summary",
+          keyFacts: ["Placeholder fact"],
+          likelyImpact: "Placeholder impact",
+          immediateActionsSuggested: ["Placeholder check"],
+          escalationNeed: "Placeholder escalation",
+          draftEnglish: "Placeholder draft",
+          metadata: {
+            taskLabel: "incident_draft",
+            advisoryOnly: true,
+            generatedAt: "2026-05-09T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback",
+            output: {
+              outputMode: "english_only",
+              primaryLanguage: "english",
+              bilingual: false,
+              tone: "operator"
+            }
+          },
+          audit: {
+            requestId: "request-draft",
+            responseId: "response-draft",
+            requestLoggedAt: "2026-05-09T00:00:00.000Z",
+            responseLoggedAt: "2026-05-09T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      }),
+      draftApprovalNote: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          headline: "Placeholder approval note draft",
+          draftNote: "Placeholder approval note body",
+          rationaleSummary: "Placeholder rationale",
+          suggestedNextChecks: [],
+          reviewRequired: true,
+          metadata: {
+            taskLabel: "approval_note_draft",
+            advisoryOnly: true,
+            generatedAt: "2026-05-08T00:00:00.000Z",
+            mode: "fallback",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "test",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback"
+          },
+          audit: {
+            requestId: "request-2",
+            responseId: "response-2",
+            requestLoggedAt: "2026-05-08T00:00:00.000Z",
+            responseLoggedAt: "2026-05-08T00:00:00.000Z",
+            fallbackUsed: true
+          }
+        }
+      })
     } as never);
 
-    const [detail, explain, dashboard] = await Promise.all([
+    const [detail, explain, dashboard, approvalNote] = await Promise.all([
       aiController.getById("ai-response-1"),
       aiController.explainAlert({ alertId: "alert-1" } as never),
-      aiController.queryDashboard({ question: "What needs attention?" } as never)
+      aiController.queryDashboard({ question: "What needs attention?" } as never),
+      aiController.draftApprovalNote({ recordType: "alert", mode: "needs_review" } as never)
     ]);
 
     expect(detail.ok).toBe(true);
     expect(detail.data.id).toBe("ai-response-1");
     expect(explain.data.explanation).toContain("Placeholder");
     expect(dashboard.data.answer).toContain("Placeholder");
+    expect(dashboard.data.metadata.taskLabel).toBe("dashboard_assistant_query");
+    expect(approvalNote.data.metadata.taskLabel).toBe("approval_note_draft");
+  });
+
+  it("keeps the current-session endpoint on an item-style success envelope", async () => {
+    const controller = new AuthController({
+      getCurrentSession: vi.fn().mockResolvedValue({
+        requestedMode: "disabled",
+        effectiveMode: "disabled",
+        availabilityState: "disabled",
+        authSource: "none",
+        sessionPresent: false,
+        protectedReadSliceLabel: "alerts_list_read",
+        protectedReadSliceEnforced: false,
+        secondaryProtectedReadSliceLabel: "alerts_detail_read",
+        secondaryProtectedReadSliceEnforced: false,
+        tertiaryProtectedReadSliceLabel: "alerts_summary_read",
+        tertiaryProtectedReadSliceEnforced: false,
+        protectedOperatorSliceLabel: "alerts_lifecycle_actions",
+        protectedOperatorSliceEnforced: false,
+        secondaryProtectedSliceLabel: "alerts_triage_actions",
+        secondaryProtectedSliceEnforced: false,
+        tertiaryProtectedSliceLabel: "alerts_bulk_actions",
+        tertiaryProtectedSliceEnforced: false,
+        quaternaryProtectedSliceLabel: "alerts_saved_view_mutations",
+        quaternaryProtectedSliceEnforced: false,
+        verificationState: "disabled",
+        warnings: []
+      })
+    } as never);
+
+    const response = await controller.getCurrentSession({ headers: {} });
+
+    expect(response.ok).toBe(true);
+    expect(response.data.availabilityState).toBe("disabled");
   });
 });

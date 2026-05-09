@@ -6,7 +6,8 @@ import type {
   ApiSuccessEnvelope,
   ListResponse
 } from "@aquapulse/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetAlertsMockState } from "../mocks/adapters";
 import { createRepositoriesFromConfig } from "../repositories";
 
 const alert: AlertSummary = {
@@ -23,12 +24,17 @@ const alert: AlertSummary = {
 };
 
 const explanation: AiAlertsExplainResponse = {
+  headline: "High alert explanation",
   summary: "Alert alert-1 likely reflects an operational condition that still needs a manual check.",
   explanation: "Placeholder explanation for the current alert.",
   recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
   likelyCauses: [],
+  likelyFactors: [],
   recommendedChecks: [],
+  immediateChecks: [],
   suggestedActions: [],
+  escalationConsiderations: [],
+  observedFacts: [],
   confidenceNote: "Confidence is limited because this is a placeholder explanation.",
   advisoryDisclaimer:
     "Advisory only. This explanation does not acknowledge, resolve, assign, or mutate alerts.",
@@ -38,7 +44,21 @@ const explanation: AiAlertsExplainResponse = {
     generatedAt: "2026-04-16T09:00:00.000Z",
     modelLabel: "gpt-5-nano",
     sourceLabel: "test_placeholder",
-    usedLiveOpenAi: false
+    usedLiveOpenAi: false,
+    providerPath: "deterministic_fallback",
+    output: {
+      outputMode: "english_only",
+      primaryLanguage: "english",
+      bilingual: false,
+      tone: "operator"
+    }
+  },
+  cache: {
+    status: "fresh",
+    cachedAt: "2026-04-16T09:00:00.000Z",
+    freshness: "fresh",
+    explanationVersion: "v1",
+    generation: "fresh_fallback"
   }
 };
 
@@ -73,6 +93,53 @@ function jsonResponse<TBody>(body: TBody) {
 }
 
 describe("Alerts workbench opt-in HTTP runtime", () => {
+  beforeEach(() => {
+    resetAlertsMockState();
+  });
+
+  it("keeps explanation cache state isolated for the opt-in HTTP workbench path", async () => {
+    resetAlertsMockState();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+
+      if (url.includes("/api/ai/alerts/explain")) {
+        return jsonResponse<ApiSuccessEnvelope<AiAlertsExplainResponse>>({
+          ok: true,
+          data: {
+            ...explanation,
+            cache: {
+              ...explanation.cache,
+              generation: body?.reuseCached === false ? "fresh_fallback" : "cached_reuse",
+              status: body?.reuseCached === false ? "fresh" : "reused"
+            }
+          }
+        });
+      }
+
+      throw new Error(`Unhandled fetch request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const repositories = createRepositoriesFromConfig({
+      mode: "mock",
+      enablePlaceholderHttp: false,
+      enableFetchHttp: true,
+      alertsMode: "http"
+    });
+
+    const first = await repositories.alerts.explain({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+    const second = await repositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true });
+
+    expect(first.data.cache.generation).toBe("fresh_fallback");
+    expect(second.data.cache.generation).toBe("cached_reuse");
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -139,9 +206,49 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       }
 
       if (url.includes("/api/ai/alerts/explain")) {
+        if (url.includes("/feedback")) {
+          return jsonResponse<ApiSuccessEnvelope<{
+            alertId: string;
+            value: "useful";
+            note?: string;
+            submittedAt: string;
+            sourceMode: "fallback";
+            generation: "fresh_fallback";
+          }>>({
+            ok: true,
+            data: {
+              alertId: body?.alertId ?? "alert-1",
+              value: "useful",
+              note: body?.note,
+              submittedAt: "2026-04-16T09:15:00.000Z",
+              sourceMode: "fallback",
+              generation: "fresh_fallback"
+            }
+          });
+        }
+
         return jsonResponse<ApiSuccessEnvelope<AiAlertsExplainResponse>>({
           ok: true,
-          data: explanation
+          data: {
+            ...explanation,
+            cache: {
+              ...explanation.cache,
+              generation: body?.reuseCached === false ? "fresh_fallback" : "cached_reuse",
+              status: body?.reuseCached === false ? "fresh" : "reused"
+            },
+            feedbackSummary: body?.reuseCached === false
+              ? undefined
+              : {
+                  latest: {
+                    alertId: "alert-1",
+                    value: "useful",
+                    note: "Helpful starting point",
+                    submittedAt: "2026-04-16T09:15:00.000Z",
+                    sourceMode: "fallback",
+                    generation: "fresh_fallback"
+                  }
+                }
+          }
         });
       }
 
@@ -194,7 +301,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
       alertsMode: "http"
     });
 
-    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, explained, listedViews, savedViewResult, removedViews] =
+    const [defaultList, httpList, httpSummary, httpDetail, acknowledged, bulkResolved, explained, regenerated, listedViews, savedViewResult, removedViews] =
       await Promise.all([
         defaultRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
         httpRepositories.alerts.list({ page: 1, pageSize: 20, status: "open" }),
@@ -203,6 +310,7 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         httpRepositories.alerts.acknowledge("alert-1", { note: "HTTP operator note." }),
         httpRepositories.alerts.bulkResolve({ alertIds: ["alert-1"], note: "Bulk HTTP resolve." }),
         httpRepositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true }),
+        httpRepositories.alerts.explain({ alertId: "alert-1", includeRecommendations: true, reuseCached: false }),
         httpRepositories.alerts.listSavedViews(),
         httpRepositories.alerts.saveSavedView({
           name: "Assigned queue",
@@ -211,6 +319,12 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
         }),
         httpRepositories.alerts.removeSavedView("alert-view-1")
       ]);
+    const feedback = await httpRepositories.alerts.submitExplanationFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      note: "Helpful starting point",
+      explanation: regenerated.data
+    });
 
     expect(defaultList.data.items[0]?.id).toBe("alert-1");
     expect(httpList.data.items[0]?.id).toBe("alert-1");
@@ -219,6 +333,9 @@ describe("Alerts workbench opt-in HTTP runtime", () => {
     expect(acknowledged.data.status).toBe("acknowledged");
     expect(bulkResolved.data.updatedAlerts[0]?.status).toBe("resolved");
     expect(explained.data.advisoryDisclaimer).toContain("Advisory only");
+    expect(explained.data.cache.generation).toBe("cached_reuse");
+    expect(regenerated.data.cache.generation).toBe("fresh_fallback");
+    expect(feedback.data.value).toBe("useful");
     expect(listedViews.data[0]?.name).toBe("Open queue");
     expect(savedViewResult.data.some((item) => item.name === "Assigned queue")).toBe(true);
     expect(removedViews.data).toHaveLength(0);

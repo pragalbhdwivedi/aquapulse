@@ -137,5 +137,9 @@ describe("Endpoint catalog parity", () => {
       method: aquaPulseEndpointCatalog.ai.draftIncident.method,
       path: aquaPulseEndpointCatalog.ai.draftIncident.path
     });
+    expect(getHandlerContract(AiController, "draftApprovalNote")).toEqual({
+      method: aquaPulseEndpointCatalog.ai.draftApprovalNote.method,
+      path: aquaPulseEndpointCatalog.ai.draftApprovalNote.path
+    });
   });
 });

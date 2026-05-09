@@ -1,15 +1,20 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AlertsLiveUpdatesBootstrapPayload, AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { createSuccessResponse } from "../../common/api/response-mapper";
+import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { AlertsApplicationService } from "./application/alerts.application-service";
+import { AlertsLiveUpdatesService } from "./live-updates/alerts-live-updates.service";
 import { AlertsService } from "./alerts.service";
 import {
   AcknowledgeAlertDto,
   AssignAlertDto,
+  AttachAlertExplanationDto,
   BulkAcknowledgeAlertsDto,
   BulkAssignAlertsDto,
   BulkResolveAlertsDto,
@@ -30,6 +35,7 @@ import {
   toAlertsItemResponse,
   toAlertsListResponse,
   toAlertsSummaryResponse,
+  toAttachAlertExplanationInput,
   toBulkAcknowledgeAlertsInput,
   toBulkAssignAlertsInput,
   toBulkResolveAlertsInput,
@@ -49,7 +55,8 @@ import {
 export class AlertsController {
   constructor(
     private readonly alertsService: AlertsService,
-    private readonly alertsApplicationService: AlertsApplicationService
+    private readonly alertsApplicationService: AlertsApplicationService,
+    private readonly alertsLiveUpdatesService: AlertsLiveUpdatesService
   ) {}
 
   // Collection handlers
@@ -67,6 +74,8 @@ export class AlertsController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
     @Query() query: QueryAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.list>> {
@@ -79,6 +88,8 @@ export class AlertsController {
   }
 
   @Get("summary")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async summary(
     @Query() query: QueryAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.summary>> {
@@ -103,6 +114,8 @@ export class AlertsController {
   }
 
   @Post("views")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async saveSavedView(
     @Body() input: CreateAlertSavedViewDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.saveSavedView>> {
@@ -115,6 +128,8 @@ export class AlertsController {
   }
 
   @Post("views/:id/remove")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async removeSavedView(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.removeSavedView>> {
@@ -123,6 +138,33 @@ export class AlertsController {
       (resourceId) => this.alertsApplicationService.removeSavedView(resourceId),
       toAlertSavedViewsResponse
     );
+  }
+
+  @Post(":id/attach-explanation")
+  async attachExplanation(
+    @Param("id") id: string,
+    @Body() input: AttachAlertExplanationDto
+  ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.attachExplanation>> {
+    return delegateUpdate(
+      id,
+      input,
+      toAttachAlertExplanationInput,
+      (resourceId, mappedInput) => this.alertsApplicationService.attachExplanation(resourceId, mappedInput),
+      toAlertsItemResponse
+    );
+  }
+
+  @Get("live-updates/session")
+  async issueLiveUpdatesSession(
+    @Req()
+    request: {
+      readonly headers?: Record<string, string | string[] | undefined>;
+      readonly url?: string;
+      user?: AuthenticatedUserSession | null;
+    }
+  ) {
+    const payload = await this.alertsLiveUpdatesService.issueSubscriptionBootstrap(request);
+    return createSuccessResponse<AlertsLiveUpdatesBootstrapPayload>(payload);
   }
 
   // Resource handlers
@@ -141,6 +183,8 @@ export class AlertsController {
   }
 
   @Post("bulk/acknowledge")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkAcknowledge(
     @Body() input: BulkAcknowledgeAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAcknowledge>> {
@@ -153,6 +197,8 @@ export class AlertsController {
   }
 
   @Post("bulk/resolve")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkResolve(
     @Body() input: BulkResolveAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkResolve>> {
@@ -165,6 +211,8 @@ export class AlertsController {
   }
 
   @Post("bulk/assign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkAssign(
     @Body() input: BulkAssignAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAssign>> {
@@ -177,6 +225,8 @@ export class AlertsController {
   }
 
   @Post("bulk/review-state")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async bulkSetReviewState(
     @Body() input: BulkSetAlertReviewStateDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkSetReviewState>> {
@@ -189,6 +239,8 @@ export class AlertsController {
   }
 
   @Post(":id/acknowledge")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async acknowledge(
     @Param("id") id: string,
     @Body() input: AcknowledgeAlertDto
@@ -203,6 +255,8 @@ export class AlertsController {
   }
 
   @Post(":id/resolve")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async resolve(
     @Param("id") id: string,
     @Body() input: ResolveAlertDto
@@ -217,6 +271,8 @@ export class AlertsController {
   }
 
   @Post(":id/assign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async assign(
     @Param("id") id: string,
     @Body() input: AssignAlertDto
@@ -231,6 +287,8 @@ export class AlertsController {
   }
 
   @Post(":id/unassign")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async unassign(
     @Param("id") id: string,
     @Body() input: UnassignAlertDto
@@ -245,6 +303,8 @@ export class AlertsController {
   }
 
   @Post(":id/review-state")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async setReviewState(
     @Param("id") id: string,
     @Body() input: SetAlertReviewStateDto
@@ -259,6 +319,8 @@ export class AlertsController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.getById>> {

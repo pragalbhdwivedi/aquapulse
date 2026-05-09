@@ -2,11 +2,14 @@ import { Injectable } from "@nestjs/common";
 import type {
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertExplanationLikelyCause,
   AlertExplanationMetadata,
   AlertExplanationSuggestedStep,
   AlertSummary
 } from "@aquapulse/types";
+import { aiAlertExplanationResponseSchema } from "@aquapulse/validation";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 import {
   readAlertExplanationRuntimeConfig,
@@ -16,6 +19,11 @@ import {
   OpenAiAlertExplanationClient,
   type AlertExplanationContext
 } from "./openai-alert-explanation.client";
+import {
+  buildStructuredOutputMetadata,
+  prefixToneLabel,
+  withOptionalHindi
+} from "./ai-output-formatting";
 
 function buildHistorySummary(alert: AlertSummary): string[] {
   return (alert.actionHistory ?? [])
@@ -137,7 +145,8 @@ function buildSuggestedActions(alert: AlertSummary): AlertExplanationSuggestedSt
 function buildMetadata(
   now: string,
   config: AlertExplanationRuntimeConfig,
-  usedLiveOpenAi: boolean
+  usedLiveOpenAi: boolean,
+  input: AiAlertsExplainRequest
 ): AlertExplanationMetadata {
   return {
     advisoryOnly: true,
@@ -145,11 +154,61 @@ function buildMetadata(
     mode: usedLiveOpenAi ? "openai_nano" : "fallback",
     modelLabel: config.modelLabel,
     sourceLabel: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback",
-    usedLiveOpenAi
+    usedLiveOpenAi,
+    providerPath: usedLiveOpenAi ? "openai_responses_api" : "deterministic_fallback",
+    output: buildStructuredOutputMetadata(input, input.tone ?? "operator")
+  };
+}
+
+function buildCacheKey(input: AiAlertsExplainRequest): string {
+  return [
+    input.alertId,
+    input.includeRecommendations === false ? "without-recommendations" : "with-recommendations",
+    input.outputMode ?? "english_only",
+    input.tone ?? "operator"
+  ].join(":");
+}
+
+function toFreshCachedResponse(response: AiAlertsExplainResponse): AiAlertsExplainResponse {
+  return {
+    ...response,
+    cache: {
+      status: "fresh",
+      cachedAt: response.metadata.generatedAt,
+      freshness: "fresh",
+      explanationVersion: "v1",
+      generation: response.metadata.mode === "openai_nano" ? "fresh_openai_nano" : "fresh_fallback"
+    }
+  };
+}
+
+function toReusedCachedResponse(response: AiAlertsExplainResponse): AiAlertsExplainResponse {
+  return {
+    ...response,
+    cache: {
+      ...response.cache,
+      status: "reused",
+      generation: "cached_reuse"
+    }
+  };
+}
+
+function withFeedbackSummary(
+  response: AiAlertsExplainResponse,
+  feedback: AlertExplanationFeedbackRecord | undefined
+): AiAlertsExplainResponse {
+  return {
+    ...response,
+    feedbackSummary: feedback
+      ? {
+          latest: feedback
+        }
+      : undefined
   };
 }
 
 function buildFallbackExplanation(
+  input: AiAlertsExplainRequest,
   alert: AlertSummary,
   config: AlertExplanationRuntimeConfig,
   now: string,
@@ -158,25 +217,57 @@ function buildFallbackExplanation(
   const likelyCauses = buildLikelyCauses(alert);
   const recommendedChecks = buildRecommendedChecks(alert);
   const suggestedActions = includeRecommendations ? buildSuggestedActions(alert) : [];
-  const summary = `Alert "${alert.title}" likely reflects a ${alert.source} condition that should be manually reviewed before any queue action is taken.`;
+  const headline = `${alert.severity.toUpperCase()} ${alert.source} alert: ${alert.title}`;
+  const summaryCore = `Alert "${alert.title}" likely reflects a ${alert.source} condition that should be manually reviewed before any queue action is taken.`;
+  const summary = prefixToneLabel(summaryCore, input.tone ?? "operator");
   const explanation = `${summary} Current state: ${alert.status}, severity: ${alert.severity}, review state: ${alert.reviewState ?? "unreviewed"}.`;
+  const observedFacts = [
+    `Alert source: ${alert.source}.`,
+    `Alert severity: ${alert.severity}.`,
+    `Alert status: ${alert.status}.`,
+    alert.latestNote?.trim() ? `Latest operator note: ${alert.latestNote}.` : "No latest operator note is attached yet."
+  ];
+  const escalationConsiderations = [
+    alert.severity === "critical" || alert.severity === "high"
+      ? "Escalate quickly if the condition remains after a fresh manual recheck."
+      : "Escalate if repeat checks or new notes show the condition is worsening.",
+    "Do not treat this explanation as approval to close or mutate the alert lifecycle automatically."
+  ];
   const recommendations = [...recommendedChecks, ...suggestedActions]
     .slice(0, 4)
     .map((item) => item.title);
+  const missingInformationNote =
+    !alert.latestNote?.trim() || (alert.actionHistory?.length ?? 0) === 0
+      ? "Alert context is incomplete, so the explanation should be paired with a fresh manual review and updated operator note."
+      : undefined;
 
-  return {
+  return aiAlertExplanationResponseSchema.parse({
+    headline,
     summary,
     explanation,
+    explanationHindi: withOptionalHindi(explanation, input),
     recommendations,
     likelyCauses,
+    likelyFactors: likelyCauses,
     recommendedChecks,
+    immediateChecks: recommendedChecks,
     suggestedActions,
+    escalationConsiderations,
+    observedFacts,
     confidenceNote:
       "This explanation is generated from the alert context only. It should be treated as advisory guidance, not as proof of the root cause.",
     advisoryDisclaimer:
       "Advisory only. AquaPulse will not acknowledge, resolve, assign, or otherwise mutate alerts from AI output.",
-    metadata: buildMetadata(now, config, false)
-  };
+    missingInformationNote,
+    metadata: buildMetadata(now, config, false, input),
+    cache: {
+      status: "fresh",
+      cachedAt: now,
+      freshness: "fresh",
+      explanationVersion: "v1",
+      generation: "fresh_fallback"
+    }
+  });
 }
 
 @Injectable()
@@ -184,6 +275,8 @@ export class AlertExplanationService {
   private readonly config: AlertExplanationRuntimeConfig;
   private readonly openAiClient: OpenAiAlertExplanationClient;
   private readonly now: () => string;
+  private readonly explanationCache = new Map<string, AiAlertsExplainResponse>();
+  private readonly feedbackStore = new Map<string, AlertExplanationFeedbackRecord>();
 
   constructor(
     private readonly alertsApplicationService: AlertsApplicationService
@@ -201,30 +294,66 @@ export class AlertExplanationService {
       mode: this.config.configured ? "openai_nano" as const : "fallback" as const,
       configured: this.config.configured,
       modelLabel: this.config.modelLabel,
+      providerPath: this.config.configured ? "openai_responses_api" as const : "deterministic_fallback" as const,
+      cacheEnabled: true,
+      attachmentAvailable: true,
+      feedbackEnabled: true,
+      supportedOutputModes: ["english_only", "bilingual"] as const,
+      supportedToneModes: ["operator", "formal", "management", "audit"] as const,
       warnings: this.config.warnings
     };
   }
 
+  async submitFeedback(
+    input: AlertExplanationFeedbackRequest
+  ): Promise<AlertExplanationFeedbackRecord> {
+    const record: AlertExplanationFeedbackRecord = {
+      alertId: input.alertId,
+      value: input.value,
+      note: input.note?.trim() || undefined,
+      submittedAt: this.now(),
+      generation: input.explanation.cache.generation,
+      sourceMode: input.explanation.metadata.mode
+    };
+    this.feedbackStore.set(input.alertId, record);
+    return record;
+  }
+
   async explainAlert(input: AiAlertsExplainRequest): Promise<AiAlertsExplainResponse> {
+    const cacheKey = buildCacheKey(input);
+    const shouldReuseCached = input.reuseCached !== false;
+    const cached = shouldReuseCached ? this.explanationCache.get(cacheKey) : undefined;
+    const latestFeedback = this.feedbackStore.get(input.alertId);
+
+    if (cached) {
+      return withFeedbackSummary(toReusedCachedResponse(cached), latestFeedback);
+    }
+
     const alert = (await this.alertsApplicationService.getById(input.alertId)).data;
     const includeRecommendations = input.includeRecommendations ?? true;
     const context: AlertExplanationContext = {
       alert,
       includeRecommendations,
-      historySummary: buildHistorySummary(alert)
+      historySummary: buildHistorySummary(alert),
+      outputMode: input.outputMode ?? "english_only",
+      tone: input.tone ?? "operator"
     };
 
     if (this.config.mode === "openai" && this.config.configured) {
       try {
         const response = await this.openAiClient.explain(context);
         if (response) {
-          return response;
+          const freshResponse = toFreshCachedResponse(aiAlertExplanationResponseSchema.parse(response));
+          this.explanationCache.set(cacheKey, freshResponse);
+          return withFeedbackSummary(freshResponse, latestFeedback);
         }
       } catch {
         // Intentionally fall back to the deterministic advisory path.
       }
     }
 
-    return buildFallbackExplanation(alert, this.config, this.now(), includeRecommendations);
+    const fallbackResponse = buildFallbackExplanation(input, alert, this.config, this.now(), includeRecommendations);
+    this.explanationCache.set(cacheKey, fallbackResponse);
+    return withFeedbackSummary(fallbackResponse, latestFeedback);
   }
 }

@@ -70,11 +70,123 @@ export const mockFeedEntries: FeedEntry[] = [
 export const mockAiResponses: AiResponseRecord[] = [
   {
     id: "ai-response-1",
-    createdAt: now,
-    updatedAt: now,
+    createdAt: "2026-05-09T06:00:05.000Z",
+    updatedAt: "2026-05-09T06:00:05.000Z",
     requestId: "ai-request-1",
     status: "completed",
-    outputText: "Placeholder AI output.",
-    model: "gpt-5.4"
+    outputText: JSON.stringify({
+      headline: "Farm-wide daily summary",
+      summary: "Two ponds need follow-up today.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "daily_farm_summary",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Farm-wide daily summary",
+    relatedRecordIds: ["pond-1"],
+    advisoryOnly: true
+  },
+  {
+    id: "ai-response-2",
+    createdAt: "2026-05-09T06:20:05.000Z",
+    updatedAt: "2026-05-09T06:20:05.000Z",
+    requestId: "ai-request-2",
+    status: "completed",
+    outputText: JSON.stringify({
+      headline: "Dashboard assistant",
+      directAnswer: "Start with North Pond 1.",
+      metadata: {
+        mode: "openai_nano",
+        advisoryOnly: true,
+        providerPath: "openai_responses_api",
+        usedLiveOpenAi: true
+      }
+    }),
+    model: "gpt-5.4",
+    requestType: "dashboard_assistant_query",
+    providerMode: "provider_backed",
+    providerPath: "openai_responses_api",
+    outputPreview: "Start with North Pond 1.",
+    relatedRecordIds: ["pond-1"],
+    advisoryOnly: true
+  },
+  {
+    id: "ai-response-3",
+    createdAt: "2026-05-09T06:40:05.000Z",
+    updatedAt: "2026-05-09T06:40:05.000Z",
+    requestId: "ai-request-3",
+    status: "completed",
+    outputText: JSON.stringify({
+      headline: "Incident draft for North Pond 1",
+      incidentSummary: "Oxygen warning was observed and rechecked.",
+      draftEnglish: "Operator note: Oxygen warning was observed and rechecked.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "incident_draft",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Incident draft for North Pond 1",
+    relatedRecordIds: ["alert-1", "task-1", "pond-1"],
+    advisoryOnly: true
+  },
+  {
+    id: "ai-response-4",
+    createdAt: "2026-05-09T06:50:05.000Z",
+    updatedAt: "2026-05-09T06:50:05.000Z",
+    requestId: "ai-request-4",
+    status: "completed",
+    outputText: JSON.stringify({
+      originalText: "operator noted oxygen warning and repeat sample after aerator check",
+      rewrittenEnglish: "Operator note: Oxygen warning was noted and a repeat sample was logged after the aerator check.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "incident_rewrite",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Operator note rewrite for aerator follow-up",
+    relatedRecordIds: ["alert-1"],
+    advisoryOnly: true
+  },
+  {
+    id: "ai-response-5",
+    createdAt: "2026-05-09T07:00:05.000Z",
+    updatedAt: "2026-05-09T07:00:05.000Z",
+    requestId: "ai-request-5",
+    status: "completed",
+    outputText: JSON.stringify({
+      headline: "Approval note draft",
+      draftNote: "Alert: Verify the repeat dissolved oxygen reading before any approval decision.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "approval_note_draft",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Approval note draft for dissolved oxygen review",
+    relatedRecordIds: ["alert-1"],
+    advisoryOnly: true
   }
 ];

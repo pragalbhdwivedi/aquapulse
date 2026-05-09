@@ -2,8 +2,10 @@ import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterce
 import type { EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { CreatePondsDto, QueryPondsDto, UpdatePondsDto } from "./dto";
 import { PondsApplicationService } from "./application/ponds.application-service";
@@ -21,6 +23,8 @@ export class PondsController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreatePondsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.create>> {
@@ -47,6 +51,8 @@ export class PondsController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdatePondsDto
@@ -61,6 +67,8 @@ export class PondsController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
     @Param("id") id: string
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ponds.getById>> {

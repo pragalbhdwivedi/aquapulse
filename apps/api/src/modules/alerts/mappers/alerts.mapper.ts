@@ -4,6 +4,7 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -18,6 +19,7 @@ import { toRepositoryListQuery } from "../../../common/dto/repository-query.mapp
 import type {
   AcknowledgeAlertDto,
   AssignAlertDto,
+  AttachAlertExplanationDto,
   BulkAcknowledgeAlertsDto,
   BulkAssignAlertsDto,
   BulkResolveAlertsDto,
@@ -88,6 +90,12 @@ export function toBulkSetAlertReviewStateInput(
 export function toCreateAlertSavedViewInput(
   input: CreateAlertSavedViewDto
 ): AlertSavedViewCreateRequest {
+  return input;
+}
+
+export function toAttachAlertExplanationInput(
+  input: AttachAlertExplanationDto
+): AlertExplanationAttachmentRequest {
   return input;
 }
 

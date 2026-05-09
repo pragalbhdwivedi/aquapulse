@@ -46,6 +46,9 @@ export function defineEndpointInvocationConfig<TEndpoint extends EndpointContrac
 }
 
 export const endpointInvocationRegistry = {
+  auth: {
+    session: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.auth.session)
+  },
   ponds: {
     create: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ponds.create),
     list: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ponds.list),
@@ -61,6 +64,10 @@ export const endpointInvocationRegistry = {
     listSavedViews: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.listSavedViews),
     saveSavedView: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.saveSavedView),
     removeSavedView: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.removeSavedView),
+    attachExplanation: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.attachExplanation),
+    submitExplanationFeedback: defineEndpointInvocationConfig(
+      aquaPulseEndpointCatalog.alerts.submitExplanationFeedback
+    ),
     update: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.update),
     acknowledge: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.acknowledge),
     bulkAcknowledge: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.alerts.bulkAcknowledge),
@@ -119,7 +126,8 @@ export const endpointInvocationRegistry = {
     generateHandover: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.generateHandover),
     rewriteText: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.rewriteText),
     queryDashboard: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.queryDashboard),
-    draftIncident: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftIncident)
+    draftIncident: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftIncident),
+    draftApprovalNote: defineEndpointInvocationConfig(aquaPulseEndpointCatalog.ai.draftApprovalNote)
   }
 } as const;
 
@@ -127,6 +135,7 @@ export type EndpointInvocationRegistry = typeof endpointInvocationRegistry;
 
 export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRegistry) {
   return {
+    [registry.auth.session.endpointId]: registry.auth.session,
     [registry.ponds.create.endpointId]: registry.ponds.create,
     [registry.ponds.list.endpointId]: registry.ponds.list,
     [registry.ponds.getById.endpointId]: registry.ponds.getById,
@@ -139,6 +148,8 @@ export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRe
     [registry.alerts.listSavedViews.endpointId]: registry.alerts.listSavedViews,
     [registry.alerts.saveSavedView.endpointId]: registry.alerts.saveSavedView,
     [registry.alerts.removeSavedView.endpointId]: registry.alerts.removeSavedView,
+    [registry.alerts.attachExplanation.endpointId]: registry.alerts.attachExplanation,
+    [registry.alerts.submitExplanationFeedback.endpointId]: registry.alerts.submitExplanationFeedback,
     [registry.alerts.update.endpointId]: registry.alerts.update,
     [registry.alerts.acknowledge.endpointId]: registry.alerts.acknowledge,
     [registry.alerts.bulkAcknowledge.endpointId]: registry.alerts.bulkAcknowledge,
@@ -183,6 +194,7 @@ export function flattenEndpointInvocationRegistry(registry: EndpointInvocationRe
     [registry.ai.generateHandover.endpointId]: registry.ai.generateHandover,
     [registry.ai.rewriteText.endpointId]: registry.ai.rewriteText,
     [registry.ai.queryDashboard.endpointId]: registry.ai.queryDashboard,
-    [registry.ai.draftIncident.endpointId]: registry.ai.draftIncident
+    [registry.ai.draftIncident.endpointId]: registry.ai.draftIncident,
+    [registry.ai.draftApprovalNote.endpointId]: registry.ai.draftApprovalNote
   } as const;
 }

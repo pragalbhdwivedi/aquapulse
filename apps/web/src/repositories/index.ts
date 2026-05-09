@@ -4,6 +4,9 @@ import type {
   AlertBulkAssignActionRequest,
   AlertBulkLifecycleActionRequest,
   AlertBulkReviewStateActionRequest,
+  AlertExplanationAttachmentRequest,
+  AlertExplanationFeedbackRecord,
+  AlertExplanationFeedbackRequest,
   AlertLifecycleActionRequest,
   AlertQueueSummary,
   AlertReviewStateActionRequest,
@@ -11,12 +14,15 @@ import type {
   AlertSavedViewDefinition,
   AiAlertsExplainRequest,
   AiAlertsExplainResponse,
+  AiApprovalNoteDraftRequest,
+  AiApprovalNoteDraftResponse,
   AiDashboardQueryRequest,
   AiDashboardQueryResponse,
   AiHandoverGenerateRequest,
   AiHandoverGenerateResponse,
   AiIncidentsDraftRequest,
   AiIncidentsDraftResponse,
+  AiResponseRecord,
   AiPondsSummarizeRequest,
   AiPondsSummarizeResponse,
   AiTextRewriteRequest,
@@ -30,11 +36,14 @@ import type {
   FeedEntry,
   FeedUpdateRequest,
   ListResponse,
+  PondCreateRequest,
+  PondUpdateRequest,
   PondSummary,
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary,
   WaterQualityCreateRequest,
+  WaterQualityUpdateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type {
@@ -50,6 +59,7 @@ import type {
   AquaPulseClientRuntimeEnv
 } from "../clients/runtime-config";
 import type {
+  AiListQuery,
   AlertsListQuery,
   AuditListQuery,
   BatchesListQuery,
@@ -60,8 +70,10 @@ import type {
 } from "../contracts/api";
 
 export interface PondsRepository {
+  create(input: PondCreateRequest): Promise<ApiSuccessEnvelope<PondSummary>>;
   list(query?: PondsListQuery): Promise<ApiSuccessEnvelope<ListResponse<PondSummary>>>;
   getById(id: string): Promise<ApiSuccessEnvelope<PondSummary>>;
+  update(id: string, input: PondUpdateRequest): Promise<ApiSuccessEnvelope<PondSummary>>;
   summarize(input: AiPondsSummarizeRequest): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>>;
 }
 
@@ -71,7 +83,9 @@ export interface BatchesRepository {
 
 export interface WaterQualityRepository {
   create(input: WaterQualityCreateRequest): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
+  update(id: string, input: WaterQualityUpdateRequest): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   list(query: WaterQualityListQuery): Promise<ApiSuccessEnvelope<ListResponse<WaterQualityReading>>>;
+  getById(id: string): Promise<ApiSuccessEnvelope<WaterQualityReading>>;
   listByPond(
     pondId: string,
     query?: Omit<WaterQualityListQuery, "pondId">
@@ -95,6 +109,10 @@ export interface AlertsRepository {
   setReviewState(id: string, input: AlertReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
   bulkSetReviewState(input: AlertBulkReviewStateActionRequest): Promise<ApiSuccessEnvelope<AlertBulkActionResult>>;
   explain(input: AiAlertsExplainRequest): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>>;
+  attachExplanation(id: string, input: AlertExplanationAttachmentRequest): Promise<ApiSuccessEnvelope<AlertSummary>>;
+  submitExplanationFeedback(
+    input: AlertExplanationFeedbackRequest
+  ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>>;
 }
 
 export interface TasksRepository {
@@ -116,10 +134,13 @@ export interface FeedRepository {
 }
 
 export interface AiRepository {
+  list(query?: AiListQuery): Promise<ApiSuccessEnvelope<ListResponse<AiResponseRecord>>>;
+  getById(id: string): Promise<ApiSuccessEnvelope<AiResponseRecord>>;
   rewriteText(input: AiTextRewriteRequest): Promise<ApiSuccessEnvelope<AiTextRewriteResponse>>;
   queryDashboard(input: AiDashboardQueryRequest): Promise<ApiSuccessEnvelope<AiDashboardQueryResponse>>;
   generateHandover(input: AiHandoverGenerateRequest): Promise<ApiSuccessEnvelope<AiHandoverGenerateResponse>>;
   draftIncident(input: AiIncidentsDraftRequest): Promise<ApiSuccessEnvelope<AiIncidentsDraftResponse>>;
+  draftApprovalNote(input: AiApprovalNoteDraftRequest): Promise<ApiSuccessEnvelope<AiApprovalNoteDraftResponse>>;
 }
 
 export interface AquaPulseRepositories {
@@ -136,11 +157,17 @@ export interface AquaPulseRepositories {
 export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepositories {
   return {
     ponds: {
+      create(input: PondCreateRequest) {
+        return clients.ponds.create(input);
+      },
       list(query?: PondsListQuery) {
         return clients.ponds.list(query);
       },
       getById(id: string) {
         return clients.ponds.getById(id);
+      },
+      update(id: string, input: PondUpdateRequest) {
+        return clients.ponds.update(id, input);
       },
       summarize(input: AiPondsSummarizeRequest) {
         return clients.ponds.summarize(input);
@@ -155,8 +182,14 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       create(input: WaterQualityCreateRequest) {
         return clients.waterQuality.create(input);
       },
+      update(id: string, input: WaterQualityUpdateRequest) {
+        return clients.waterQuality.update(id, input);
+      },
       list(query: WaterQualityListQuery) {
         return clients.waterQuality.list(query);
+      },
+      getById(id: string) {
+        return clients.waterQuality.getById(id);
       },
       listByPond(pondId: string, query?: Omit<WaterQualityListQuery, "pondId">) {
         return clients.waterQuality.list({ page: 1, pageSize: 20, ...query, pondId });
@@ -210,6 +243,12 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       explain(input: AiAlertsExplainRequest) {
         return clients.alerts.explain(input);
+      },
+      attachExplanation(id: string, input: AlertExplanationAttachmentRequest) {
+        return clients.alerts.attachExplanation(id, input);
+      },
+      submitExplanationFeedback(input: AlertExplanationFeedbackRequest) {
+        return clients.alerts.submitExplanationFeedback(input);
       }
     },
     tasks: {
@@ -246,6 +285,12 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       }
     },
     ai: {
+      list(query) {
+        return clients.ai.list(query);
+      },
+      getById(id: string) {
+        return clients.ai.getById(id);
+      },
       rewriteText(input: AiTextRewriteRequest) {
         return clients.ai.rewriteText(input);
       },
@@ -257,6 +302,9 @@ export function createRepositories(clients: AquaPulseApiClients): AquaPulseRepos
       },
       draftIncident(input: AiIncidentsDraftRequest) {
         return clients.ai.draftIncident(input);
+      },
+      draftApprovalNote(input: AiApprovalNoteDraftRequest) {
+        return clients.ai.draftApprovalNote(input);
       }
     }
   };

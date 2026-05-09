@@ -53,8 +53,95 @@ describe("Alert explanation service", () => {
 
     expect(response.metadata.mode).toBe("fallback");
     expect(response.metadata.usedLiveOpenAi).toBe(false);
+    expect(response.metadata.output.outputMode).toBe("english_only");
     expect(response.advisoryDisclaimer).toContain("Advisory only");
     expect(response.suggestedActions.length).toBeGreaterThan(0);
+    expect(response.immediateChecks.length).toBeGreaterThan(0);
+    expect(response.likelyFactors.length).toBeGreaterThan(0);
+    expect(response.cache.status).toBe("fresh");
+  });
+
+  it("supports bounded bilingual and tone-shaped fallback output", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const response = await service.explainAlert({
+      alertId: "alert-1",
+      tone: "formal",
+      outputMode: "bilingual"
+    });
+
+    expect(response.metadata.output.outputMode).toBe("bilingual");
+    expect(response.metadata.output.tone).toBe("formal");
+    expect(response.explanationHindi).toBeTruthy();
+  });
+
+  it("reuses the cached explanation snapshot when cache reuse is allowed", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const first = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+    const second = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+
+    expect(first.cache.status).toBe("fresh");
+    expect(first.cache.generation).toBe("fresh_fallback");
+    expect(second.cache.status).toBe("reused");
+    expect(second.cache.generation).toBe("cached_reuse");
+    expect(second.summary).toBe(first.summary);
+    expect(second.cache.cachedAt).toBe(first.cache.cachedAt);
+  });
+
+  it("bypasses cache when regeneration is explicitly requested", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const first = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+    const regenerated = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true,
+      reuseCached: false
+    });
+
+    expect(first.cache.status).toBe("fresh");
+    expect(regenerated.cache.status).toBe("fresh");
+    expect(regenerated.cache.generation).toBe("fresh_fallback");
+  });
+
+  it("records operator feedback without mutating alert lifecycle state", async () => {
+    const service = new AlertExplanationService({
+      getById: vi.fn().mockResolvedValue({ ok: true, data: alert })
+    } as never);
+
+    const explanation = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+    const feedback = await service.submitFeedback({
+      alertId: "alert-1",
+      value: "useful",
+      note: "This helped narrow the first manual check.",
+      explanation
+    });
+    const reused = await service.explainAlert({
+      alertId: "alert-1",
+      includeRecommendations: true
+    });
+
+    expect(feedback.value).toBe("useful");
+    expect(reused.feedbackSummary?.latest?.value).toBe("useful");
+    expect(alert.status).toBe("open");
   });
 
   it("falls back safely when OpenAI mode is enabled but the backend call fails", async () => {

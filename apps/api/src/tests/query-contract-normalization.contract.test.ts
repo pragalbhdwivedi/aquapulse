@@ -115,7 +115,12 @@ describe("Query contract normalization", () => {
       pageSize: 20,
       requestId: "ai-request-1",
       status: "completed" as const,
-      model: "gpt-5.4"
+      model: "gpt-5.4",
+      requestType: "incident_draft" as const,
+      providerMode: "fallback" as const,
+      createdAfter: "2026-05-01T00:00:00.000Z",
+      createdBefore: "2026-05-10T00:00:00.000Z",
+      relatedRecordId: "alert-1"
     });
 
     expect(toQueryAttachmentsInput(attachments).resourceType).toBe("alert");
@@ -142,7 +147,12 @@ describe("Query contract normalization", () => {
       dateRange: undefined,
       requestId: "ai-request-1",
       status: "completed",
-      model: "gpt-5.4"
+      model: "gpt-5.4",
+      requestType: "incident_draft",
+      providerMode: "fallback",
+      createdAfter: "2026-05-01T00:00:00.000Z",
+      createdBefore: "2026-05-10T00:00:00.000Z",
+      relatedRecordId: "alert-1"
     });
   });
 });

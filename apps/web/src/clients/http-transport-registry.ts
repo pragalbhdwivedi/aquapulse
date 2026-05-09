@@ -24,6 +24,8 @@ export function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
     [endpointInvocationRegistry.alerts.listSavedViews.endpointId]: handlers.alerts.listSavedViews,
     [endpointInvocationRegistry.alerts.saveSavedView.endpointId]: handlers.alerts.saveSavedView,
     [endpointInvocationRegistry.alerts.removeSavedView.endpointId]: handlers.alerts.removeSavedView,
+    [endpointInvocationRegistry.alerts.attachExplanation.endpointId]: handlers.alerts.attachExplanation,
+    [endpointInvocationRegistry.alerts.submitExplanationFeedback.endpointId]: handlers.alerts.submitExplanationFeedback,
     [endpointInvocationRegistry.alerts.update.endpointId]: handlers.alerts.update,
     [endpointInvocationRegistry.alerts.acknowledge.endpointId]: handlers.alerts.acknowledge,
     [endpointInvocationRegistry.alerts.bulkAcknowledge.endpointId]: handlers.alerts.bulkAcknowledge,
@@ -68,7 +70,8 @@ export function createEndpointHandlerRegistry(handlers: EndpointHandlers) {
     [endpointInvocationRegistry.ai.generateHandover.endpointId]: handlers.ai.generateHandover,
     [endpointInvocationRegistry.ai.rewriteText.endpointId]: handlers.ai.rewriteText,
     [endpointInvocationRegistry.ai.queryDashboard.endpointId]: handlers.ai.queryDashboard,
-    [endpointInvocationRegistry.ai.draftIncident.endpointId]: handlers.ai.draftIncident
+    [endpointInvocationRegistry.ai.draftIncident.endpointId]: handlers.ai.draftIncident,
+    [endpointInvocationRegistry.ai.draftApprovalNote.endpointId]: handlers.ai.draftApprovalNote
   } as const;
 }
 

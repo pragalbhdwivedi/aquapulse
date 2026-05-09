@@ -8,9 +8,11 @@ import type {
   FeedCreateRequest,
   FeedEntry,
   FeedUpdateRequest,
+  PondUpdateRequest,
   TaskCreateRequest,
   TaskUpdateRequest,
   TaskSummary,
+  WaterQualityCreateRequest,
   WaterQualityReading
 } from "@aquapulse/types";
 import type { RowMapper } from "./row-mapper.js";
@@ -208,6 +210,14 @@ export interface FeedRowPatch {
 }
 
 export interface WaterQualityRowWrite extends WaterQualityRow {}
+export interface WaterQualityRowPatch {
+  readonly id: string;
+  readonly updated_at: string;
+  readonly pond_id?: string;
+  readonly recorded_at?: string;
+  readonly temperature_c?: number;
+  readonly ph?: number;
+}
 export interface AlertActionHistoryRowWrite extends AlertActionHistoryRow {}
 export interface AlertSavedViewRowWrite extends AlertSavedViewRow {}
 
@@ -476,16 +486,23 @@ export function createPlaceholderAlertSavedViewRow(
   };
 }
 
-export function mapCreatePondInputToRowWrite(input: { readonly id?: string }): PondRowWrite {
+export function mapCreatePondInputToRowWrite(input: {
+  readonly id?: string;
+  readonly name?: string;
+  readonly code?: string;
+  readonly farmId?: string;
+  readonly kind?: PondSummary["kind"];
+  readonly status?: PondSummary["status"];
+}): PondRowWrite {
   const base = createPlaceholderPondRow(input.id ? { id: input.id } : {});
 
   return {
     id: base.id,
-    name: base.name,
-    code: base.code,
-    farm_id: base.farm_id,
-    kind: base.kind,
-    status: base.status,
+    name: input.name ?? base.name,
+    code: input.code ?? base.code,
+    farm_id: input.farmId ?? base.farm_id,
+    kind: input.kind ?? base.kind,
+    status: input.status ?? base.status,
     created_at: base.created_at,
     updated_at: base.updated_at
   };
@@ -493,11 +510,16 @@ export function mapCreatePondInputToRowWrite(input: { readonly id?: string }): P
 
 export function mapUpdatePondInputToRowPatch(
   id: string,
-  _input: { readonly id?: string }
+  input: PondUpdateRequest
 ): PondRowPatch {
   return {
     id,
-    updated_at: createPlaceholderPondRow({ id }).updated_at
+    updated_at: createPlaceholderPondRow({ id }).updated_at,
+    name: input.name,
+    code: input.code,
+    farm_id: input.farmId,
+    kind: input.kind,
+    status: input.status
   };
 }
 
@@ -631,16 +653,26 @@ export function mapUpdateBatchInputToRowPatch(id: string, _input: { readonly id?
 
 export function mapCreateFeedInputToRowWrite(input: FeedCreateRequest): FeedRowWrite {
   const base = createPlaceholderFeedRow();
+  const timestamp = input.fedAt || base.fed_at;
+  const rawValue = [
+    "feed",
+    input.pondId,
+    input.batchId ?? "no-batch",
+    input.feedType,
+    input.quantityKg,
+    timestamp
+  ].join("-");
+  const id = rawValue.replace(/[^a-zA-Z0-9_-]/g, "-");
 
   return {
-    id: `feed-row-${input.pondId}`,
+    id,
     pond_id: input.pondId,
     batch_id: input.batchId,
     feed_type: input.feedType,
     quantity_kg: input.quantityKg,
     fed_at: input.fedAt,
-    created_at: base.created_at,
-    updated_at: base.updated_at
+    created_at: timestamp,
+    updated_at: timestamp
   };
 }
 
@@ -652,5 +684,53 @@ export function mapUpdateFeedInputToRowPatch(id: string, input: FeedUpdateReques
     feed_type: input.feedType,
     quantity_kg: input.quantityKg,
     fed_at: input.fedAt
+  };
+}
+
+function buildWaterQualityRowId(input: WaterQualityCreateRequest): string {
+  const rawValue = [
+    "wq",
+    input.pondId,
+    input.recordedAt,
+    input.temperatureC ?? "na",
+    input.ph ?? "na"
+  ].join("-");
+
+  return rawValue.replace(/[^a-zA-Z0-9_-]/g, "-");
+}
+
+export function mapCreateWaterQualityInputToRowWrite(
+  input: WaterQualityCreateRequest
+): WaterQualityRowWrite {
+  const base = createPlaceholderWaterQualityRow();
+  const timestamp = input.recordedAt || base.recorded_at;
+
+  return {
+    id: buildWaterQualityRowId(input),
+    pond_id: input.pondId,
+    recorded_at: input.recordedAt,
+    temperature_c: input.temperatureC,
+    ph: input.ph,
+    created_at: timestamp,
+    updated_at: timestamp
+  };
+}
+
+export function mapUpdateWaterQualityInputToRowPatch(
+  id: string,
+  input: {
+    readonly pondId?: string;
+    readonly recordedAt?: string;
+    readonly temperatureC?: number;
+    readonly ph?: number;
+  }
+): WaterQualityRowPatch {
+  return {
+    id,
+    updated_at: createPlaceholderWaterQualityRow({ id }).updated_at,
+    pond_id: input.pondId,
+    recorded_at: input.recordedAt,
+    temperature_c: input.temperatureC,
+    ph: input.ph
   };
 }

@@ -53,6 +53,9 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
   const execute = createFetchPlaceholderExecutor(handlers);
 
   return {
+    auth: {
+      session: createFetchDelegatedHandler(aquaPulseEndpointCatalog.auth.session, execute)
+    },
     ponds: {
       create: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ponds.create, execute),
       list: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ponds.list, execute),
@@ -68,6 +71,8 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
       listSavedViews: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.listSavedViews, execute),
       saveSavedView: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.saveSavedView, execute),
       removeSavedView: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.removeSavedView, execute),
+      attachExplanation: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.attachExplanation, execute),
+      submitExplanationFeedback: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.submitExplanationFeedback, execute),
       update: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.update, execute),
       acknowledge: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.acknowledge, execute),
       bulkAcknowledge: createFetchDelegatedHandler(aquaPulseEndpointCatalog.alerts.bulkAcknowledge, execute),
@@ -126,7 +131,8 @@ export function createHttpPlaceholderEndpointHandlers(clients: AquaPulseApiClien
       generateHandover: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.generateHandover, execute),
       rewriteText: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.rewriteText, execute),
       queryDashboard: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.queryDashboard, execute),
-      draftIncident: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftIncident, execute)
+      draftIncident: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftIncident, execute),
+      draftApprovalNote: createFetchDelegatedHandler(aquaPulseEndpointCatalog.ai.draftApprovalNote, execute)
     }
   };
 }

@@ -39,4 +39,24 @@ describe("Tasks write vertical slice", () => {
     expect(response.data.status).toBe("todo");
     expect(response.data.title).toBe("Verify backup aerator");
   });
+
+  it("keeps controller -> mapper -> service -> envelope delegation stable for bounded detail reads", async () => {
+    const repository = new InMemoryTasksRepository();
+    const applicationService = new TasksApplicationService(repository);
+    const controller = new TasksController(
+      { getPlaceholder: async () => ({ ok: true }) } as never,
+      applicationService
+    );
+
+    const created = await applicationService.create({
+      title: "Inspect sluice gate",
+      assigneeId: "user-4",
+      pondId: "pond-2"
+    });
+    const response = await controller.getById(created.data.id);
+
+    expect(response.ok).toBe(true);
+    expect(response.data.id).toBe(created.data.id);
+    expect(response.data.title).toBe("Inspect sluice gate");
+  });
 });

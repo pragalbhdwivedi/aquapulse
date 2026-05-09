@@ -1,7 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import type { TaskStatus, TaskSummary } from "@aquapulse/types";
+import { useMemo, useState } from "react";
+import type { FrontendSessionBootstrapStatus, TaskStatus, TaskSummary } from "@aquapulse/types";
+import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
+import {
+  deriveNonAlertOperatorAccessSummary,
+  deriveProtectedOperatorUiGuard
+} from "@web/features/auth-session";
+import { createRepositoriesFromConfig } from "@web/repositories";
 import {
   cancelInlineEdit,
   completeInlineEdit,
@@ -10,14 +16,22 @@ import {
   patchInlineEditDraft,
   startInlineEdit,
 } from "@web/features/inline-edit";
-import { submitTaskUpdate } from "@web/features/task-update";
+import {
+  createTaskUpdateSubmitter,
+  type TaskUpdateSubmissionResult
+} from "@web/features/task-update";
+import {
+  deriveTasksRuntimeIndicator,
+  formatTasksRuntimeError
+} from "@web/features/tasks-runtime";
 import { toMutationSyncPageState } from "@web/features/mutation-refresh";
 
 interface TaskUpdateFormProps {
   readonly task: TaskSummary;
+  readonly session: FrontendSessionBootstrapStatus;
 }
 
-export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
+export function TaskUpdateForm({ task, session }: TaskUpdateFormProps) {
   const [inlineEdit, setInlineEdit] = useState(() =>
     createInlineEditState({
       title: task.title,
@@ -25,39 +39,92 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
       assigneeId: task.assigneeId ?? ""
     })
   );
-  const [result, setResult] = useState<Awaited<ReturnType<typeof submitTaskUpdate>> | null>(null);
+  const [result, setResult] = useState<TaskUpdateSubmissionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const runtimeConfig = useMemo(
+    () =>
+      parseClientRuntimeConfig({
+        NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_CLIENT_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_PLACEHOLDER_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_ENABLE_FETCH_HTTP,
+        NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE: process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_MODE,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_BASE_URL,
+        NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT:
+          process.env.NEXT_PUBLIC_AQUAPULSE_WEB_TASKS_HTTP_TRANSPORT
+      }),
+    []
+  );
+  const repositories = useMemo(() => createRepositoriesFromConfig(runtimeConfig), [runtimeConfig]);
+  const submitTaskUpdate = useMemo(
+    () => createTaskUpdateSubmitter(repositories)(task.id),
+    [repositories, task.id]
+  );
+  const runtimeIndicator = useMemo(
+    () => deriveTasksRuntimeIndicator(runtimeConfig),
+    [runtimeConfig]
+  );
+  const taskUpdateGuard = useMemo(
+    () =>
+      deriveProtectedOperatorUiGuard(session, {
+        sliceLabel: session.nonAlertsGuardedSliceLabel ?? "tasks_update",
+        enforcedByBackend: session.nonAlertsGuardedSliceEnforced
+      }),
+    [session]
+  );
+  const operatorSummary = useMemo(() => deriveNonAlertOperatorAccessSummary(session), [session]);
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
+  const updateDisabled = !taskUpdateGuard.enabled;
+  const operatorStatusLabel =
+    operatorSummary.accessState === "available"
+      ? "action available"
+      : operatorSummary.accessState === "bypassed_local"
+        ? "allowed in disabled/local modes"
+        : operatorSummary.accessState === "degraded"
+          ? "protected with degraded forwarding/session"
+          : "protected and waiting for forwarded auth/session";
 
   return (
     <form
       onSubmit={async (event) => {
         event.preventDefault();
+        if (updateDisabled) {
+          return;
+        }
         setIsSubmitting(true);
+        setRuntimeError(null);
 
-        const submission = await submitTaskUpdate(task.id, {
-          title: draft.title,
-          status: draft.status,
-          assigneeId: draft.assigneeId || undefined,
-          pondId: task.pondId
-        });
+        try {
+          const submission = await submitTaskUpdate({
+            title: draft.title,
+            status: draft.status,
+            assigneeId: draft.assigneeId || undefined,
+            pondId: task.pondId
+          });
 
-        setResult(submission);
-        if (submission.status === "success") {
-          setInlineEdit((state) =>
-            completeInlineEdit(
-              state,
-              {
-                title: submission.data.title,
-                status: submission.data.status,
-                assigneeId: submission.data.assigneeId ?? ""
-              },
-              "Task updated."
-            )
-          );
-        } else if (submission.status === "validation_error") {
-          setInlineEdit((state) => failInlineEdit(state, "Please review the task details."));
+          setResult(submission);
+          if (submission.status === "success") {
+            setInlineEdit((state) =>
+              completeInlineEdit(
+                state,
+                {
+                  title: submission.data.title,
+                  status: submission.data.status,
+                  assigneeId: submission.data.assigneeId ?? ""
+                },
+                "Task updated."
+              )
+            );
+          } else if (submission.status === "validation_error") {
+            setInlineEdit((state) => failInlineEdit(state, "Please review the task details."));
+          }
+        } catch (error) {
+          setRuntimeError(formatTasksRuntimeError(error, runtimeConfig));
         }
         setIsSubmitting(false);
       }}
@@ -72,10 +139,50 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Update first task</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use this bounded update path after reviewing the selected task detail. Saving stays manual and review-first.
+      </p>
+      <div
+        style={{
+          display: "grid",
+          gap: "0.25rem",
+          padding: "0.65rem 0.8rem",
+          borderRadius: "0.65rem",
+          background: "rgba(30, 41, 59, 0.45)",
+          color: "#cbd5e1"
+        }}
+      >
+        <span>
+          Tasks runtime: {runtimeIndicator.modeLabel} / Target: {runtimeIndicator.targetLabel}
+        </span>
+        <span style={{ color: "#94a3b8" }}>{runtimeIndicator.helperText}</span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Tasks update auth: {taskUpdateGuard.sliceLabel} / {taskUpdateGuard.state}
+        </span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          Shared non-alert operator access: {operatorSummary.label} / {operatorStatusLabel}
+        </span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {operatorSummary.message}
+        </span>
+        <span style={{ color: "#94a3b8" }}>
+          Current-session sufficient: {operatorSummary.currentSessionSufficient ? "yes" : "no"} /
+          Forwarding: {operatorSummary.forwardingState}
+        </span>
+        {runtimeIndicator.warnings.map((warning) => (
+          <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
+            {warning.message}
+          </span>
+        ))}
+      </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Form state: {inlineEdit.isEditing ? "editing enabled" : "read-only until edit is selected"}.
+      </p>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
           onClick={() => setInlineEdit((state) => startInlineEdit(state))}
+          disabled={updateDisabled}
           style={{ padding: "0.45rem 0.8rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         >
           Edit
@@ -96,7 +203,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { title: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
@@ -109,7 +216,7 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
               patchInlineEditDraft(state, { status: event.target.value as TaskStatus })
             )
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         >
           <option value="todo">Todo</option>
@@ -125,13 +232,13 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
           onChange={(event) =>
             setInlineEdit((state) => patchInlineEditDraft(state, { assigneeId: event.target.value }))
           }
-          disabled={!inlineEdit.isEditing}
+          disabled={!inlineEdit.isEditing || updateDisabled}
           style={{ padding: "0.6rem", borderRadius: "0.5rem", border: "1px solid #475569" }}
         />
       </label>
       <button
         type="submit"
-        disabled={pageState.isSubmitting || !inlineEdit.isEditing}
+        disabled={pageState.isSubmitting || !inlineEdit.isEditing || updateDisabled}
         style={{
           padding: "0.7rem 0.9rem",
           borderRadius: "0.5rem",
@@ -156,6 +263,13 @@ export function TaskUpdateForm({ task }: TaskUpdateFormProps) {
       {pageState.status === "success" ? (
         <p style={{ margin: 0, color: "#86efac" }}>
           Updated task: {pageState.data?.title}. Refreshed tasks: {pageState.refreshedList?.items.length ?? 0}. Synced detail: {pageState.refreshedDetail?.status ?? "n/a"}.
+        </p>
+      ) : null}
+      {runtimeError ? <p style={{ margin: 0, color: "#fca5a5" }}>{runtimeError}</p> : null}
+      {updateDisabled ? (
+        <p style={{ margin: 0, color: "#fca5a5" }}>
+          Tasks update is backend-protected in active auth mode. Forwarded auth/current-session
+          must be available before this bounded manual update can run.
         </p>
       ) : null}
     </form>

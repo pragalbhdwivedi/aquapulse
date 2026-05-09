@@ -1,22 +1,46 @@
-import { describe, expect, it } from "vitest";
-import { alertsRepository, auditRepository, pondsRepository, tasksRepository } from "../repositories";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
+  filterAlertsByQuery,
+  sortAlertsByQuery
+} from "@aquapulse/types";
+import {
+  aiRepository,
+  alertsRepository,
+  auditRepository,
+  pondsRepository,
+  tasksRepository,
+  waterQualityRepository
+} from "../repositories";
+import {
+  createReadonlyQueries,
   getAlertsPageData,
   getAuditPageData,
   getDashboardPageData,
   getPondDetailPageData,
+  getPondOverviewPageData,
+  getPondOverviewPreviewData,
+  getPondRecentWaterQualityPageData,
+  getPondDetailPagePreviewData,
   getPondsPageData,
+  getReportsPageDataWithHistory,
+  getTaskDetailPageData,
   getReportsPageData
 } from "../queries";
+import { resetAlertsMockState } from "../mocks/adapters";
 
 describe("Frontend query layer", () => {
+  beforeEach(() => {
+    resetAlertsMockState();
+  });
+
   it("builds dashboard data without exposing the client implementation", async () => {
     const dashboard = await getDashboardPageData();
 
     expect(dashboard.ponds.items.length).toBeGreaterThan(0);
     expect(dashboard.alerts.items.length).toBeGreaterThan(0);
     expect(dashboard.alertSummary.totalAlerts).toBeGreaterThan(0);
-    expect(dashboard.answer.answer).toContain("Placeholder");
+    expect(dashboard.answer.answer).toBe(dashboard.answer.directAnswer);
+    expect(dashboard.answer.metadata.taskLabel).toBe("dashboard_assistant_query");
   });
 
   it("builds pond detail data from repository-backed queries", async () => {
@@ -24,7 +48,38 @@ describe("Frontend query layer", () => {
 
     expect(pondDetail.pond.id).toBe("pond-1");
     expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
-    expect(pondDetail.summary.summary).toContain("Placeholder");
+    expect(pondDetail.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(pondDetail.summary.summary).toContain("pending");
+  });
+
+  it("builds bounded pond preview data without requiring the protected detail route", async () => {
+    const pondDetail = await getPondDetailPagePreviewData("pond-1");
+
+    expect(pondDetail.pond?.id).toBe("pond-1");
+    expect(pondDetail.waterQuality.items.length).toBeGreaterThan(0);
+    expect(pondDetail.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(pondDetail.summary.summary).toContain("pending");
+  });
+
+  it("keeps bounded pond overview and recent water-quality queries stable as separate read surfaces", async () => {
+    const [overview, preview, recent] = await Promise.all([
+      getPondOverviewPageData("pond-1"),
+      getPondOverviewPreviewData("pond-1"),
+      getPondRecentWaterQualityPageData("pond-1")
+    ]);
+
+    expect(overview.pond.id).toBe("pond-1");
+    expect(preview.pond?.id).toBe("pond-1");
+    expect(overview.summary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(overview.summary.summary).toContain("pending");
+    expect(recent.items.length).toBeGreaterThan(0);
+  });
+
+  it("builds task detail data from repository-backed queries", async () => {
+    const taskDetail = await getTaskDetailPageData("task-1");
+
+    expect(taskDetail.id).toBe("task-1");
+    expect(taskDetail.title).toBeTruthy();
   });
 
   it("keeps alert, audit, pond, and report queries stable", async () => {
@@ -39,7 +94,64 @@ describe("Frontend query layer", () => {
     expect(alerts.explanation).toContain("Placeholder");
     expect(alerts.summary.assignmentCounts.unassigned).toBeGreaterThanOrEqual(0);
     expect(audit.items[0]?.resourceType).toBe("alert");
-    expect(reports.handover.summary).toContain("Placeholder");
+    expect(reports.history.items.length).toBeGreaterThan(0);
+    expect(reports.history.items[0]?.requestType).toBeTruthy();
+    expect(reports.supportedHistoryPrefills.length).toBeGreaterThan(0);
+    expect(reports.dailySummary.metadata.taskLabel).toBe("daily_farm_summary");
+    expect(reports.dailySummary.pendingActions.length).toBeGreaterThan(0);
+    expect(reports.handover.metadata.taskLabel).toBe("shift_handover_generate");
+    expect(reports.handover.nextShiftNote).toBeTruthy();
+    expect(reports.incidentRewrite.metadata.taskLabel).toBe("incident_rewrite");
+    expect(reports.incidentRewrite.rewrittenEnglish).toBeTruthy();
+    expect(reports.incidentDraft.metadata.taskLabel).toBe("incident_draft");
+    expect(reports.incidentDraft.draftEnglish).toBeTruthy();
+    expect(reports.approvalNote.metadata.taskLabel).toBe("approval_note_draft");
+    expect(reports.approvalNote.reviewRequired).toBe(true);
+  });
+
+  it("keeps reuse-from-history prefills bounded, typed, and user-controlled", async () => {
+    const reports = await getReportsPageDataWithHistory({
+      prefill: {
+        sourceHistoryId: "ai-response-3",
+        sourceTaskType: "incident_draft",
+        destinationType: "incident_draft",
+        rawOperatorNotes: "Operator note: Oxygen warning was observed and rechecked.",
+        advisoryOnly: true
+      }
+    });
+
+    expect(reports.selectedPrefill?.destinationType).toBe("incident_draft");
+    expect(reports.selectedPrefill?.sourceHistoryId).toBe("ai-response-3");
+    expect(reports.incidentDraft.draftEnglish).toContain("Operator note: Oxygen warning was observed");
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "incident_rewrite"
+    );
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "incident_draft"
+    );
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "approval_note_draft"
+    );
+  });
+
+  it("keeps compare-from-history diffs bounded and review-only", async () => {
+    const reports = await getReportsPageDataWithHistory({
+      prefill: {
+        sourceHistoryId: "ai-response-5",
+        sourceTaskType: "approval_note_draft",
+        destinationType: "approval_note_draft",
+        promptNote: "Alert: Verify the repeat dissolved oxygen reading before supervisor review.",
+        advisoryOnly: true
+      },
+      compareCurrentDraftText:
+        "Alert: Verify the repeat dissolved oxygen reading before supervisor review."
+    });
+
+    expect(reports.selectedCompare?.destinationType).toBe("approval_note_draft");
+    expect(reports.selectedCompare?.advisoryOnly).toBe(true);
+    expect(reports.selectedCompare?.sourceHistory.sourceHistoryId).toBe("ai-response-5");
+    expect(reports.selectedCompare?.currentDraft.text).toContain("supervisor review");
+    expect(reports.selectedCompare?.reusedHistoryDraft.text).toContain("repeat dissolved oxygen");
   });
 
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {
@@ -99,6 +211,31 @@ describe("Frontend query layer", () => {
     expect(alerts.summary.reviewStateCounts.underReview).toBeGreaterThanOrEqual(1);
   });
 
+  it("falls back to a queue-derived alerts summary when the protected summary read is unavailable", async () => {
+    const queries = createReadonlyQueries({
+      ponds: pondsRepository,
+      alerts: {
+        ...alertsRepository,
+        async summary() {
+          throw new Error("HTTP_401");
+        }
+      },
+      tasks: tasksRepository,
+      ai: aiRepository,
+      waterQuality: waterQualityRepository
+    });
+
+    const alerts = await queries.getAlertsPageData({
+      page: 1,
+      pageSize: 20,
+      status: "open",
+      sortBy: "updatedAt_desc"
+    });
+
+    expect(alerts.summarySource).toBe("fallback");
+    expect(alerts.summary.totalAlerts).toBe(alerts.alerts.items.length);
+  });
+
   it("keeps owner workload counts and preset-style filters stable through the shared queue query path", async () => {
     await alertsRepository.assign("alert-1", {
       assignedTo: "operator-queue",
@@ -125,5 +262,50 @@ describe("Frontend query layer", () => {
       underReviewAlerts: 1,
       unresolvedAlerts: 1
     });
+  });
+
+  it("keeps shared alert filter and descending sort semantics aligned with SQL-style expectations", () => {
+    const alerts = [
+      {
+        id: "alert-a",
+        createdAt: "2026-04-16T09:00:00.000Z",
+        updatedAt: "2026-04-16T09:05:00.000Z",
+        title: "Alpha oxygen warning",
+        severity: "high" as const,
+        source: "water-quality",
+        pondId: "pond-1",
+        status: "open" as const,
+        reviewState: "unreviewed" as const,
+        latestNote: undefined
+      },
+      {
+        id: "alert-b",
+        createdAt: "2026-04-16T09:00:00.000Z",
+        updatedAt: "2026-04-16T09:05:00.000Z",
+        title: "Beta feeding note",
+        severity: "medium" as const,
+        source: "feed",
+        pondId: "pond-1",
+        status: "open" as const,
+        reviewState: "unreviewed" as const,
+        latestNote: "Manual oxygen follow-up required"
+      }
+    ];
+
+    expect(filterAlertsByQuery(alerts, { search: "oxygen" }).map((item) => item.id)).toEqual([
+      "alert-a",
+      "alert-b"
+    ]);
+    expect(filterAlertsByQuery(alerts, { hasLatestNote: true }).map((item) => item.id)).toEqual([
+      "alert-b"
+    ]);
+    expect(sortAlertsByQuery(alerts, "updatedAt_desc").map((item) => item.id)).toEqual([
+      "alert-b",
+      "alert-a"
+    ]);
+    expect(sortAlertsByQuery(alerts, "createdAt_desc").map((item) => item.id)).toEqual([
+      "alert-b",
+      "alert-a"
+    ]);
   });
 });
