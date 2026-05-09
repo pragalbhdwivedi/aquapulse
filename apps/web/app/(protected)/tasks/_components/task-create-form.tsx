@@ -109,6 +109,9 @@ export function TaskCreateForm({ pondId = "pond-1", session }: TaskCreateFormPro
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Create task</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use this bounded create path when the current pending work needs a new manual follow-up item. Saving stays manual and review-first.
+      </p>
       <div
         style={{
           display: "grid",
@@ -142,6 +145,9 @@ export function TaskCreateForm({ pondId = "pond-1", session }: TaskCreateFormPro
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What this does: creates a new follow-up task for the linked pond. It does not update any existing task automatically.
+      </p>
       <label style={{ display: "grid", gap: "0.35rem" }}>
         <span>Title</span>
         <input
@@ -190,7 +196,7 @@ export function TaskCreateForm({ pondId = "pond-1", session }: TaskCreateFormPro
       {createDisabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Tasks create is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual create action can run.
         </p>
       ) : null}
     </form>
