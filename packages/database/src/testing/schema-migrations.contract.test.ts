@@ -21,7 +21,9 @@ describe("Schema and migrations foundation", () => {
       AQUAPULSE_SCHEMA_TABLES.tasks,
       AQUAPULSE_SCHEMA_TABLES.alerts,
       AQUAPULSE_SCHEMA_TABLES.alertActionHistory,
-      AQUAPULSE_SCHEMA_TABLES.savedAlertViews
+      AQUAPULSE_SCHEMA_TABLES.savedAlertViews,
+      AQUAPULSE_SCHEMA_TABLES.auditEvents,
+      AQUAPULSE_SCHEMA_TABLES.auditEventMetadata
     ]);
 
     expect(getDatabaseTableDefinition(AQUAPULSE_SCHEMA_TABLES.alerts)?.columns.some((column) => column.name === "assigned_to")).toBe(true);
@@ -34,20 +36,22 @@ describe("Schema and migrations foundation", () => {
   });
 
   it("keeps the migration manifest and SQL files in sync", async () => {
-    expect(databaseMigrationManifest.schemaVersion).toBe("0001_core_schema");
-    expect(databaseMigrationManifest.migrations).toHaveLength(1);
+    expect(databaseMigrationManifest.schemaVersion).toBe("0002_audit_persistence_foundation");
+    expect(databaseMigrationManifest.migrations).toHaveLength(2);
 
     for (const migration of databaseMigrationManifest.migrations) {
       await access(path.join(migrationsDir, migration.file));
     }
 
-    const sql = await readFile(
-      path.join(migrationsDir, databaseMigrationManifest.migrations[0]!.file),
-      "utf8"
-    );
+    const [coreSql, auditSql] = await Promise.all([
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[0]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[1]!.file), "utf8")
+    ]);
 
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS ponds");
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS alerts");
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS alert_action_history");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS ponds");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS alerts");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS alert_action_history");
+    expect(auditSql).toContain("CREATE TABLE IF NOT EXISTS audit_events");
+    expect(auditSql).toContain("CREATE TABLE IF NOT EXISTS audit_event_metadata");
   });
 });

@@ -11,7 +11,7 @@ export interface DatabaseMigrationManifest {
 }
 
 export const databaseMigrationManifest: DatabaseMigrationManifest = {
-  schemaVersion: "0001_core_schema",
+  schemaVersion: "0002_audit_persistence_foundation",
   migrations: [
     {
       id: "0001_core_schema",
@@ -19,6 +19,13 @@ export const databaseMigrationManifest: DatabaseMigrationManifest = {
       file: "0001_core_schema.sql",
       description:
         "Create the first AquaPulse relational schema foundation for ponds, water quality, feed, tasks, alerts, alert history, and saved alert views."
+    },
+    {
+      id: "0002_audit_persistence_foundation",
+      name: "audit persistence foundation",
+      file: "0002_audit_persistence_foundation.sql",
+      description:
+        "Add durable audit event storage and request-context metadata for bounded internal runtime auditing."
     }
   ]
 } as const;

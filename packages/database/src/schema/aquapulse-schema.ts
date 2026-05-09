@@ -28,7 +28,9 @@ export const AQUAPULSE_SCHEMA_TABLES = {
   tasks: "tasks",
   alerts: "alerts",
   alertActionHistory: "alert_action_history",
-  savedAlertViews: "saved_alert_views"
+  savedAlertViews: "saved_alert_views",
+  auditEvents: "audit_events",
+  auditEventMetadata: "audit_event_metadata"
 } as const;
 
 export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
@@ -167,6 +169,43 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
       { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
     ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.auditEvents,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "action", type: "text" },
+      { name: "resource_type", type: "text" },
+      { name: "resource_id", type: "text", nullable: true },
+      { name: "summary", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    indexes: ["idx_audit_events_resource_created_at", "idx_audit_events_action_created_at"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.auditEventMetadata,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "audit_event_id", type: "text", unique: true },
+      { name: "request_id", type: "text", nullable: true },
+      { name: "correlation_id", type: "text", nullable: true },
+      { name: "actor_id", type: "text", nullable: true },
+      { name: "http_method", type: "text", nullable: true },
+      { name: "request_path", type: "text", nullable: true },
+      { name: "status_code", type: "integer", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "audit_event_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.auditEvents,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: ["idx_audit_event_metadata_actor_created_at", "idx_audit_event_metadata_request_id"]
   }
 ] as const;
 

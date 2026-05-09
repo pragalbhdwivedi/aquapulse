@@ -28,7 +28,7 @@ describe("Database package foundation", () => {
     expect(config.database).toBe("aquapulse");
     expect(runtime.defaultAdapter).toBe("in-memory");
     expect(selectPersistenceAdapter(runtime, registry)).toBe("memory");
-    expect(databaseMigrationManifest.schemaVersion).toBe("0001_core_schema");
+    expect(databaseMigrationManifest.schemaVersion).toBe("0002_audit_persistence_foundation");
     expect(AQUAPULSE_SCHEMA_TABLES.alerts).toBe("alerts");
 
     expectTypeOf(config).toEqualTypeOf<DatabaseConfig>();
