@@ -135,6 +135,13 @@ describe("Alerts lifecycle flow", () => {
         openAlerts: 1,
         underReviewAlerts: 1,
         unresolvedAlerts: 1
+      },
+      {
+        ownerId: "user-2",
+        assignedAlerts: 1,
+        openAlerts: 0,
+        underReviewAlerts: 0,
+        unresolvedAlerts: 1
       }
     ]);
   });
@@ -144,7 +151,7 @@ describe("Alerts lifecycle flow", () => {
     const service = new AlertsApplicationService(repository);
 
     await service.create({
-      id: "alert-2",
+      id: "alert-4",
       title: "Feed issue",
       severity: "medium",
       source: "feed",
@@ -153,11 +160,11 @@ describe("Alerts lifecycle flow", () => {
     });
 
     const acknowledged = await service.bulkAcknowledge({
-      alertIds: ["alert-1", "alert-2"],
+      alertIds: ["alert-1", "alert-4"],
       note: "Bulk review."
     });
     const reviewed = await service.bulkSetReviewState({
-      alertIds: ["alert-1", "alert-2"],
+      alertIds: ["alert-1", "alert-4"],
       reviewState: "under_review",
       reviewLabel: "bulk-queue",
       note: "Bulk moved to review."
