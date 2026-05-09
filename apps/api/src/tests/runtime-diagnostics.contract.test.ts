@@ -108,6 +108,11 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiHistory?.enabled).toBe(true);
     expect(diagnostics.aiHistory?.sourceLabel).toBe("ai_request_response_log");
     expect(diagnostics.aiHistory?.providerMetadataAvailable).toBe(true);
+    expect(diagnostics.aiHistory?.reuseFromHistoryEnabled).toBe(true);
+    expect(diagnostics.aiHistory?.metadataSufficientForPrefill).toBe(true);
+    expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("incident_rewrite");
+    expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("incident_draft");
+    expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("approval_note_draft");
     expect(diagnostics.aiHistory?.filterFields).toContain("requestType");
     expect(diagnostics.aiHistory?.filterFields).toContain("providerMode");
     expect(diagnostics.alerts.localBridgeExpectedPath).toBe("/api/alerts");

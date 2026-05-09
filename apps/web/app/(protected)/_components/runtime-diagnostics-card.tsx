@@ -603,8 +603,15 @@ export function RuntimeDiagnosticsCard({
           <span>
             AI history: {backendProbe.runtime.aiHistory.enabled ? "enabled" : "disabled"} / Source:{" "}
             {backendProbe.runtime.aiHistory.sourceLabel} / Provider metadata:{" "}
-            {backendProbe.runtime.aiHistory.providerMetadataAvailable ? "available" : "unavailable"} / Filters:{" "}
+            {backendProbe.runtime.aiHistory.providerMetadataAvailable ? "available" : "unavailable"} / Reuse helper:{" "}
+            {backendProbe.runtime.aiHistory.reuseFromHistoryEnabled ? "enabled" : "disabled"} / Prefill metadata:{" "}
+            {backendProbe.runtime.aiHistory.metadataSufficientForPrefill ? "sufficient" : "limited"} / Filters:{" "}
             {backendProbe.runtime.aiHistory.filterFields.join(", ")}
+          </span>
+        ) : null}
+        {backendProbe?.runtime?.aiHistory?.supportedReuseDestinations?.length ? (
+          <span>
+            AI history reuse destinations: {backendProbe.runtime.aiHistory.supportedReuseDestinations.join(", ")}
           </span>
         ) : null}
         {backendProbe?.runtime ? (

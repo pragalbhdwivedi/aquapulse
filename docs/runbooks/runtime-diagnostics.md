@@ -85,6 +85,9 @@ For AI usage history:
 - `aiHistory.enabled = true` means the bounded AI history review surface is wired on top of the existing request/response log seam
 - `aiHistory.sourceLabel = ai_request_response_log` shows that history comes from the current backend log path instead of a second analytics store
 - `aiHistory.providerMetadataAvailable = true` means history items can distinguish fallback vs provider-backed output when metadata is present
+- `aiHistory.reuseFromHistoryEnabled = true` means operators can prefill selected bounded draft/rewrite cards from eligible history items
+- `aiHistory.metadataSufficientForPrefill = true` means the history payload carries enough compact metadata for those prefills without adding a write-side workflow
+- `aiHistory.supportedReuseDestinations` lists the currently allowed advisory-only prefill destinations
 - `aiHistory.filterFields` lists the bounded filters supported by the current history read surface
 
 These diagnostics are intentionally lightweight. They are for runtime clarity, not full monitoring or production observability.

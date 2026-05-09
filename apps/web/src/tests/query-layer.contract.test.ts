@@ -22,6 +22,7 @@ import {
   getPondRecentWaterQualityPageData,
   getPondDetailPagePreviewData,
   getPondsPageData,
+  getReportsPageDataWithHistory,
   getTaskDetailPageData,
   getReportsPageData
 } from "../queries";
@@ -95,6 +96,7 @@ describe("Frontend query layer", () => {
     expect(audit.items[0]?.resourceType).toBe("alert");
     expect(reports.history.items.length).toBeGreaterThan(0);
     expect(reports.history.items[0]?.requestType).toBeTruthy();
+    expect(reports.supportedHistoryPrefills.length).toBeGreaterThan(0);
     expect(reports.dailySummary.metadata.taskLabel).toBe("daily_farm_summary");
     expect(reports.dailySummary.pendingActions.length).toBeGreaterThan(0);
     expect(reports.handover.metadata.taskLabel).toBe("shift_handover_generate");
@@ -105,6 +107,31 @@ describe("Frontend query layer", () => {
     expect(reports.incidentDraft.draftEnglish).toBeTruthy();
     expect(reports.approvalNote.metadata.taskLabel).toBe("approval_note_draft");
     expect(reports.approvalNote.reviewRequired).toBe(true);
+  });
+
+  it("keeps reuse-from-history prefills bounded, typed, and user-controlled", async () => {
+    const reports = await getReportsPageDataWithHistory({
+      prefill: {
+        sourceHistoryId: "ai-response-3",
+        sourceTaskType: "incident_draft",
+        destinationType: "incident_draft",
+        rawOperatorNotes: "Operator note: Oxygen warning was observed and rechecked.",
+        advisoryOnly: true
+      }
+    });
+
+    expect(reports.selectedPrefill?.destinationType).toBe("incident_draft");
+    expect(reports.selectedPrefill?.sourceHistoryId).toBe("ai-response-3");
+    expect(reports.incidentDraft.draftEnglish).toContain("Operator note: Oxygen warning was observed");
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "incident_rewrite"
+    );
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "incident_draft"
+    );
+    expect(reports.supportedHistoryPrefills.map((item) => item.destinationType)).toContain(
+      "approval_note_draft"
+    );
   });
 
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {

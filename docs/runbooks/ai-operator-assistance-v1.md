@@ -179,6 +179,7 @@ Recommended checks:
 - confirm the reports page now shows incident rewrite plus approval note draft cards
 - confirm the reports page now also shows the incident draft card
 - confirm the reports page now also shows recent AI usage history with task type and fallback/provider labels
+- confirm eligible history items offer a bounded `Reuse` link that prefills rewrite/draft cards without auto-submitting
 - open the alerts workbench and confirm the explanation card shows observed facts, likely factors, immediate checks, and escalation considerations
 - open runtime diagnostics and confirm operator assistance shows `fallback` unless provider config is present
 
@@ -191,6 +192,19 @@ The bounded AI history view shows:
 - provider-backed vs fallback metadata when available
 - request timestamps, model labels, and related record identifiers when available
 - copy-ready raw output text for bounded operator reuse
+
+The bounded reuse-from-history helper currently supports only the smallest safe mappings:
+
+- incident rewrite history -> incident rewrite prefill
+- incident draft history -> incident draft prefill
+- approval note draft history -> approval note draft prefill
+
+The helper stays user-controlled:
+
+- operators must explicitly click a `Reuse` link from history
+- the destination card is only prefilled, never auto-submitted
+- the prefilled text stays editable before any new generation request
+- no historical output is auto-applied into a live operational record
 
 It does not:
 
@@ -207,3 +221,4 @@ Still deferred for later AI branches:
 - treatment recommendation logic
 - any AI-driven critical write authority
 - full AI analytics or reinforcement dashboards
+- automatic reuse into saved operational records

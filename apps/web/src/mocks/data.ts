@@ -140,5 +140,53 @@ export const mockAiResponses: AiResponseRecord[] = [
     outputPreview: "Incident draft for North Pond 1",
     relatedRecordIds: ["alert-1", "task-1", "pond-1"],
     advisoryOnly: true
+  },
+  {
+    id: "ai-response-4",
+    createdAt: "2026-05-09T06:50:05.000Z",
+    updatedAt: "2026-05-09T06:50:05.000Z",
+    requestId: "ai-request-4",
+    status: "completed",
+    outputText: JSON.stringify({
+      originalText: "operator noted oxygen warning and repeat sample after aerator check",
+      rewrittenEnglish: "Operator note: Oxygen warning was noted and a repeat sample was logged after the aerator check.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "incident_rewrite",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Operator note rewrite for aerator follow-up",
+    relatedRecordIds: ["alert-1"],
+    advisoryOnly: true
+  },
+  {
+    id: "ai-response-5",
+    createdAt: "2026-05-09T07:00:05.000Z",
+    updatedAt: "2026-05-09T07:00:05.000Z",
+    requestId: "ai-request-5",
+    status: "completed",
+    outputText: JSON.stringify({
+      headline: "Approval note draft",
+      draftNote: "Alert: Verify the repeat dissolved oxygen reading before any approval decision.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    requestType: "approval_note_draft",
+    providerMode: "fallback",
+    providerPath: "deterministic_fallback",
+    outputPreview: "Approval note draft for dissolved oxygen review",
+    relatedRecordIds: ["alert-1"],
+    advisoryOnly: true
   }
 ];

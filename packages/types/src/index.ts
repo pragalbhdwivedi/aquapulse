@@ -342,6 +342,34 @@ export interface AiResponseRecord extends BaseEntity {
   readonly advisoryOnly?: boolean;
 }
 
+export type AiHistoryReuseDestination =
+  | "incident_rewrite"
+  | "incident_draft"
+  | "approval_note_draft";
+
+interface AiHistoryReusePrefillBase {
+  readonly sourceHistoryId: EntityId;
+  readonly sourceTaskType: AiRequestRecord["requestType"];
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly sourceCreatedAt?: ISODateString;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly: true;
+}
+
+export type AiHistoryReusePrefillPayload =
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "incident_rewrite";
+      readonly originalText: string;
+    })
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "incident_draft";
+      readonly rawOperatorNotes: string;
+    })
+  | (AiHistoryReusePrefillBase & {
+      readonly destinationType: "approval_note_draft";
+      readonly promptNote: string;
+    });
+
 export interface AiRequestRecord extends BaseEntity {
   readonly requestType:
     | "alerts_explain"
@@ -2109,6 +2137,9 @@ export interface BackendRuntimeDiagnostics {
     readonly advisoryOnly: true;
     readonly sourceLabel: "ai_request_response_log";
     readonly providerMetadataAvailable: boolean;
+    readonly reuseFromHistoryEnabled?: boolean;
+    readonly metadataSufficientForPrefill?: boolean;
+    readonly supportedReuseDestinations?: AiHistoryReuseDestination[];
     readonly filterFields: Array<
       "requestType" | "providerMode" | "createdAfter" | "createdBefore" | "relatedRecordId"
     >;

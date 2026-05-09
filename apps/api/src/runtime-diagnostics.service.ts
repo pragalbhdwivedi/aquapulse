@@ -586,6 +586,13 @@ export class RuntimeDiagnosticsService {
         advisoryOnly: true,
         sourceLabel: "ai_request_response_log",
         providerMetadataAvailable: true,
+        reuseFromHistoryEnabled: true,
+        metadataSufficientForPrefill: true,
+        supportedReuseDestinations: [
+          "incident_rewrite",
+          "incident_draft",
+          "approval_note_draft"
+        ],
         filterFields: [
           "requestType",
           "providerMode",

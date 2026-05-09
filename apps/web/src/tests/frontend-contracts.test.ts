@@ -8,6 +8,7 @@ import type {
 } from "@aquapulse/types";
 import type { AlertsListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
 import { createMockApiClients, type AquaPulseApiClients } from "../clients";
+import { getAiHistoryReusePrefill } from "../features/ai-history-reuse";
 import {
   createRepositories,
   type AquaPulseRepositories,
@@ -77,6 +78,11 @@ describe("Frontend contract boundaries", () => {
 
     expect(history.data.items.length).toBeGreaterThan(0);
     expect(history.data.items[0]?.providerMode).toBeTruthy();
+    expect(getAiHistoryReusePrefill(history.data.items.find((item) => item.requestType === "incident_draft")!))
+      .toMatchObject({
+        destinationType: "incident_draft",
+        advisoryOnly: true
+      });
     expect(result.data.answer).toContain("Start with");
     expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expect(rewrite.data.metadata.taskLabel).toBe("incident_rewrite");

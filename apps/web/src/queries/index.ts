@@ -3,6 +3,7 @@ import type {
   AlertQueueSummary,
   AiApprovalNoteDraftResponse,
   AiDashboardQueryResponse,
+  AiHistoryReusePrefillPayload,
   AiIncidentsDraftResponse,
   AiPondsSummarizeResponse,
   AiHandoverGenerateResponse,
@@ -19,6 +20,7 @@ import type {
 } from "@aquapulse/types";
 import { buildAlertQueueSummary } from "@aquapulse/types";
 import type { AlertsListQuery, AuditListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
+import { getAiHistoryReusePrefill } from "../features/ai-history-reuse";
 import { getAlertSummaryQuery } from "../features/alert-workbench";
 import {
   aiRepository,
@@ -278,6 +280,7 @@ export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQu
 export async function getReportsPageData(): Promise<{
   history: ListResponse<AiResponseRecord>;
   highlightedHistory?: AiResponseRecord;
+  supportedHistoryPrefills: AiHistoryReusePrefillPayload[];
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   dailySummary: AiPondsSummarizeResponse;
@@ -292,9 +295,12 @@ export async function getReportsPageData(): Promise<{
 export async function getReportsPageDataWithHistory(filters?: {
   requestType?: AiResponseRecord["requestType"];
   providerMode?: AiResponseRecord["providerMode"] extends "unknown" ? never : "fallback" | "provider_backed";
+  prefill?: AiHistoryReusePrefillPayload;
 }): Promise<{
   history: ListResponse<AiResponseRecord>;
   highlightedHistory?: AiResponseRecord;
+  selectedPrefill?: AiHistoryReusePrefillPayload;
+  supportedHistoryPrefills: AiHistoryReusePrefillPayload[];
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
   dailySummary: AiPondsSummarizeResponse;
@@ -324,14 +330,20 @@ export async function getReportsPageDataWithHistory(filters?: {
       outputMode: "bilingual"
     }),
     aiRepository.rewriteText({
-      originalText: "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
+      originalText:
+        filters?.prefill?.destinationType === "incident_rewrite"
+          ? filters.prefill.originalText
+          : "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
       tone: "operator",
       outputMode: "bilingual",
       linkedRecordType: "alert",
       linkedRecordId: "alert-1"
     }),
     aiRepository.draftIncident({
-      rawOperatorNotes: "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
+      rawOperatorNotes:
+        filters?.prefill?.destinationType === "incident_draft"
+          ? filters.prefill.rawOperatorNotes
+          : "night shift saw oxygen warning at north pond checked aerator and logged repeat sample",
       linkedAlertId: "alert-1",
       linkedTaskId: "task-1",
       linkedPondId: "pond-1",
@@ -345,15 +357,24 @@ export async function getReportsPageDataWithHistory(filters?: {
       recordType: "alert",
       recordId: "alert-1",
       mode: "needs_review",
-      promptNote: "Need wording for supervisor follow-up before approval.",
+      promptNote:
+        filters?.prefill?.destinationType === "approval_note_draft"
+          ? filters.prefill.promptNote
+          : "Need wording for supervisor follow-up before approval.",
       outputMode: "bilingual",
       tone: "formal"
     })
   ]);
 
+  const supportedHistoryPrefills = history.data.items
+    .map((item) => getAiHistoryReusePrefill(item))
+    .filter((item): item is AiHistoryReusePrefillPayload => Boolean(item));
+
   return {
     history: history.data,
     highlightedHistory: history.data.items[0],
+    selectedPrefill: filters?.prefill,
+    supportedHistoryPrefills,
     ponds: ponds.data,
     alerts: alerts.data,
     dailySummary: dailySummary.data,
