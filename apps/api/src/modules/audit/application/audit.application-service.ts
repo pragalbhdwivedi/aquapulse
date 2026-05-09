@@ -1,6 +1,6 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type { ApiSuccessEnvelope, AuditEvent, ListResponse } from "@aquapulse/types";
-import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import { createForbiddenResponse, createNotFoundResponse } from "../../../common/api/response-mapper";
 import type { CreateAuditDto, UpdateAuditDto } from "../dto";
 import { AUDIT_REPOSITORY, type AuditRepositoryPort } from "../ports/audit-repository.port";
 import type { AuditListQueryContract } from "../query-contracts/audit-query.contract";
@@ -16,14 +16,33 @@ function shouldScopeAuditReadsByActor(
   return requester?.provider === "keycloak" && requester.id.trim().length > 0;
 }
 
+function shouldRestrictAuditMutationsInActiveAuth(
+  requester: AuditReadRequesterScope | undefined
+): requester is AuditReadRequesterScope & { readonly provider: "keycloak" } {
+  return requester?.provider === "keycloak" && requester.id.trim().length > 0;
+}
+
 @Injectable()
 export class AuditApplicationService {
   constructor(
     @Inject(AUDIT_REPOSITORY) private readonly auditRepository: AuditRepositoryPort
   ) {}
 
-  async create(_input: CreateAuditDto): Promise<ApiSuccessEnvelope<AuditEvent>> { return { ok: true, data: await this.auditRepository.create(_input) }; }
-  async update(_id: string, _input: UpdateAuditDto): Promise<ApiSuccessEnvelope<AuditEvent>> { return { ok: true, data: await this.auditRepository.update(_id, _input) }; }
+  async create(
+    _input: CreateAuditDto,
+    requester?: AuditReadRequesterScope
+  ): Promise<ApiSuccessEnvelope<AuditEvent>> {
+    this.assertAuditMutationAllowed(requester);
+    return { ok: true, data: await this.auditRepository.create(_input) };
+  }
+  async update(
+    _id: string,
+    _input: UpdateAuditDto,
+    requester?: AuditReadRequesterScope
+  ): Promise<ApiSuccessEnvelope<AuditEvent>> {
+    this.assertAuditMutationAllowed(requester);
+    return { ok: true, data: await this.auditRepository.update(_id, _input) };
+  }
   async list(
     query: AuditListQueryContract,
     requester?: AuditReadRequesterScope
@@ -58,5 +77,11 @@ export class AuditApplicationService {
     }
 
     return { ok: true, data: await this.auditRepository.getById(id) };
+  }
+
+  private assertAuditMutationAllowed(requester?: AuditReadRequesterScope) {
+    if (shouldRestrictAuditMutationsInActiveAuth(requester)) {
+      throw new ForbiddenException(createForbiddenResponse().error);
+    }
   }
 }

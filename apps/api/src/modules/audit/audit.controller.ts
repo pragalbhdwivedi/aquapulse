@@ -26,13 +26,14 @@ export class AuditController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async create(
-    @Body() input: CreateAuditDto
+    @Body() input: CreateAuditDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.create>> {
     await this.auditService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateAuditInput,
-      (mappedInput) => this.auditApplicationService.create(mappedInput),
+      (mappedInput) => this.auditApplicationService.create(mappedInput, resolveAuditReadRequesterScope(request?.user)),
       toAuditItemResponse
     );
   }
@@ -58,13 +59,15 @@ export class AuditController {
   @RequireRoles("operator")
   async update(
     @Param("id") id: string,
-    @Body() input: UpdateAuditDto
+    @Body() input: UpdateAuditDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.update>> {
     return delegateUpdate(
       id,
       input,
       toUpdateAuditInput,
-      (resourceId, mappedInput) => this.auditApplicationService.update(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.auditApplicationService.update(resourceId, mappedInput, resolveAuditReadRequesterScope(request?.user)),
       toAuditItemResponse
     );
   }
