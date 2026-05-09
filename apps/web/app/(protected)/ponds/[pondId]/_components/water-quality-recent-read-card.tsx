@@ -44,6 +44,9 @@ export function WaterQualityRecentReadCard({
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Recent Water-Quality Readings</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use recent history to decide whether the latest reading is enough context or whether this pond needs a new reading before any manual update.
+      </p>
       <div
         style={{
           display: "grid",
@@ -55,7 +58,7 @@ export function WaterQualityRecentReadCard({
         }}
       >
         <span>
-          Water-quality recent auth: {readGuard.sliceLabel} / {readGuard.state}
+          Water-quality recent access: {readGuard.sliceLabel} / {readGuard.state}
         </span>
         <span style={{ color: readGuard.enabled ? "#94a3b8" : "#fca5a5" }}>
           Non-alert read summary: {readSummary.label} / {readStatusLabel}
@@ -72,6 +75,20 @@ export function WaterQualityRecentReadCard({
         Recent readings loaded: {readings?.items.length ?? 0}
         {latestReading ? ` / Latest recorded at: ${latestReading.recordedAt}` : ""}
       </p>
+      {readings?.items.length ? (
+        <div style={{ display: "grid", gap: "0.35rem", color: "#cbd5e1" }}>
+          {readings.items.slice(0, 3).map((reading) => (
+            <span key={reading.id}>
+              {reading.recordedAt}: Temp {reading.temperatureC ?? "n/a"} C / pH {reading.ph ?? "n/a"}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {!readings && readGuard.enabled ? (
+        <p style={{ margin: 0, color: "#fbbf24" }}>
+          No recent history is visible on this load. That can mean the protected recent-read path returned no data or the bounded fetch was unavailable for this request.
+        </p>
+      ) : null}
       {!readings && !readGuard.enabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Recent water-quality reads are backend-protected in active auth mode. Forwarded auth and
@@ -82,7 +99,7 @@ export function WaterQualityRecentReadCard({
       {!readings && readSummary.accessState === "degraded" ? (
         <p style={{ margin: 0, color: "#fbbf24" }}>
           Recent water-quality reads are staying off the protected path because auth/session
-          configuration is degraded.
+          configuration is degraded. This is a safe limited state, not an unexpected failure.
         </p>
       ) : null}
     </section>

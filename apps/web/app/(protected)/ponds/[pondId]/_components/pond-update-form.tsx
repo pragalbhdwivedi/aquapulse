@@ -127,6 +127,9 @@ export function PondUpdateForm({ pond, session }: PondUpdateFormProps) {
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Update pond</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use this bounded edit path for name or status changes after reviewing the pond overview and recent readings. Saving remains manual and review-first.
+      </p>
       <div
         style={{
           display: "grid",
@@ -160,6 +163,9 @@ export function PondUpdateForm({ pond, session }: PondUpdateFormProps) {
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Form state: {inlineEdit.isEditing ? "editing enabled" : "read-only until edit is selected"}.
+      </p>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
@@ -239,7 +245,7 @@ export function PondUpdateForm({ pond, session }: PondUpdateFormProps) {
       {updateDisabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Ponds update is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual update can run.
         </p>
       ) : null}
     </form>

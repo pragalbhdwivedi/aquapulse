@@ -95,7 +95,7 @@ export function WaterQualityEntryForm({
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
       <h2>Water-Quality Entry</h2>
-      <p>Minimal write-path form using the repository/client runtime seam.</p>
+      <p>Use this bounded create path to record a new reading after checking the latest detail and recent history. Saving stays manual and review-first.</p>
       <div
         style={{
           display: "grid",
@@ -130,6 +130,9 @@ export function WaterQualityEntryForm({
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What this does: adds a new reading for this pond. It does not replace earlier readings automatically.
+      </p>
       <label style={{ display: "block", marginBottom: 8 }}>
         Recorded At
         <input value={recordedAt} onChange={(event) => setRecordedAt(event.target.value)} disabled={createDisabled} />
@@ -161,7 +164,7 @@ export function WaterQualityEntryForm({
       {createDisabled ? (
         <p style={{ color: "#fca5a5" }}>
           Water-quality create is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual create action can run.
         </p>
       ) : null}
     </form>

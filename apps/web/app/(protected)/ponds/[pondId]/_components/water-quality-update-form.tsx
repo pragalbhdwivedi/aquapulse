@@ -111,7 +111,7 @@ export function WaterQualityUpdateForm({
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
       <h2>Update Water-Quality Reading</h2>
-      <p>Bounded follow-up edit path for the latest reading on this pond.</p>
+      <p>Use this bounded follow-up edit path only after reviewing the latest detailed reading and recent history. Saving stays manual and review-first.</p>
       <div
         style={{
           display: "grid",
@@ -146,6 +146,9 @@ export function WaterQualityUpdateForm({
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What this does: updates the selected reading only. It does not create a new reading or change the rest of the history.
+      </p>
       <label style={{ display: "block", marginBottom: 8 }}>
         Recorded At
         <input value={recordedAt} onChange={(event) => setRecordedAt(event.target.value)} disabled={updateDisabled} />
@@ -176,7 +179,7 @@ export function WaterQualityUpdateForm({
       {updateDisabled ? (
         <p style={{ color: "#fca5a5" }}>
           Water-quality update is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual update can run.
         </p>
       ) : null}
     </form>

@@ -47,6 +47,9 @@ export function WaterQualityDetailReadCard({
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Latest Water-Quality Detail</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        This card shows the newest single reading. Use it to confirm the current reading before editing or entering a follow-up measurement.
+      </p>
       <div
         style={{
           display: "grid",
@@ -58,7 +61,7 @@ export function WaterQualityDetailReadCard({
         }}
       >
         <span>
-          Water-quality detail auth: {readGuard.sliceLabel} / {readGuard.state}
+          Water-quality detail access: {readGuard.sliceLabel} / {readGuard.state}
         </span>
         <span style={{ color: readGuard.enabled ? "#94a3b8" : "#fca5a5" }}>
           Non-alert read summary: {readSummary.label} / {readStatusLabel}
@@ -81,16 +84,19 @@ export function WaterQualityDetailReadCard({
       <p style={{ margin: 0 }}>
         Temperature: {displayedReading.temperatureC ?? "n/a"} C / pH: {displayedReading.ph ?? "n/a"}
       </p>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What to check next: compare this latest reading with the recent history below, then decide whether the next operator action is a new entry or a bounded update.
+      </p>
       {!readingDetail && !readGuard.enabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Water-quality detail read is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert read can load the full single-record detail surface.
+          must be available before this bounded single-record detail surface can load.
         </p>
       ) : null}
       {!readingDetail && readSummary.accessState === "degraded" ? (
         <p style={{ margin: 0, color: "#fbbf24" }}>
           Water-quality detail read is staying readable through the bounded preview path because auth/session
-          configuration is degraded.
+          configuration is degraded. This is a safe limited state, not an unexpected failure.
         </p>
       ) : null}
     </section>

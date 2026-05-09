@@ -43,7 +43,10 @@ export function PondDetailReadCard({
         borderRadius: "0.75rem"
       }}
     >
-      <h2 style={{ margin: 0, fontSize: "1rem" }}>Pond Detail Access</h2>
+      <h2 style={{ margin: 0, fontSize: "1rem" }}>Pond overview</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        This card shows the best available pond snapshot first, then explains whether the full protected detail surface is available, bypassed locally, or waiting on auth/session state.
+      </p>
       <div
         style={{
           display: "grid",
@@ -55,7 +58,7 @@ export function PondDetailReadCard({
         }}
       >
         <span>
-          Pond detail auth: {readGuard.sliceLabel} / {readGuard.state}
+          Pond detail access: {readGuard.sliceLabel} / {readGuard.state}
         </span>
         <span style={{ color: readGuard.enabled ? "#94a3b8" : "#fca5a5" }}>
           Non-alert read summary: {readSummary.label} / {readStatusLabel}
@@ -78,16 +81,19 @@ export function PondDetailReadCard({
       <p style={{ margin: 0 }}>
         Type: {displayedPond.kind} / Status: {displayedPond.status}
       </p>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What to check next: confirm whether the protected pond detail is loaded, then review recent water-quality history before editing pond or reading data.
+      </p>
       {!pondDetail && !readGuard.enabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Pond detail read is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert read can load the full single-record detail surface.
+          must be available before this bounded single-record detail surface can load.
         </p>
       ) : null}
       {!pondDetail && readSummary.accessState === "degraded" ? (
         <p style={{ margin: 0, color: "#fbbf24" }}>
-          Pond detail read is staying readable through the bounded preview path because auth/session
-          configuration is degraded.
+          Pond detail is staying readable through the bounded preview path because auth/session
+          configuration is degraded. This is a safe fallback, not a broken page.
         </p>
       ) : null}
     </section>
