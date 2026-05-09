@@ -86,8 +86,18 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
 
   if (alerts.length === 0) {
     return (
-      <div style={{ padding: "1rem", border: "1px solid rgba(148, 163, 184, 0.3)", borderRadius: "0.75rem", color: "#94a3b8" }}>
-        No alerts match the current queue filters.
+      <div
+        style={{
+          display: "grid",
+          gap: "0.35rem",
+          padding: "1rem",
+          border: "1px solid rgba(148, 163, 184, 0.3)",
+          borderRadius: "0.75rem",
+          color: "#94a3b8"
+        }}
+      >
+        <strong style={{ color: "#e2e8f0" }}>Queue is clear for the current filters</strong>
+        <span>No alerts match the current queue filters. Adjust filters or load another saved view to continue triage.</span>
       </div>
     );
   }
@@ -113,15 +123,26 @@ export function AlertsWorkbenchQueue(props: AlertsWorkbenchQueueProps) {
             <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
               <input type="checkbox" checked={isSelected} onChange={() => onToggleSelection(alert.id)} />
               <button type="button" onClick={() => onToggleDetail(alert.id)} style={{ padding: "0.35rem 0.7rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>
-                {isDetailOpen ? "Hide detail" : "Open detail"}
+                {isDetailOpen ? "Hide work area" : "Open work area"}
               </button>
               <strong>{alert.title}</strong>
-              <span>[{alert.severity}]</span>
-              <span>{alert.status}</span>
-              <span>{alert.assignedTo ?? "Unassigned"}</span>
-              <span>{alert.reviewState ?? "unreviewed"}</span>
+              <span>Severity: {alert.severity}</span>
+              <span>Status: {alert.status}</span>
+              <span>Owner: {alert.assignedTo ?? "Unassigned"}</span>
+              <span>Review: {alert.reviewState ?? "unreviewed"}</span>
             </div>
-            {alert.latestNote ? <div>Latest note: {alert.latestNote}</div> : null}
+            <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#94a3b8", fontSize: "0.95rem" }}>
+              <span>Alert ID: {alert.id}</span>
+              <span>Pond: {alert.pondId ?? "Not linked"}</span>
+              <span>Source: {alert.source}</span>
+            </div>
+            {alert.latestNote ? (
+              <div style={{ color: "#cbd5e1" }}>
+                <strong style={{ color: "#e2e8f0" }}>Latest note:</strong> {alert.latestNote}
+              </div>
+            ) : (
+              <div style={{ color: "#94a3b8" }}>Latest note: No operator note has been attached yet.</div>
+            )}
             {isDetailOpen ? (
               <AlertsWorkbenchDetail
                 alert={detailAlert}

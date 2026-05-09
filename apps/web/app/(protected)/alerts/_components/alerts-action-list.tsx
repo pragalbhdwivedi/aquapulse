@@ -323,6 +323,17 @@ export function AlertsActionList({
   );
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const ownerIndicators = deriveOwnerAlertIndicators(summary, defaultAlertWorkbenchOwner);
+  const operatorQueueReadiness = !listReadGuard.enabled
+    ? "auth-limited"
+    : liveUpdatesState === "degraded" ||
+        liveUpdatesState === "unavailable" ||
+        runtimeIndicator.warnings.length > 0
+      ? "degraded"
+      : "ready";
+  const listStateTone = listReadState === "enabled" ? "#94a3b8" : "#fbbf24";
+  const summaryStateTone = summaryReadState === "enabled" ? "#94a3b8" : "#fbbf24";
+  const savedViewTone = savedViewMutationGuard.enabled ? "#94a3b8" : "#fbbf24";
+  const bulkTone = bulkGuard.enabled ? "#94a3b8" : "#fbbf24";
   const reviewQueueQuery = useMemo<AlertsListQuery>(() => ({ page: queuePage, pageSize: queuePageSize, status: statusFilter === "all" ? undefined : statusFilter, hasLatestNote: hasLatestNoteOnly ? true : undefined, pondId: pondIdFilter.trim() || undefined, assignedTo: assignedToFilter.trim() || undefined, reviewState: reviewStateFilter === "all" ? undefined : reviewStateFilter, sortBy }), [assignedToFilter, hasLatestNoteOnly, pondIdFilter, queuePage, queuePageSize, reviewStateFilter, sortBy, statusFilter]);
   const queueResetKey = useMemo(
     () =>
@@ -762,8 +773,32 @@ export function AlertsActionList({
   return (
     <div style={{ display: "grid", gap: "0.75rem", marginTop: "1rem" }}>
       <div style={{ display: "grid", gap: "0.75rem", padding: "0.9rem", border: "1px solid rgba(148, 163, 184, 0.3)", borderRadius: "0.75rem" }}>
-        <strong>Review Queue Workbench</strong>
+        <strong>Alerts Review Queue</strong>
+        <p style={{ margin: 0, color: "#94a3b8" }}>
+          Review the queue, pick the next alert that needs attention, and keep triage notes readable for the next operator. Advisory explanation stays optional and never changes alert state by itself.
+        </p>
+        <div style={{ display: "grid", gap: "0.35rem", padding: "0.75rem 0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
+          <strong style={{ color: "#e2e8f0" }}>Quick triage read</strong>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
+            <span>Workbench: {operatorQueueReadiness}</span>
+            <span>Queue items: {alerts.length}</span>
+            <span>Selected: {selectedAlertIds.length}</span>
+            <span>Assigned to me: {ownerIndicators.assignedAlerts}</span>
+            <span>Under review: {summary.reviewStateCounts.underReview}</span>
+            <span>With notes: {summary.noteCounts.withLatestNote}</span>
+          </div>
+          <span style={{ color: listStateTone }}>
+            Queue access: {listReadState}. {listReadMessage}
+          </span>
+          <span style={{ color: summaryStateTone }}>
+            Summary access: {summaryReadState}. {summaryReadMessage}
+          </span>
+          <span style={{ color: "#94a3b8" }}>
+            Next step: open a work area, confirm the latest note and owner, then decide whether to update review state, acknowledge, or resolve.
+          </span>
+        </div>
         <div style={{ display: "grid", gap: "0.25rem", padding: "0.65rem 0.8rem", borderRadius: "0.65rem", background: "rgba(30, 41, 59, 0.45)", color: "#cbd5e1" }}>
+          <strong style={{ color: "#e2e8f0" }}>Runtime and auth detail</strong>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
             <span>Alerts runtime: {runtimeIndicator.modeLabel}</span>
             <span>Scope: {runtimeDiagnostics.scopeLabel}</span>
@@ -869,13 +904,12 @@ export function AlertsActionList({
         <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
             <span>Open: {summary.statusCounts.open}</span><span>Acknowledged: {summary.statusCounts.acknowledged}</span><span>Resolved: {summary.statusCounts.resolved}</span><span>Assigned: {summary.assignmentCounts.assigned}</span><span>Under review: {summary.reviewStateCounts.underReview}</span><span>With notes: {summary.noteCounts.withLatestNote}</span><span>Mine: {ownerIndicators.assignedAlerts}</span>
         </div>
-        <p style={{ margin: 0, color: listReadState === "enabled" ? "#94a3b8" : "#fbbf24" }}>
-          List auth state: {listReadState}. {listReadMessage}
-        </p>
-        <p style={{ margin: 0, color: summaryReadState === "enabled" ? "#94a3b8" : "#fbbf24" }}>
-          Summary auth state: {summaryReadState}. {summaryReadMessage}
-        </p>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+        <div style={{ display: "grid", gap: "0.5rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
+          <strong>Queue filters</strong>
+          <p style={{ margin: 0, color: "#94a3b8" }}>
+            Use presets, review state, ownership, and notes filters to narrow the list before assigning or updating review state.
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Preset view</span><select value={presetId} onChange={(event) => { const nextPresetId = event.target.value as AlertQueuePresetId | "custom"; setPresetId(nextPresetId); setActiveSavedViewId(""); applyQueryState(nextPresetId === "custom" ? {} : getAlertPresetQuery(nextPresetId, defaultAlertWorkbenchOwner)); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="custom">Custom</option>{alertQueuePresetDefinitions.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}</select></label>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Status</span><select value={statusFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setStatusFilter(event.target.value as AlertsListQuery["status"] | "all"); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option><option value="open">Open</option><option value="acknowledged">Acknowledged</option><option value="resolved">Resolved</option></select></label>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Review state</span><select value={reviewStateFilter} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setReviewStateFilter(event.target.value as AlertReviewState | "all"); resetQueuePagination(); }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="all">All</option>{reviewStateOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
@@ -885,20 +919,26 @@ export function AlertsActionList({
           <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginTop: "1.6rem" }}><input type="checkbox" checked={hasLatestNoteOnly} onChange={(event) => { setPresetId("custom"); setActiveSavedViewId(""); setHasLatestNoteOnly(event.target.checked); resetQueuePagination(); }} /><span>With notes only</span></label>
           <button type="button" onClick={() => { setPresetId("custom"); setActiveSavedViewId(""); applyQueryState({}); resetQueuePagination(); setFeedbackTone("success"); setFeedbackMessage("Filters reset."); }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569", marginTop: "1.45rem" }}>Reset filters</button>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
+        </div>
+        <div style={{ display: "grid", gap: "0.5rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
+          <strong>Saved queue views</strong>
+          <p style={{ margin: 0, color: savedViewTone }}>
+            Saved-view access: {savedViewMutationGuard.state}. {savedViewMutationGuard.message}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved view name</span><input value={savedViewName} onChange={(event) => setSavedViewName(event.target.value)} placeholder="Morning queue" style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
           <button type="button" disabled={!savedViewMutationGuard.enabled} onClick={async () => { if (!savedViewName.trim()) { setFeedbackTone("error"); setFeedbackMessage("Name the view before saving it."); return; } try { const nextViews = await savedViewsStore.save({ name: savedViewName.trim(), presetId: presetId === "custom" ? undefined : presetId, query: reviewQueueQuery }); setSavedViews(nextViews); setSavedViewName(""); setFeedbackTone("success"); setFeedbackMessage("Saved the current queue view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Save current view</button>
           <label style={{ display: "grid", gap: "0.35rem" }}><span>Saved views</span><select value={activeSavedViewId} onChange={(event) => { const viewId = event.target.value; setActiveSavedViewId(viewId); const view = savedViews.find((item) => item.id === viewId); if (view) { setPresetId(view.presetId ?? "custom"); applyQueryState(view.query); resetQueuePagination(); setFeedbackTone("success"); setFeedbackMessage(`Loaded view "${view.name}".`); } }} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }}><option value="">Select saved view</option>{savedViews.map((view) => <option key={view.id} value={view.id}>{view.name}</option>)}</select></label>
           <button type="button" disabled={!activeSavedViewId || !savedViewMutationGuard.enabled} onClick={async () => { try { const nextViews = await savedViewsStore.remove(activeSavedViewId); setSavedViews(nextViews); setActiveSavedViewId(""); setFeedbackTone("success"); setFeedbackMessage("Removed saved view."); } catch (error) { reportRuntimeError(error); } }} style={{ padding: "0.55rem 0.9rem", borderRadius: "0.5rem", border: "1px solid #475569" }}>Remove saved view</button>
         </div>
-        <p style={{ margin: 0, color: savedViewMutationGuard.enabled ? "#94a3b8" : "#fbbf24" }}>
-          Saved-view auth state: {savedViewMutationGuard.state}. {savedViewMutationGuard.message}
-        </p>
+        </div>
         <div style={{ display: "grid", gap: "0.6rem", padding: "0.8rem", borderRadius: "0.65rem", background: "rgba(15, 23, 42, 0.55)" }}>
-          <strong>Bulk actions</strong>
-          <p style={{ margin: 0, color: "#94a3b8" }}>Selected alerts: {selectedAlertIds.length}</p>
-          <p style={{ margin: 0, color: bulkGuard.enabled ? "#94a3b8" : "#fbbf24" }}>
-            Bulk auth state: {bulkGuard.state}. {bulkGuard.message}
+          <strong>Bulk triage actions</strong>
+          <p style={{ margin: 0, color: "#94a3b8" }}>
+            Selected alerts: {selectedAlertIds.length}. Use these actions only after confirming the queue filters and latest notes.
+          </p>
+          <p style={{ margin: 0, color: bulkTone }}>
+            Bulk action access: {bulkGuard.state}. {bulkGuard.message}
           </p>
           <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "end" }}>
             <label style={{ display: "grid", gap: "0.35rem" }}><span>Owner</span><input value={bulkOwner} onChange={(event) => setBulkOwner(event.target.value)} placeholder={defaultAlertWorkbenchOwner} style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "1px solid #475569" }} /></label>
@@ -915,7 +955,7 @@ export function AlertsActionList({
         </div>
         <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", color: "#94a3b8", flexWrap: "wrap" }}>
           <input type="checkbox" checked={allVisibleSelected} onChange={() => setSelectedAlertIds((current) => allVisibleSelected ? current.filter((id) => !alerts.some((alert) => alert.id === id)) : [...new Set([...current, ...alerts.map((alert) => alert.id)])])} />
-          <span>{isRefreshingQueue ? "Refreshing queue..." : `Queue items: ${alerts.length}. Selected: ${selectedAlertIds.length}.`}</span>
+          <span>{isRefreshingQueue ? "Refreshing queue..." : `Queue rows: ${alerts.length}. Selected for triage: ${selectedAlertIds.length}.`}</span>
           <button type="button" disabled={queuePage === 1 || isRefreshingQueue} onClick={() => setQueuePage((current) => Math.max(1, current - 1))} style={{ padding: "0.4rem 0.65rem", borderRadius: "0.45rem", border: "1px solid #475569" }}>Previous page</button>
           <button type="button" disabled={isRefreshingQueue || alerts.length < queuePageSize} onClick={() => setQueuePage((current) => current + 1)} style={{ padding: "0.4rem 0.65rem", borderRadius: "0.45rem", border: "1px solid #475569" }}>Next page</button>
           <span>Page {queuePage}</span>
