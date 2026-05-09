@@ -128,7 +128,7 @@ export function RuntimeDiagnosticsCard({
           <span>History reuse: {backendProbe?.runtime?.aiHistory?.reuseFromHistoryEnabled ? "enabled" : "available via frontend flow"}</span>
         </div>
         <span style={{ color: "#94a3b8" }}>
-          Use the detailed lines below for technical UAT checks. The summary above is meant to help demos and operator walkthroughs land quickly.
+          Use the detailed lines below for technical review. The summary above is meant to help operators, reviewers, and demo audiences understand the runtime story quickly.
         </span>
       </section>
       <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", color: "#cbd5e1" }}>
