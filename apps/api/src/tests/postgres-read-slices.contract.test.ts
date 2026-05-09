@@ -575,6 +575,7 @@ describe("Postgres read adapter slices", () => {
       page: 1,
       pageSize: 10,
       pondId: "pond-42",
+      readablePondIds: ["pond-42"],
       batchId: "batch-42",
       feedType: "Grower Feed",
       search: "grower"
@@ -588,10 +589,12 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[0]?.statement).toContain("from feed_entries");
     expect(recordedQueries[0]?.statement).toContain("where id = $1");
     expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("pond_id = any($2)");
     expect(recordedQueries[1]?.statement).toContain("lower(feed_type) like");
     expect(recordedQueries[1]?.statement).toContain("order by fed_at desc, id desc");
     expect(recordedQueries[1]?.params).toEqual([
       "pond-42",
+      ["pond-42"],
       "batch-42",
       "Grower Feed",
       "%grower%",
@@ -604,11 +607,13 @@ describe("Postgres read adapter slices", () => {
         page: 1,
         pageSize: 20,
         pondId: "pond-42",
+        readablePondIds: ["pond-42"],
         batchId: "batch-42",
         feedType: "Grower Feed",
         search: "grower"
       }).filters
     ).toEqual({
+      readablePondIds: ["pond-42"],
       pondId: "pond-42",
       batchId: "batch-42",
       feedType: "Grower Feed",

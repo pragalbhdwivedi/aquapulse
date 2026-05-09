@@ -1,3 +1,5 @@
 import type { FeedListQueryRequest } from "@aquapulse/types";
 
-export interface FeedListQueryContract extends FeedListQueryRequest {}
+export interface FeedListQueryContract extends FeedListQueryRequest {
+  readonly readablePondIds?: readonly string[];
+}

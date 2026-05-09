@@ -54,6 +54,10 @@ function createFeedWhereClause(
     addCondition("pond_id = ?", query.pondId);
   }
 
+  if (query.readablePondIds) {
+    addCondition("pond_id = any(?)", query.readablePondIds);
+  }
+
   if (query.batchId) {
     addCondition("batch_id = ?", query.batchId);
   }
@@ -104,6 +108,7 @@ export function buildFeedListQueryPlan(query: FeedListQueryContract): CompiledQu
     `.trim(),
     params: [...where.params, query.pageSize, offset],
     filters: {
+      readablePondIds: query.readablePondIds,
       pondId: query.pondId,
       batchId: query.batchId,
       feedType: query.feedType,
@@ -273,7 +278,7 @@ export const POSTGRES_FEED_IMPLEMENTATION_PLAN = {
   writeMethods: ["create", "update"],
   rowSource: "feed_entries",
   queryNotes: [
-    "support pond, batch, feed-type, and search filtering with stable fed_at desc ordering",
+    "support readable pond, pond, batch, feed-type, and search filtering with stable fed_at desc ordering",
     "keep feed read and write execution on the shared Postgres row gateway"
   ],
   mappingNotes: [

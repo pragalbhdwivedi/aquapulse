@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
 import { AlertsModule } from "../alerts/alerts.module";
+import { PondResponsibilityModule } from "../pond-responsibility/pond-responsibility.module";
 import { PostgresFeedRepository } from "./adapters/postgres-feed.repository";
 import { FeedApplicationService } from "./application/feed.application-service";
 import { FeedController } from "./feed.controller";
@@ -24,7 +25,7 @@ const FEED_PROVIDERS = [FeedService, ...FEED_ADAPTERS, FEED_PERSISTENCE_PROVIDER
 const FEED_EXPORTS = [FeedService, FeedApplicationService];
 
 @Module({
-  imports: [AlertsModule],
+  imports: [AlertsModule, PondResponsibilityModule],
   controllers: [FeedController],
   providers: FEED_PROVIDERS,
   exports: FEED_EXPORTS
