@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
@@ -41,12 +41,13 @@ export class AuditController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async list(
-    @Query() query: QueryAuditDto
+    @Query() query: QueryAuditDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.list>> {
     return delegateList(
       query,
       toQueryAuditInput,
-      (mappedQuery) => this.auditApplicationService.list(mappedQuery),
+      (mappedQuery) => this.auditApplicationService.list(mappedQuery, resolveAuditReadRequesterScope(request?.user)),
       toAuditListResponse
     );
   }
@@ -72,8 +73,27 @@ export class AuditController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.audit.getById>> {
-    return delegateGetById(id, (resourceId) => this.auditApplicationService.getById(resourceId), toAuditItemResponse);
+    return delegateGetById(
+      id,
+      (resourceId) =>
+        this.auditApplicationService.getById(resourceId, resolveAuditReadRequesterScope(request?.user)),
+      toAuditItemResponse
+    );
   }
+}
+
+function resolveAuditReadRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local" } | undefined {
+  if (!user?.id || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider
+  };
 }

@@ -163,21 +163,36 @@ export class PostgresAuditRepository implements AuditRepositoryPort {
     const filters: string[] = [];
     const params: unknown[] = [];
 
+    if (query.auditId) {
+      params.push(query.auditId);
+      filters.push(`e.id = $${params.length}`);
+    }
     if (query.resourceType) {
       params.push(query.resourceType);
-      filters.push(`resource_type = $${params.length}`);
+      filters.push(`e.resource_type = $${params.length}`);
     }
     if (query.resourceId) {
       params.push(query.resourceId);
-      filters.push(`resource_id = $${params.length}`);
+      filters.push(`e.resource_id = $${params.length}`);
     }
     if (query.action) {
       params.push(query.action);
-      filters.push(`action = $${params.length}`);
+      filters.push(`e.action = $${params.length}`);
+    }
+    if (query.actorId) {
+      params.push(query.actorId);
+      filters.push(
+        `exists (
+          select 1
+          from ${AQUAPULSE_SCHEMA_TABLES.auditEventMetadata} metadata
+          where metadata.audit_event_id = e.id
+            and metadata.actor_id = $${params.length}
+        )`
+      );
     }
     if (query.search) {
       params.push(`%${query.search}%`);
-      filters.push(`summary ilike $${params.length}`);
+      filters.push(`e.summary ilike $${params.length}`);
     }
 
     const whereClause = filters.length > 0 ? `where ${filters.join(" and ")}` : "";
@@ -191,17 +206,17 @@ export class PostgresAuditRepository implements AuditRepositoryPort {
       const result = await client.query<(AuditRow & { total_count: number })>(
         `
           select
-            id,
-            action,
-            resource_type,
-            resource_id,
-            summary,
-            created_at,
-            updated_at,
+            e.id,
+            e.action,
+            e.resource_type,
+            e.resource_id,
+            e.summary,
+            e.created_at,
+            e.updated_at,
             count(*) over() as total_count
-          from ${AQUAPULSE_SCHEMA_TABLES.auditEvents}
+          from ${AQUAPULSE_SCHEMA_TABLES.auditEvents} e
           ${whereClause}
-          order by created_at desc
+          order by e.created_at desc
           limit ${limitParam}
           offset ${offsetParam}
         `,
@@ -212,16 +227,22 @@ export class PostgresAuditRepository implements AuditRepositoryPort {
       const items = result.rows.map(mapAuditRowToDomain);
       const totalItems = result.rows[0]?.total_count ?? items.length;
       return {
-        items: items.length > 0 ? items : [mapAuditRowToDomain(createPlaceholderAuditRow())],
+        items,
         page: {
           page,
           pageSize,
-          totalItems: items.length > 0 ? totalItems : 1,
-          totalPages: Math.max(1, Math.ceil((items.length > 0 ? totalItems : 1) / pageSize))
+          totalItems,
+          totalPages: Math.max(1, Math.ceil(totalItems / pageSize))
         }
       };
     } catch {
       const items = [...this.fallbackEvents.values()].filter((item) => {
+        if (query.auditId && item.id !== query.auditId) {
+          return false;
+        }
+        if (query.actorId) {
+          return false;
+        }
         if (query.resourceType && item.resourceType !== query.resourceType) {
           return false;
         }
@@ -238,12 +259,12 @@ export class PostgresAuditRepository implements AuditRepositoryPort {
       });
       const pagedItems = items.slice((page - 1) * pageSize, page * pageSize);
       return {
-        items: pagedItems.length > 0 ? pagedItems : [mapAuditRowToDomain(createPlaceholderAuditRow())],
+        items: pagedItems,
         page: {
           page,
           pageSize,
-          totalItems: items.length > 0 ? items.length : 1,
-          totalPages: Math.max(1, Math.ceil((items.length > 0 ? items.length : 1) / pageSize))
+          totalItems: items.length,
+          totalPages: Math.max(1, Math.ceil(items.length / pageSize))
         }
       };
     }
