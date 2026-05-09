@@ -44,6 +44,9 @@ export function FeedDetailReadCard({
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Latest Feed Detail</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        This card shows the best available feed snapshot first, then explains whether the full protected detail surface is available, bypassed locally, or waiting on auth/session state.
+      </p>
       <div
         style={{
           display: "grid",
@@ -55,7 +58,7 @@ export function FeedDetailReadCard({
         }}
       >
         <span>
-          Feed detail auth: {readGuard.sliceLabel} / {readGuard.state}
+          Feed detail access: {readGuard.sliceLabel} / {readGuard.state}
         </span>
         <span style={{ color: readGuard.enabled ? "#94a3b8" : "#fca5a5" }}>
           Non-alert read summary: {readSummary.label} / {readStatusLabel}
@@ -78,16 +81,22 @@ export function FeedDetailReadCard({
       <p style={{ margin: 0 }}>
         Fed at: {displayedEntry.fedAt} / Batch: {displayedEntry.batchId ?? "n/a"}
       </p>
+      <p style={{ margin: 0 }}>
+        Pond: {displayedEntry.pondId ?? "n/a"}
+      </p>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What to check next: confirm quantity, time, and pond link before deciding whether the next manual step is a new feed entry or an update to this one.
+      </p>
       {!entryDetail && !readGuard.enabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Feed detail read is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert read can load the full single-record detail surface.
+          must be available before this bounded single-record detail surface can load.
         </p>
       ) : null}
       {!entryDetail && readSummary.accessState === "degraded" ? (
         <p style={{ margin: 0, color: "#fbbf24" }}>
           Feed detail read is staying readable through the bounded preview path because auth/session
-          configuration is degraded.
+          configuration is degraded. This is a safe fallback, not a broken page.
         </p>
       ) : null}
     </section>

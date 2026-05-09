@@ -44,6 +44,9 @@ export function FeedRecentReadCard({
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Recent Feed History</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use recent history to explain what was fed most recently before reviewing or editing the selected entry.
+      </p>
       <div
         style={{
           display: "grid",
@@ -55,7 +58,7 @@ export function FeedRecentReadCard({
         }}
       >
         <span>
-          Feed recent auth: {readGuard.sliceLabel} / {readGuard.state}
+          Feed recent access: {readGuard.sliceLabel} / {readGuard.state}
         </span>
         <span style={{ color: readGuard.enabled ? "#94a3b8" : "#fca5a5" }}>
           Non-alert read summary: {readSummary.label} / {readStatusLabel}
@@ -72,6 +75,20 @@ export function FeedRecentReadCard({
         Recent entries loaded: {entries?.items.length ?? 0}
         {latestEntry ? ` / Latest feed at: ${latestEntry.fedAt}` : ""}
       </p>
+      {entries?.items.length ? (
+        <div style={{ display: "grid", gap: "0.35rem", color: "#cbd5e1" }}>
+          {entries.items.slice(0, 3).map((entry) => (
+            <span key={entry.id}>
+              {entry.fedAt}: {entry.feedType} / {entry.quantityKg} kg / Pond {entry.pondId ?? "n/a"}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {!entries && readGuard.enabled ? (
+        <p style={{ margin: 0, color: "#fbbf24" }}>
+          No recent history is visible on this load. That can mean the protected recent-read path returned no data or the bounded fetch was unavailable for this request.
+        </p>
+      ) : null}
       {!entries && !readGuard.enabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Feed recent/history reads are backend-protected in active auth mode. Forwarded auth and a
@@ -81,7 +98,7 @@ export function FeedRecentReadCard({
       {!entries && readSummary.accessState === "degraded" ? (
         <p style={{ margin: 0, color: "#fbbf24" }}>
           Feed recent/history reads are staying off the protected path because auth/session
-          configuration is degraded.
+          configuration is degraded. This is a safe limited state, not an unexpected failure.
         </p>
       ) : null}
     </section>

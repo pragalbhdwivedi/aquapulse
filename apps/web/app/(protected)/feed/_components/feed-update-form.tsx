@@ -3,7 +3,10 @@
 import { useMemo, useState } from "react";
 import type { FeedEntry, FrontendSessionBootstrapStatus } from "@aquapulse/types";
 import { parseClientRuntimeConfig } from "@web/clients/runtime-config";
-import { deriveProtectedOperatorUiGuard } from "@web/features/auth-session";
+import {
+  deriveNonAlertOperatorAccessSummary,
+  deriveProtectedOperatorUiGuard
+} from "@web/features/auth-session";
 import { createRepositoriesFromConfig } from "@web/repositories";
 import {
   deriveFeedRuntimeIndicator,
@@ -74,9 +77,18 @@ export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
       }),
     [session]
   );
+  const operatorSummary = useMemo(() => deriveNonAlertOperatorAccessSummary(session), [session]);
   const pageState = toMutationSyncPageState(result, isSubmitting);
   const draft = inlineEdit.draftValue;
   const updateDisabled = !feedUpdateGuard.enabled;
+  const operatorStatusLabel =
+    operatorSummary.accessState === "available"
+      ? "action available"
+      : operatorSummary.accessState === "bypassed_local"
+        ? "allowed in disabled/local modes"
+        : operatorSummary.accessState === "degraded"
+          ? "protected with degraded forwarding/session"
+          : "protected and waiting for forwarded auth/session";
 
   return (
     <form
@@ -129,6 +141,9 @@ export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Update latest feed entry</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use this bounded update path after reviewing the selected feed detail. Saving stays manual and review-first.
+      </p>
       <div
         style={{
           display: "grid",
@@ -147,7 +162,14 @@ export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
           Feed update auth: {feedUpdateGuard.sliceLabel} / {feedUpdateGuard.state}
         </span>
         <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
-          {feedUpdateGuard.message}
+          Shared non-alert operator access: {operatorSummary.label} / {operatorStatusLabel}
+        </span>
+        <span style={{ color: updateDisabled ? "#fca5a5" : "#94a3b8" }}>
+          {operatorSummary.message}
+        </span>
+        <span style={{ color: "#94a3b8" }}>
+          Current-session sufficient: {operatorSummary.currentSessionSufficient ? "yes" : "no"} /
+          Forwarding: {operatorSummary.forwardingState}
         </span>
         {runtimeIndicator.warnings.map((warning) => (
           <span key={`${warning.code}:${warning.message}`} style={{ color: "#fbbf24" }}>
@@ -155,6 +177,9 @@ export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Form state: {inlineEdit.isEditing ? "editing enabled" : "read-only until edit is selected"}.
+      </p>
       <div style={{ display: "flex", gap: "0.5rem" }}>
         <button
           type="button"
@@ -250,7 +275,7 @@ export function FeedUpdateForm({ feedEntry, session }: FeedUpdateFormProps) {
       {updateDisabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Feed update is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual update can run.
         </p>
       ) : null}
     </form>

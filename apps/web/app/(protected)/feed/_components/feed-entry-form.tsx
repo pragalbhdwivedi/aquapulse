@@ -112,6 +112,9 @@ export function FeedEntryForm({
       }}
     >
       <h2 style={{ margin: 0, fontSize: "1rem" }}>Record feed entry</h2>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        Use this bounded create path when the current feed history needs a new manual entry. Saving stays manual and review-first.
+      </p>
       <div
         style={{
           display: "grid",
@@ -145,6 +148,9 @@ export function FeedEntryForm({
           </span>
         ))}
       </div>
+      <p style={{ margin: 0, color: "#94a3b8" }}>
+        What this does: creates a new feed history record for the selected pond and batch. It does not update any existing feed entry automatically.
+      </p>
       <label style={{ display: "grid", gap: "0.35rem" }}>
         <span>Feed Type</span>
         <input
@@ -200,7 +206,7 @@ export function FeedEntryForm({
       {createDisabled ? (
         <p style={{ margin: 0, color: "#fca5a5" }}>
           Feed create is backend-protected in active auth mode. Forwarded auth/current-session
-          must be available before this bounded non-alert operator action can run.
+          must be available before this bounded manual create action can run.
         </p>
       ) : null}
     </form>
