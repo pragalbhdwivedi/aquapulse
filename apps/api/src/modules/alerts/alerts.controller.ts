@@ -61,6 +61,8 @@ export class AlertsController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateAlertsDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.create>> {
@@ -102,6 +104,8 @@ export class AlertsController {
   }
 
   @Get("views")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async listSavedViews(): Promise<
     EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.listSavedViews>
   > {
@@ -141,6 +145,8 @@ export class AlertsController {
   }
 
   @Post(":id/attach-explanation")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async attachExplanation(
     @Param("id") id: string,
     @Body() input: AttachAlertExplanationDto
@@ -169,6 +175,8 @@ export class AlertsController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdateAlertsDto
