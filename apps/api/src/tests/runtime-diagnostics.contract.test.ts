@@ -110,6 +110,8 @@ describe("API runtime diagnostics", () => {
     expect(diagnostics.aiHistory?.providerMetadataAvailable).toBe(true);
     expect(diagnostics.aiHistory?.reuseFromHistoryEnabled).toBe(true);
     expect(diagnostics.aiHistory?.metadataSufficientForPrefill).toBe(true);
+    expect(diagnostics.aiHistory?.compareFromHistoryEnabled).toBe(true);
+    expect(diagnostics.aiHistory?.metadataSufficientForCompare).toBe(true);
     expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("incident_rewrite");
     expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("incident_draft");
     expect(diagnostics.aiHistory?.supportedReuseDestinations).toContain("approval_note_draft");

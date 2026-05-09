@@ -370,6 +370,40 @@ export type AiHistoryReusePrefillPayload =
       readonly promptNote: string;
     });
 
+export interface AiHistoryCompareInput {
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly sourceHistoryId: EntityId;
+  readonly currentDraftText: string;
+  readonly reusedDraftText: string;
+  readonly sourceTaskType: AiRequestRecord["requestType"];
+  readonly sourceCreatedAt?: ISODateString;
+  readonly relatedRecordIds?: EntityId[];
+  readonly advisoryOnly: true;
+}
+
+export interface AiHistoryCompareResult {
+  readonly destinationType: AiHistoryReuseDestination;
+  readonly changed: boolean;
+  readonly currentDraft: {
+    readonly text: string;
+    readonly textLength: number;
+  };
+  readonly reusedHistoryDraft: {
+    readonly text: string;
+    readonly textLength: number;
+  };
+  readonly sharedLines: string[];
+  readonly currentOnlyLines: string[];
+  readonly reusedOnlyLines: string[];
+  readonly sourceHistory: {
+    readonly sourceHistoryId: EntityId;
+    readonly sourceTaskType: AiRequestRecord["requestType"];
+    readonly sourceCreatedAt?: ISODateString;
+    readonly relatedRecordIds?: EntityId[];
+  };
+  readonly advisoryOnly: true;
+}
+
 export interface AiRequestRecord extends BaseEntity {
   readonly requestType:
     | "alerts_explain"
@@ -2139,6 +2173,8 @@ export interface BackendRuntimeDiagnostics {
     readonly providerMetadataAvailable: boolean;
     readonly reuseFromHistoryEnabled?: boolean;
     readonly metadataSufficientForPrefill?: boolean;
+    readonly compareFromHistoryEnabled?: boolean;
+    readonly metadataSufficientForCompare?: boolean;
     readonly supportedReuseDestinations?: AiHistoryReuseDestination[];
     readonly filterFields: Array<
       "requestType" | "providerMode" | "createdAfter" | "createdBefore" | "relatedRecordId"

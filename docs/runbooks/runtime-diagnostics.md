@@ -87,6 +87,8 @@ For AI usage history:
 - `aiHistory.providerMetadataAvailable = true` means history items can distinguish fallback vs provider-backed output when metadata is present
 - `aiHistory.reuseFromHistoryEnabled = true` means operators can prefill selected bounded draft/rewrite cards from eligible history items
 - `aiHistory.metadataSufficientForPrefill = true` means the history payload carries enough compact metadata for those prefills without adding a write-side workflow
+- `aiHistory.compareFromHistoryEnabled = true` means reused bounded drafts can be reviewed against current draft text before manual regenerate/copy actions
+- `aiHistory.metadataSufficientForCompare = true` means the same bounded history metadata is enough to render the compare helper without a second backend workflow
 - `aiHistory.supportedReuseDestinations` lists the currently allowed advisory-only prefill destinations
 - `aiHistory.filterFields` lists the bounded filters supported by the current history read surface
 

@@ -588,6 +588,8 @@ export class RuntimeDiagnosticsService {
         providerMetadataAvailable: true,
         reuseFromHistoryEnabled: true,
         metadataSufficientForPrefill: true,
+        compareFromHistoryEnabled: true,
+        metadataSufficientForCompare: true,
         supportedReuseDestinations: [
           "incident_rewrite",
           "incident_draft",

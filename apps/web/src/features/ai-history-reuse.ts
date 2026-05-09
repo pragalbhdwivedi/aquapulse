@@ -1,4 +1,6 @@
 import type {
+  AiHistoryCompareInput,
+  AiHistoryCompareResult,
   AiHistoryReuseDestination,
   AiHistoryReusePrefillPayload,
   AiResponseRecord
@@ -106,4 +108,72 @@ export function encodeAiHistoryReusePrefill(
   }
 
   return params;
+}
+
+export function getPrefillText(prefill: AiHistoryReusePrefillPayload): string {
+  switch (prefill.destinationType) {
+    case "incident_rewrite":
+      return prefill.originalText;
+    case "incident_draft":
+      return prefill.rawOperatorNotes;
+    case "approval_note_draft":
+      return prefill.promptNote;
+  }
+}
+
+function splitComparableLines(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+export function buildAiHistoryCompareInput(
+  prefill: AiHistoryReusePrefillPayload,
+  currentDraftText: string
+): AiHistoryCompareInput {
+  return {
+    destinationType: prefill.destinationType,
+    sourceHistoryId: prefill.sourceHistoryId,
+    currentDraftText: currentDraftText.trim(),
+    reusedDraftText: getPrefillText(prefill).trim(),
+    sourceTaskType: prefill.sourceTaskType,
+    sourceCreatedAt: prefill.sourceCreatedAt,
+    relatedRecordIds: prefill.relatedRecordIds,
+    advisoryOnly: true
+  };
+}
+
+export function compareAiHistoryDrafts(
+  input: AiHistoryCompareInput
+): AiHistoryCompareResult {
+  const currentLines = splitComparableLines(input.currentDraftText);
+  const reusedLines = splitComparableLines(input.reusedDraftText);
+  const sharedLines = currentLines.filter((line) => reusedLines.includes(line));
+  const currentOnlyLines = currentLines.filter((line) => !reusedLines.includes(line));
+  const reusedOnlyLines = reusedLines.filter((line) => !currentLines.includes(line));
+
+  return {
+    destinationType: input.destinationType,
+    changed:
+      input.currentDraftText.trim() !== input.reusedDraftText.trim(),
+    currentDraft: {
+      text: input.currentDraftText,
+      textLength: input.currentDraftText.length
+    },
+    reusedHistoryDraft: {
+      text: input.reusedDraftText,
+      textLength: input.reusedDraftText.length
+    },
+    sharedLines,
+    currentOnlyLines,
+    reusedOnlyLines,
+    sourceHistory: {
+      sourceHistoryId: input.sourceHistoryId,
+      sourceTaskType: input.sourceTaskType,
+      sourceCreatedAt: input.sourceCreatedAt,
+      relatedRecordIds: input.relatedRecordIds
+    },
+    advisoryOnly: true
+  };
 }

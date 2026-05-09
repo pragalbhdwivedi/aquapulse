@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type {
+  AiHistoryCompareResult,
   AiHistoryReuseDestination,
   AiHistoryReusePrefillPayload
 } from "@aquapulse/types";
@@ -116,6 +117,90 @@ function destinationLabel(destination: AiHistoryReuseDestination): string {
   }
 }
 
+function getCurrentDraftTextForDestination(
+  destination: AiHistoryReuseDestination,
+  values: {
+    rewriteText: string;
+    incidentNotes: string;
+    approvalPrompt: string;
+  }
+): string {
+  switch (destination) {
+    case "incident_rewrite":
+      return values.rewriteText;
+    case "incident_draft":
+      return values.incidentNotes;
+    case "approval_note_draft":
+      return values.approvalPrompt;
+  }
+}
+
+function renderComparePanel(compare: AiHistoryCompareResult) {
+  return (
+    <section
+      style={{
+        display: "grid",
+        gap: "0.5rem",
+        padding: "0.75rem",
+        border: "1px solid rgba(148, 163, 184, 0.2)",
+        borderRadius: "0.65rem",
+        background: "rgba(15, 23, 42, 0.2)"
+      }}
+    >
+      <strong>Compare Current Draft vs Reused History Draft</strong>
+      <p>
+        Destination: {destinationLabel(compare.destinationType)} / Source history:{" "}
+        {compare.sourceHistory.sourceHistoryId} / Changed: {compare.changed ? "yes" : "no"}
+      </p>
+      <p>
+        Shared lines: {compare.sharedLines.length} / Current only: {compare.currentOnlyLines.length} / Reused only:{" "}
+        {compare.reusedOnlyLines.length}
+      </p>
+      <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
+        <div style={{ display: "grid", gap: "0.35rem" }}>
+          <strong>Current draft</strong>
+          <p>Length: {compare.currentDraft.textLength}</p>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {compare.currentDraft.text}
+          </pre>
+        </div>
+        <div style={{ display: "grid", gap: "0.35rem" }}>
+          <strong>Reused history draft</strong>
+          <p>Length: {compare.reusedHistoryDraft.textLength}</p>
+          <pre style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+            {compare.reusedHistoryDraft.text}
+          </pre>
+        </div>
+      </div>
+      {compare.currentOnlyLines.length > 0 ? (
+        <div style={{ display: "grid", gap: "0.25rem" }}>
+          <strong>Current-only lines</strong>
+          {compare.currentOnlyLines.map((line) => (
+            <span key={`current:${line}`}>{line}</span>
+          ))}
+        </div>
+      ) : null}
+      {compare.reusedOnlyLines.length > 0 ? (
+        <div style={{ display: "grid", gap: "0.25rem" }}>
+          <strong>Reused-only lines</strong>
+          {compare.reusedOnlyLines.map((line) => (
+            <span key={`reused:${line}`}>{line}</span>
+          ))}
+        </div>
+      ) : null}
+      {compare.sharedLines.length > 0 ? (
+        <div style={{ display: "grid", gap: "0.25rem" }}>
+          <strong>Shared lines</strong>
+          {compare.sharedLines.map((line) => (
+            <span key={`shared:${line}`}>{line}</span>
+          ))}
+        </div>
+      ) : null}
+      <p>Compare view is advisory-only. Keep editing, copy text manually, or regenerate manually.</p>
+    </section>
+  );
+}
+
 export default async function ReportsPage({
   searchParams
 }: {
@@ -125,6 +210,7 @@ export default async function ReportsPage({
   const task = getSingleSearchParam(resolvedSearchParams, "task");
   const mode = getSingleSearchParam(resolvedSearchParams, "mode");
   const selectedPrefill = buildSelectedPrefill(resolvedSearchParams);
+  const compareRequested = getSingleSearchParam(resolvedSearchParams, "compare") === "1";
   const rewriteText =
     getSingleSearchParam(resolvedSearchParams, "rewriteText") ??
     "night shift saw oxygen warning at north pond checked aerator and logged repeat sample";
@@ -141,7 +227,15 @@ export default async function ReportsPage({
       mode === "fallback" || mode === "provider_backed"
         ? mode
         : undefined,
-    prefill: selectedPrefill
+    prefill: selectedPrefill,
+    compareCurrentDraftText:
+      compareRequested && selectedPrefill
+        ? getCurrentDraftTextForDestination(selectedPrefill.destinationType, {
+            rewriteText,
+            incidentNotes,
+            approvalPrompt
+          })
+        : undefined
   });
 
   const historyLinks = [
@@ -158,6 +252,7 @@ export default async function ReportsPage({
     mode
   };
   const clearPrefillHref = buildReportsHref(filterBase);
+  const selectedCompare = reports.selectedCompare;
 
   return (
     <PageShell title="Reports" description="Placeholder reports route using the repository and query layer.">
@@ -314,8 +409,18 @@ export default async function ReportsPage({
               style={{ width: "100%" }}
             />
           </label>
-          <button type="submit">Regenerate rewrite from this input</button>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button type="submit">Regenerate rewrite from this input</button>
+            {selectedPrefill?.destinationType === "incident_rewrite" ? (
+              <button type="submit" name="compare" value="1">
+                Compare current vs reused draft
+              </button>
+            ) : null}
+          </div>
         </form>
+        {selectedCompare?.destinationType === "incident_rewrite"
+          ? renderComparePanel(selectedCompare)
+          : null}
         <p>Original: {reports.incidentRewrite.originalText}</p>
         <p>Rewrite: {reports.incidentRewrite.rewrittenEnglish}</p>
         {reports.incidentRewrite.rewrittenHindi ? (
@@ -363,8 +468,18 @@ export default async function ReportsPage({
               style={{ width: "100%" }}
             />
           </label>
-          <button type="submit">Regenerate incident draft from this input</button>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button type="submit">Regenerate incident draft from this input</button>
+            {selectedPrefill?.destinationType === "incident_draft" ? (
+              <button type="submit" name="compare" value="1">
+                Compare current vs reused draft
+              </button>
+            ) : null}
+          </div>
         </form>
+        {selectedCompare?.destinationType === "incident_draft"
+          ? renderComparePanel(selectedCompare)
+          : null}
         <p>{reports.incidentDraft.headline}</p>
         <p>{reports.incidentDraft.incidentSummary}</p>
         <p>Key facts: {reports.incidentDraft.keyFacts.join(" | ")}</p>
@@ -413,8 +528,18 @@ export default async function ReportsPage({
               style={{ width: "100%" }}
             />
           </label>
-          <button type="submit">Regenerate approval note draft from this input</button>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <button type="submit">Regenerate approval note draft from this input</button>
+            {selectedPrefill?.destinationType === "approval_note_draft" ? (
+              <button type="submit" name="compare" value="1">
+                Compare current vs reused draft
+              </button>
+            ) : null}
+          </div>
         </form>
+        {selectedCompare?.destinationType === "approval_note_draft"
+          ? renderComparePanel(selectedCompare)
+          : null}
         <p>{reports.approvalNote.headline}</p>
         <p>{reports.approvalNote.draftNote}</p>
         <p>Rationale: {reports.approvalNote.rationaleSummary}</p>

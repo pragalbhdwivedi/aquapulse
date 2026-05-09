@@ -8,7 +8,11 @@ import type {
 } from "@aquapulse/types";
 import type { AlertsListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
 import { createMockApiClients, type AquaPulseApiClients } from "../clients";
-import { getAiHistoryReusePrefill } from "../features/ai-history-reuse";
+import {
+  buildAiHistoryCompareInput,
+  compareAiHistoryDrafts,
+  getAiHistoryReusePrefill
+} from "../features/ai-history-reuse";
 import {
   createRepositories,
   type AquaPulseRepositories,
@@ -83,6 +87,16 @@ describe("Frontend contract boundaries", () => {
         destinationType: "incident_draft",
         advisoryOnly: true
       });
+    const compareInput = buildAiHistoryCompareInput(
+      getAiHistoryReusePrefill(
+        history.data.items.find((item) => item.requestType === "incident_draft")!
+      )!,
+      "Operator note: Oxygen warning was observed and rechecked with a second sample."
+    );
+    const compareResult = compareAiHistoryDrafts(compareInput);
+    expect(compareResult.destinationType).toBe("incident_draft");
+    expect(compareResult.advisoryOnly).toBe(true);
+    expect(compareResult.changed).toBe(true);
     expect(result.data.answer).toContain("Start with");
     expect(result.data.metadata.taskLabel).toBe("dashboard_assistant_query");
     expect(rewrite.data.metadata.taskLabel).toBe("incident_rewrite");

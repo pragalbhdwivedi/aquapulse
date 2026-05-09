@@ -134,6 +134,26 @@ describe("Frontend query layer", () => {
     );
   });
 
+  it("keeps compare-from-history diffs bounded and review-only", async () => {
+    const reports = await getReportsPageDataWithHistory({
+      prefill: {
+        sourceHistoryId: "ai-response-5",
+        sourceTaskType: "approval_note_draft",
+        destinationType: "approval_note_draft",
+        promptNote: "Alert: Verify the repeat dissolved oxygen reading before supervisor review.",
+        advisoryOnly: true
+      },
+      compareCurrentDraftText:
+        "Alert: Verify the repeat dissolved oxygen reading before supervisor review."
+    });
+
+    expect(reports.selectedCompare?.destinationType).toBe("approval_note_draft");
+    expect(reports.selectedCompare?.advisoryOnly).toBe(true);
+    expect(reports.selectedCompare?.sourceHistory.sourceHistoryId).toBe("ai-response-5");
+    expect(reports.selectedCompare?.currentDraft.text).toContain("supervisor review");
+    expect(reports.selectedCompare?.reusedHistoryDraft.text).toContain("repeat dissolved oxygen");
+  });
+
   it("keeps repository query semantics aligned with normalized backend-style list inputs", async () => {
     const [ponds, alerts, audit, tasks] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 5, search: "North" }),

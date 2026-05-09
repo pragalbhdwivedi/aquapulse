@@ -2,6 +2,7 @@ import type {
   AlertsListQueryRequest,
   AlertQueueSummary,
   AiApprovalNoteDraftResponse,
+  AiHistoryCompareResult,
   AiDashboardQueryResponse,
   AiHistoryReusePrefillPayload,
   AiIncidentsDraftResponse,
@@ -20,7 +21,11 @@ import type {
 } from "@aquapulse/types";
 import { buildAlertQueueSummary } from "@aquapulse/types";
 import type { AlertsListQuery, AuditListQuery, PondsListQuery, TasksListQuery } from "../contracts/api";
-import { getAiHistoryReusePrefill } from "../features/ai-history-reuse";
+import {
+  buildAiHistoryCompareInput,
+  compareAiHistoryDrafts,
+  getAiHistoryReusePrefill
+} from "../features/ai-history-reuse";
 import { getAlertSummaryQuery } from "../features/alert-workbench";
 import {
   aiRepository,
@@ -280,6 +285,7 @@ export async function getAlertsPageData(query: AlertsListQuery = defaultAlertsQu
 export async function getReportsPageData(): Promise<{
   history: ListResponse<AiResponseRecord>;
   highlightedHistory?: AiResponseRecord;
+  selectedCompare?: AiHistoryCompareResult;
   supportedHistoryPrefills: AiHistoryReusePrefillPayload[];
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
@@ -296,10 +302,12 @@ export async function getReportsPageDataWithHistory(filters?: {
   requestType?: AiResponseRecord["requestType"];
   providerMode?: AiResponseRecord["providerMode"] extends "unknown" ? never : "fallback" | "provider_backed";
   prefill?: AiHistoryReusePrefillPayload;
+  compareCurrentDraftText?: string;
 }): Promise<{
   history: ListResponse<AiResponseRecord>;
   highlightedHistory?: AiResponseRecord;
   selectedPrefill?: AiHistoryReusePrefillPayload;
+  selectedCompare?: AiHistoryCompareResult;
   supportedHistoryPrefills: AiHistoryReusePrefillPayload[];
   ponds: ListResponse<PondSummary>;
   alerts: ListResponse<AlertSummary>;
@@ -369,11 +377,18 @@ export async function getReportsPageDataWithHistory(filters?: {
   const supportedHistoryPrefills = history.data.items
     .map((item) => getAiHistoryReusePrefill(item))
     .filter((item): item is AiHistoryReusePrefillPayload => Boolean(item));
+  const selectedCompare =
+    filters?.prefill && typeof filters.compareCurrentDraftText === "string"
+      ? compareAiHistoryDrafts(
+          buildAiHistoryCompareInput(filters.prefill, filters.compareCurrentDraftText)
+        )
+      : undefined;
 
   return {
     history: history.data,
     highlightedHistory: history.data.items[0],
     selectedPrefill: filters?.prefill,
+    selectedCompare,
     supportedHistoryPrefills,
     ponds: ponds.data,
     alerts: alerts.data,
