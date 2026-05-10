@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type {
   AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
@@ -31,6 +31,7 @@ import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.con
 import { AlertExplanationService } from "../services/alert-explanation.service";
 import { OperatorAssistanceService } from "../services/operator-assistance.service";
 import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 
 interface AiHistoryRequesterScope {
   readonly id: string;
@@ -198,7 +199,8 @@ export class AiApplicationService {
   constructor(
     @Inject(AI_REPOSITORY) private readonly aiRepository: AiRepositoryPort,
     private readonly alertExplanationService?: AlertExplanationService,
-    private readonly operatorAssistanceService?: OperatorAssistanceService
+    private readonly operatorAssistanceService?: OperatorAssistanceService,
+    @Optional() private readonly alertsApplicationService?: AlertsApplicationService
   ) {}
 
   async create(_input: CreateAiDto): Promise<ApiSuccessEnvelope<AiResponseRecord>> { return { ok: true, data: await this.aiRepository.create(_input) }; }
@@ -325,8 +327,11 @@ export class AiApplicationService {
     };
   }
   async submitAlertExplanationFeedback(
-    _input: AlertExplanationFeedbackDto
+    _input: AlertExplanationFeedbackDto,
+    requester?: AiHistoryRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>> {
+    await this.assertLinkedAlertVisibleForFeedback(_input.alertId, requester);
+
     if (this.alertExplanationService) {
       return { ok: true, data: await this.alertExplanationService.submitFeedback(_input) };
     }
@@ -342,6 +347,17 @@ export class AiApplicationService {
         sourceMode: _input.explanation.metadata.mode
       }
     };
+  }
+
+  private async assertLinkedAlertVisibleForFeedback(
+    alertId: string,
+    requester?: AiHistoryRequesterScope
+  ): Promise<void> {
+    if (!shouldScopeAiHistoryByRequester(requester) || !this.alertsApplicationService) {
+      return;
+    }
+
+    await this.alertsApplicationService.getById(alertId, requester);
   }
   async summarizePond(_input: SummarizePondDto): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>> {
     if (this.operatorAssistanceService) {

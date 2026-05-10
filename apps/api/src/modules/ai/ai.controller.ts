@@ -132,12 +132,20 @@ export class AiController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async submitAlertExplanationFeedback(
-    @Body() input: AlertExplanationFeedbackDto
+    @Body() input: AlertExplanationFeedbackDto,
+    @Req()
+    request?: {
+      user?: AuthenticatedUserSession | null;
+    }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.submitExplanationFeedback>> {
     return delegateAction(
       input,
       toAlertExplanationFeedbackInput,
-      (mappedInput) => this.aiApplicationService.submitAlertExplanationFeedback(mappedInput),
+      (mappedInput) =>
+        this.aiApplicationService.submitAlertExplanationFeedback(
+          mappedInput,
+          resolveAiHistoryRequesterScope(request?.user)
+        ),
       toAlertExplanationFeedbackResponse
     );
   }
