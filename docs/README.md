@@ -51,6 +51,8 @@ If you are reviewing AquaPulse for the first time:
 ## Release Prep
 
 - [P1 Internal Release Candidate Handoff](./release/P1_INTERNAL_RELEASE_CANDIDATE_HANDOFF.md)
+- [P1 Internal RC1 Tag Outcome](./release/P1_INTERNAL_RC1_TAG_OUTCOME.md)
+- [P1 Internal RC1 Next Steps](./release/P1_INTERNAL_RC1_NEXT_STEPS.md)
 - [P1 Release Readiness Checklist](./release/P1_RELEASE_READINESS_CHECKLIST.md)
 - [P1 Smoke Test Checklist](./release/P1_SMOKE_TEST_CHECKLIST.md)
 - [P1 Deferred Boundaries](./release/P1_DEFERRED_BOUNDARIES.md)
