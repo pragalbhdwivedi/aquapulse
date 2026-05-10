@@ -8,7 +8,10 @@ import type {
   ListResponse
 } from "@aquapulse/types";
 import type { CreateAiDto, UpdateAiDto } from "../dto";
-import type { AiRepositoryPort } from "../ports/ai-repository.port";
+import type {
+  AiRepositoryPort,
+  AlertExplanationFeedbackPersistenceRecord
+} from "../ports/ai-repository.port";
 import type {
   AiActionDraftQueryContract,
   AiFeedbackQueryContract,
@@ -70,6 +73,15 @@ const aiRequests: AiRequestRecord[] = [
     requestType: "approval_note_draft",
     requestedBy: "user-1",
     inputPayload: { recordType: "alert", recordId: "alert-1", mode: "needs_review" },
+    status: "completed"
+  },
+  {
+    id: "ai-request-7",
+    createdAt: "2026-05-09T07:00:00.000Z",
+    updatedAt: "2026-05-09T07:00:00.000Z",
+    requestType: "dashboard_assistant_query",
+    requestedBy: "user-2",
+    inputPayload: { question: "Which ponds missed updates today?" },
     status: "completed"
   }
 ];
@@ -182,6 +194,24 @@ const aiResponses: AiResponseRecord[] = [
       }
     }),
     model: "gpt-5-nano"
+  },
+  {
+    id: "ai-response-7",
+    createdAt: "2026-05-09T07:00:05.000Z",
+    updatedAt: "2026-05-09T07:00:05.000Z",
+    requestId: "ai-request-7",
+    status: "completed",
+    outputText: JSON.stringify({
+      headline: "Other operator dashboard assistant",
+      directAnswer: "South Pond 2 missed a reading update.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano"
   }
 ];
 
@@ -194,6 +224,8 @@ const aiFeedback: AiFeedbackRecord = {
   comment: "Useful summary",
   submittedBy: "user-1"
 };
+
+const alertExplanationFeedbackRecords: AlertExplanationFeedbackPersistenceRecord[] = [];
 
 const aiPromptTemplate: AiPromptTemplateRecord = {
   id: "ai-template-1",
@@ -248,10 +280,25 @@ export class InMemoryAiRepository implements AiRepositoryPort {
 
   async list(query: AiResponseLogQueryContract): Promise<ListResponse<AiResponseRecord>> {
     const items = aiResponses.filter(
-      (item) =>
-        (!query.requestId || item.requestId === query.requestId) &&
-        (!query.status || item.status === query.status) &&
-        (!query.model || item.model === query.model)
+      (item) => {
+        if (query.requestId && item.requestId !== query.requestId) {
+          return false;
+        }
+        if (query.status && item.status !== query.status) {
+          return false;
+        }
+        if (query.model && item.model !== query.model) {
+          return false;
+        }
+        if (query.requestedBy) {
+          const request = aiRequests.find((requestItem) => requestItem.id === item.requestId);
+          if (request?.requestedBy !== query.requestedBy) {
+            return false;
+          }
+        }
+
+        return true;
+      }
     );
 
     return paginate(items, query.page, query.pageSize);
@@ -277,6 +324,20 @@ export class InMemoryAiRepository implements AiRepositoryPort {
   }
 
   async saveFeedbackRecord(record: AiFeedbackRecord): Promise<AiFeedbackRecord> {
+    return record;
+  }
+
+  async saveAlertExplanationFeedbackRecord(
+    record: AlertExplanationFeedbackPersistenceRecord
+  ): Promise<AlertExplanationFeedbackPersistenceRecord> {
+    const existingIndex = alertExplanationFeedbackRecords.findIndex((item) => item.id === record.id);
+
+    if (existingIndex >= 0) {
+      alertExplanationFeedbackRecords[existingIndex] = record;
+    } else {
+      alertExplanationFeedbackRecords.push(record);
+    }
+
     return record;
   }
 

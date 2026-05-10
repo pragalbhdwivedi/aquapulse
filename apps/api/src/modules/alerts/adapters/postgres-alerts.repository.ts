@@ -139,6 +139,7 @@ function createAlertQueryWhereClause(
     conditions.push(sql.replace("?", `$${params.length}`));
   }
 
+  if (query.alertId) addCondition("id = ?", query.alertId);
   if (query.pondId) addCondition("pond_id = ?", query.pondId);
   if (query.severity) addCondition("severity = ?", query.severity);
   if (query.status) addCondition("status = ?", query.status);
@@ -247,6 +248,7 @@ export function buildAlertsListQueryPlan(query: AlertsListQueryContract): Compil
     params: [...where.params, query.pageSize, offset],
     pagination: { page: query.page, pageSize: query.pageSize },
     filters: {
+      alertId: query.alertId,
       pondId: query.pondId,
       severity: query.severity,
       status: query.status,
@@ -329,6 +331,7 @@ export function buildAlertsSummaryQueryPlan(query: AlertsListQueryContract): Com
     `.trim(),
     params: where.params,
     filters: {
+      alertId: query.alertId,
       pondId: query.pondId,
       severity: query.severity,
       status: query.status,

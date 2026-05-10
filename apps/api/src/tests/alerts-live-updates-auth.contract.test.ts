@@ -10,6 +10,32 @@ describe("Alerts live-updates auth awareness", () => {
     vi.unstubAllEnvs();
   });
 
+  it("stays disabled by default until AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES is explicitly enabled", async () => {
+    const service = new AlertsLiveUpdatesService(
+      new ApiAuthService({
+        runtime: readApiAuthRuntimeConfig({
+          AQUAPULSE_AUTH_MODE: "disabled"
+        })
+      })
+    );
+
+    const bootstrap = await service.issueSubscriptionBootstrap({
+      headers: {
+        host: "localhost:4000"
+      },
+      url: "/api/alerts/live-updates/session"
+    });
+
+    expect(bootstrap.enabled).toBe(false);
+    expect(bootstrap.requested).toBe(false);
+    expect(bootstrap.ticketIssued).toBe(false);
+    expect(bootstrap.subscriptionAuthState).toBe("unavailable");
+    expect(bootstrap.credentialMode).toBe("none");
+    expect(bootstrap.warnings.map((warning) => warning.code)).toContain(
+      "ALERTS_LIVE_UPDATES_DISABLED"
+    );
+  });
+
   it("issues a bounded bypass-local ephemeral ticket when auth is disabled", async () => {
     vi.stubEnv("AQUAPULSE_ENABLE_ALERTS_LIVE_UPDATES", "true");
     const service = new AlertsLiveUpdatesService(

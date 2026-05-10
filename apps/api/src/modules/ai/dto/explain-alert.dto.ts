@@ -8,6 +8,7 @@ export class ExplainAlertDto implements AiAlertsExplainRequest {
   outputMode?: "english_only" | "bilingual";
 }
 export class ExplainAlertResponseDto implements AiAlertsExplainResponse {
+  aiResponseId?: string;
   headline!: string;
   explanation!: string;
   explanationHindi?: string;

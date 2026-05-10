@@ -12,6 +12,7 @@ import {
   createPlaceholderBatchRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
+  createPlaceholderPondResponsibilityRow,
   createPlaceholderTaskRow,
   createPlaceholderWaterQualityRow,
   feedRowMapper,
@@ -51,6 +52,7 @@ describe("Shared AquaPulse row mappers", () => {
 
   it("maps task, attachment, batch, and feed rows into domain shapes", () => {
     expect(taskRowMapper.toDomain(createPlaceholderTaskRow({ id: "task-77" })).id).toBe("task-77");
+    expect(createPlaceholderPondResponsibilityRow({ id: "responsibility-77" }).id).toBe("responsibility-77");
     expect(
       attachmentRowMapper.toDomain(createPlaceholderAttachmentRow({ id: "attachment-77" })).id
     ).toBe("attachment-77");

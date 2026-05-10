@@ -61,14 +61,18 @@ export class AlertsController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
-    @Body() input: CreateAlertsDto
+    @Body() input: CreateAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.create>> {
     await this.alertsService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateAlertsInput,
-      (mappedInput) => this.alertsApplicationService.create(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.create(mappedInput, resolveAlertAssignmentRequesterScope(request?.user)),
       toAlertsItemResponse
     );
   }
@@ -77,12 +81,17 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async list(
-    @Query() query: QueryAlertsDto
+    @Query() query: QueryAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.list>> {
     return delegateList(
       query,
       toQueryAlertsInput,
-      (mappedQuery) => this.alertsApplicationService.list(mappedQuery),
+      (mappedQuery) =>
+        this.alertsApplicationService.list(
+          mappedQuery,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsListResponse
     );
   }
@@ -91,17 +100,24 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async summary(
-    @Query() query: QueryAlertsDto
+    @Query() query: QueryAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.summary>> {
     return delegateList(
       query,
       toQueryAlertsInput,
-      (mappedQuery) => this.alertsApplicationService.summary(mappedQuery),
+      (mappedQuery) =>
+        this.alertsApplicationService.summary(
+          mappedQuery,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsSummaryResponse
     );
   }
 
   @Get("views")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async listSavedViews(): Promise<
     EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.listSavedViews>
   > {
@@ -141,15 +157,23 @@ export class AlertsController {
   }
 
   @Post(":id/attach-explanation")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async attachExplanation(
     @Param("id") id: string,
-    @Body() input: AttachAlertExplanationDto
+    @Body() input: AttachAlertExplanationDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.attachExplanation>> {
     return delegateUpdate(
       id,
       input,
       toAttachAlertExplanationInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.attachExplanation(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.attachExplanation(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -169,15 +193,23 @@ export class AlertsController {
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
-    @Body() input: UpdateAlertsDto
+    @Body() input: UpdateAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.update>> {
     return delegateUpdate(
       id,
       input,
       toUpdateAlertsInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.update(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.update(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -186,12 +218,17 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async bulkAcknowledge(
-    @Body() input: BulkAcknowledgeAlertsDto
+    @Body() input: BulkAcknowledgeAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAcknowledge>> {
     return delegateCreate(
       input,
       toBulkAcknowledgeAlertsInput,
-      (mappedInput) => this.alertsApplicationService.bulkAcknowledge(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.bulkAcknowledge(
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsBulkActionResponse
     );
   }
@@ -200,12 +237,17 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async bulkResolve(
-    @Body() input: BulkResolveAlertsDto
+    @Body() input: BulkResolveAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkResolve>> {
     return delegateCreate(
       input,
       toBulkResolveAlertsInput,
-      (mappedInput) => this.alertsApplicationService.bulkResolve(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.bulkResolve(
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsBulkActionResponse
     );
   }
@@ -214,12 +256,17 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async bulkAssign(
-    @Body() input: BulkAssignAlertsDto
+    @Body() input: BulkAssignAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkAssign>> {
     return delegateCreate(
       input,
       toBulkAssignAlertsInput,
-      (mappedInput) => this.alertsApplicationService.bulkAssign(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.bulkAssign(
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsBulkActionResponse
     );
   }
@@ -228,12 +275,17 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async bulkSetReviewState(
-    @Body() input: BulkSetAlertReviewStateDto
+    @Body() input: BulkSetAlertReviewStateDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.bulkSetReviewState>> {
     return delegateCreate(
       input,
       toBulkSetAlertReviewStateInput,
-      (mappedInput) => this.alertsApplicationService.bulkSetReviewState(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.bulkSetReviewState(
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsBulkActionResponse
     );
   }
@@ -243,13 +295,19 @@ export class AlertsController {
   @RequireRoles("operator")
   async acknowledge(
     @Param("id") id: string,
-    @Body() input: AcknowledgeAlertDto
+    @Body() input: AcknowledgeAlertDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.acknowledge>> {
     return delegateUpdate(
       id,
       input,
       toAcknowledgeAlertInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.acknowledge(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.acknowledge(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -259,13 +317,19 @@ export class AlertsController {
   @RequireRoles("operator")
   async resolve(
     @Param("id") id: string,
-    @Body() input: ResolveAlertDto
+    @Body() input: ResolveAlertDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.resolve>> {
     return delegateUpdate(
       id,
       input,
       toResolveAlertInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.resolve(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.resolve(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -275,13 +339,19 @@ export class AlertsController {
   @RequireRoles("operator")
   async assign(
     @Param("id") id: string,
-    @Body() input: AssignAlertDto
+    @Body() input: AssignAlertDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.assign>> {
     return delegateUpdate(
       id,
       input,
       toAssignAlertInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.assign(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.assign(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -291,13 +361,19 @@ export class AlertsController {
   @RequireRoles("operator")
   async unassign(
     @Param("id") id: string,
-    @Body() input: UnassignAlertDto
+    @Body() input: UnassignAlertDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.unassign>> {
     return delegateUpdate(
       id,
       input,
       toUnassignAlertInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.unassign(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.unassign(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -307,13 +383,19 @@ export class AlertsController {
   @RequireRoles("operator")
   async setReviewState(
     @Param("id") id: string,
-    @Body() input: SetAlertReviewStateDto
+    @Body() input: SetAlertReviewStateDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.setReviewState>> {
     return delegateUpdate(
       id,
       input,
       toSetAlertReviewStateInput,
-      (resourceId, mappedInput) => this.alertsApplicationService.setReviewState(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.alertsApplicationService.setReviewState(
+          resourceId,
+          mappedInput,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
@@ -322,12 +404,30 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.getById>> {
     return delegateGetById(
       id,
-      (resourceId) => this.alertsApplicationService.getById(resourceId),
+      (resourceId) =>
+        this.alertsApplicationService.getById(
+          resourceId,
+          resolveAlertAssignmentRequesterScope(request?.user)
+        ),
       toAlertsItemResponse
     );
   }
+}
+
+function resolveAlertAssignmentRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local" } | undefined {
+  if (!user || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider
+  };
 }

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
+import { PondResponsibilityModule } from "../pond-responsibility/pond-responsibility.module";
 import { PostgresBatchesRepository } from "./adapters/postgres-batches.repository";
 import { BatchesApplicationService } from "./application/batches.application-service";
 import { BatchesController } from "./batches.controller";
@@ -23,7 +24,7 @@ const BATCHES_PROVIDERS = [BatchesService, ...BATCHES_ADAPTERS, BATCHES_PERSISTE
 const BATCHES_EXPORTS = [BatchesService, BatchesApplicationService];
 
 @Module({
-  imports: [],
+  imports: [PondResponsibilityModule],
   controllers: [BatchesController],
   providers: BATCHES_PROVIDERS,
   exports: BATCHES_EXPORTS

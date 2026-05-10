@@ -57,6 +57,15 @@ function createPondsWhereClause(
     addCondition("farm_id = ?", query.farmId);
   }
 
+  if (query.readablePondIds) {
+    if (query.readablePondIds.length === 0) {
+      conditions.push("1 = 0");
+    } else {
+      params.push(query.readablePondIds);
+      conditions.push(`id = any($${params.length}::text[])`);
+    }
+  }
+
   if (query.status) {
     addCondition("status = ?", query.status);
   }
@@ -112,6 +121,7 @@ export function buildPondsListQueryPlan(query: PondListQueryContract): CompiledQ
     `.trim(),
     params: [...where.params, query.pageSize, offset],
     filters: {
+      readablePondIds: query.readablePondIds,
       farmId: query.farmId,
       status: query.status,
       kind: query.kind,

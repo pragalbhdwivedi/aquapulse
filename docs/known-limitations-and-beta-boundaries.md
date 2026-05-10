@@ -40,7 +40,16 @@ AI can help operators review or draft content, but it does not directly change c
 - Repo-wide RBAC and full-domain auth enforcement
 - Broader observability and analytics
 - General AI chat or autonomous AI workflows
-- Broader live-update expansion beyond the already bounded alerts work
+- Broader live-update expansion beyond the current default-off alerts work
+
+Specific current boundaries:
+
+- alerts live updates are disabled by default and are not assignment-scoped yet
+- saved views are route-protected but not owner-scoped
+- attachment file-content or download authorization does not exist yet
+- supervisor/admin override models do not exist yet
+- reviewer/admin AI feedback workflows do not exist yet
+- active Keycloak alert explanation feedback requires `aiResponseId`
 
 ## Intentionally Deferred
 

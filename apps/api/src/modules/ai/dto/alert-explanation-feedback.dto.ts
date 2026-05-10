@@ -5,6 +5,7 @@ import type {
 
 export class AlertExplanationFeedbackDto implements AlertExplanationFeedbackRequest {
   alertId!: string;
+  aiResponseId?: string;
   value!: AlertExplanationFeedbackRequest["value"];
   note?: string;
   explanation!: AlertExplanationFeedbackRequest["explanation"];

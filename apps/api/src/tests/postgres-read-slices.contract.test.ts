@@ -1,6 +1,7 @@
 import {
   createPlaceholderAlertActionHistoryRow,
   createPlaceholderAlertRow,
+  createPlaceholderBatchRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
   createPlaceholderTaskRow,
@@ -27,7 +28,19 @@ import {
   buildUpdatePondQueryPlan
 } from "../modules/ponds/adapters/postgres-ponds.repository";
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
+import {
+  buildActivePondResponsibilityByUserAndPondQueryPlan,
+  buildListActivePondResponsibilitiesByUserQueryPlan,
+  PostgresPondResponsibilityRepository
+} from "../modules/pond-responsibility/adapters/postgres-pond-responsibility.repository";
+import type { PondResponsibilityRepositoryPort } from "../modules/pond-responsibility/ports/pond-responsibility-repository.port";
 import { buildUpdateAlertQueryPlan } from "../modules/alerts/adapters/postgres-alerts.repository";
+import {
+  buildBatchByIdQueryPlan,
+  buildBatchesListQueryPlan,
+  PostgresBatchesRepository
+} from "../modules/batches/adapters/postgres-batches.repository";
+import type { BatchesRepositoryPort } from "../modules/batches/ports/batches-repository.port";
 import {
   buildFeedByIdQueryPlan,
   buildFeedListQueryPlan,
@@ -89,9 +102,128 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[1]?.statement).toContain("order by name asc, id asc");
     expect(buildPondByIdQueryPlan("pond-42").filters).toEqual({ id: "pond-42" });
     expect(buildPondsListQueryPlan({ page: 1, pageSize: 20, status: "active" }).filters).toEqual({
+      readablePondIds: undefined,
       farmId: undefined,
       status: "active",
       kind: undefined,
+      search: undefined
+    });
+  });
+
+  it("pond responsibility adapter resolves active mappings without changing current resource reads", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: PondResponsibilityRepositoryPort = PostgresPondResponsibilityRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [
+          {
+            id: "responsibility-42",
+            user_id: "user-42",
+            pond_id: "pond-42",
+            responsibility_type: "operator",
+            active: true,
+            starts_at: "2026-05-10T00:00:00.000Z",
+            ends_at: undefined,
+            created_at: "2026-05-10T00:00:00.000Z",
+            updated_at: "2026-05-10T00:00:00.000Z"
+          }
+        ]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const responsibilities = await repository.listActiveByUserId("user-42", "2026-05-10T12:00:00.000Z");
+    const hasResponsibility = await repository.hasActiveResponsibility(
+      "user-42",
+      "pond-42",
+      "2026-05-10T12:00:00.000Z"
+    );
+
+    expect(responsibilities[0]?.pondId).toBe("pond-42");
+    expect(responsibilities[0]?.responsibilityType).toBe("operator");
+    expect(hasResponsibility).toBe(true);
+    expect(recordedQueries).toHaveLength(2);
+    expect(recordedQueries[0]).toEqual({
+      statement: expect.stringContaining("from pond_responsibilities"),
+      params: ["user-42", "2026-05-10T12:00:00.000Z"]
+    });
+    expect(recordedQueries[1]).toEqual({
+      statement: expect.stringContaining("where user_id = $1"),
+      params: ["user-42", "pond-42", "2026-05-10T12:00:00.000Z"]
+    });
+    expect(buildListActivePondResponsibilitiesByUserQueryPlan("user-42", "2026-05-10T12:00:00.000Z").filters)
+      .toEqual({
+        userId: "user-42",
+        active: true,
+        effectiveAt: "2026-05-10T12:00:00.000Z"
+      });
+    expect(
+      buildActivePondResponsibilityByUserAndPondQueryPlan(
+        "user-42",
+        "pond-42",
+        "2026-05-10T12:00:00.000Z"
+      ).filters
+    ).toEqual({
+      userId: "user-42",
+      pondId: "pond-42",
+      active: true,
+      effectiveAt: "2026-05-10T12:00:00.000Z"
+    });
+  });
+
+  it("batches adapter keeps pond-filtered list semantics aligned with responsibility-ready query inputs", async () => {
+    const recordedQueries: RecordedDatabasePlan[] = [];
+    const repository: BatchesRepositoryPort = PostgresBatchesRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory(recordedQueries, {
+        rows: [
+          {
+            ...createPlaceholderBatchRow({
+              id: "batch-42",
+              pond_id: "pond-42",
+              lifecycle_stage: "growing"
+            }),
+            total_count: 1
+          }
+        ]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const item = await repository.getById("batch-42");
+    const list = await repository.list({
+      page: 2,
+      pageSize: 10,
+      pondId: "pond-42",
+      lifecycleStage: "growing",
+      readablePondIds: ["pond-42"],
+      search: "tilapia"
+    });
+
+    expect(item.id).toBe("batch-42");
+    expect(item.pondId).toBe("pond-42");
+    expect(list.items[0]?.id).toBe("batch-42");
+    expect(list.page.totalItems).toBe(1);
+    expect(recordedQueries).toHaveLength(2);
+    expect(recordedQueries[0]).toEqual({
+      statement: "batches.getById",
+      params: ["batch-42"]
+    });
+    expect(recordedQueries[1]).toEqual({
+      statement: "batches.list",
+      params: [2, 10, null, ["pond-42"], "pond-42", "growing", "tilapia"]
+    });
+    expect(buildBatchByIdQueryPlan("batch-42").filters).toEqual({ id: "batch-42" });
+    expect(
+      buildBatchesListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        readablePondIds: ["pond-42"],
+        lifecycleStage: "growing"
+      }).filters
+    ).toEqual({
+      batchId: undefined,
+      readablePondIds: ["pond-42"],
+      pondId: undefined,
+      lifecycleStage: "growing",
       search: undefined
     });
   });
@@ -366,6 +498,7 @@ describe("Postgres read adapter slices", () => {
       page: 1,
       pageSize: 10,
       pondId: "pond-42",
+      readablePondIds: ["pond-42"],
       metric: "temperatureC"
     });
     const byPond = await repository.listByPond("pond-42");
@@ -379,14 +512,22 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[0]?.statement).toContain("where id = $1");
     expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
     expect(recordedQueries[1]?.statement).toContain("temperature_c is not null");
-    expect(recordedQueries[1]?.params).toEqual(["pond-42", 10, 0]);
+    expect(recordedQueries[1]?.statement).toContain("pond_id = any($2)");
+    expect(recordedQueries[1]?.params).toEqual(["pond-42", ["pond-42"], 10, 0]);
     expect(recordedQueries[2]?.statement).toContain("where pond_id = $1");
     expect(recordedQueries[2]?.params).toEqual(["pond-42", 20, 0]);
     expect(buildWaterQualityByIdQueryPlan("wq-42").filters).toEqual({ id: "wq-42" });
     expect(
-      buildWaterQualityListQueryPlan({ page: 1, pageSize: 20, pondId: "pond-42", metric: "ph" })
+      buildWaterQualityListQueryPlan({
+        page: 1,
+        pageSize: 20,
+        pondId: "pond-42",
+        readablePondIds: ["pond-42"],
+        metric: "ph"
+      })
         .filters
     ).toEqual({
+      readablePondIds: ["pond-42"],
       pondId: "pond-42",
       metric: "ph"
     });
@@ -434,6 +575,7 @@ describe("Postgres read adapter slices", () => {
       page: 1,
       pageSize: 10,
       pondId: "pond-42",
+      readablePondIds: ["pond-42"],
       batchId: "batch-42",
       feedType: "Grower Feed",
       search: "grower"
@@ -447,10 +589,12 @@ describe("Postgres read adapter slices", () => {
     expect(recordedQueries[0]?.statement).toContain("from feed_entries");
     expect(recordedQueries[0]?.statement).toContain("where id = $1");
     expect(recordedQueries[1]?.statement).toContain("count(*) over()::int as total_count");
+    expect(recordedQueries[1]?.statement).toContain("pond_id = any($2)");
     expect(recordedQueries[1]?.statement).toContain("lower(feed_type) like");
     expect(recordedQueries[1]?.statement).toContain("order by fed_at desc, id desc");
     expect(recordedQueries[1]?.params).toEqual([
       "pond-42",
+      ["pond-42"],
       "batch-42",
       "Grower Feed",
       "%grower%",
@@ -463,11 +607,13 @@ describe("Postgres read adapter slices", () => {
         page: 1,
         pageSize: 20,
         pondId: "pond-42",
+        readablePondIds: ["pond-42"],
         batchId: "batch-42",
         feedType: "Grower Feed",
         search: "grower"
       }).filters
     ).toEqual({
+      readablePondIds: ["pond-42"],
       pondId: "pond-42",
       batchId: "batch-42",
       feedType: "Grower Feed",

@@ -3,6 +3,7 @@ import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter }
 import { PostgresAuditRepository } from "./adapters/postgres-audit.repository";
 import { AuditApplicationService } from "./application/audit.application-service";
 import { AuditController } from "./audit.controller";
+import { AuditRuntimeRecorderService } from "./audit-runtime-recorder.service";
 import { AUDIT_REPOSITORY } from "./ports/audit-repository.port";
 import { AuditService } from "./audit.service";
 import { InMemoryAuditRepository } from "./repositories/in-memory-audit.repository";
@@ -19,7 +20,13 @@ export const AUDIT_PERSISTENCE_PROVIDER = createPersistenceAdapterProvider(AUDIT
   allowRuntimeSwitch: true
 });
 export const AUDIT_ADAPTERS = [AUDIT_ADAPTER_REGISTRY.inMemory, AUDIT_ADAPTER_REGISTRY.postgres];
-const AUDIT_PROVIDERS = [AuditService, ...AUDIT_ADAPTERS, AUDIT_PERSISTENCE_PROVIDER, AuditApplicationService];
+const AUDIT_PROVIDERS = [
+  AuditService,
+  ...AUDIT_ADAPTERS,
+  AUDIT_PERSISTENCE_PROVIDER,
+  AuditApplicationService,
+  AuditRuntimeRecorderService
+];
 const AUDIT_EXPORTS = [AuditService, AuditApplicationService];
 
 @Module({

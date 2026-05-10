@@ -18,6 +18,7 @@ describe("Operator assistance service", () => {
       list: vi.fn(),
       listRequests: vi.fn(),
       saveFeedbackRecord: vi.fn(),
+      saveAlertExplanationFeedbackRecord: vi.fn(),
       listFeedback: vi.fn(),
       getPromptTemplateByKey: vi.fn(),
       listPromptTemplates: vi.fn(),

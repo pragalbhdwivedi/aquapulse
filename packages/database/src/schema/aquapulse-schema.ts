@@ -23,12 +23,18 @@ export interface DatabaseTableDefinition {
 
 export const AQUAPULSE_SCHEMA_TABLES = {
   ponds: "ponds",
+  pondResponsibilities: "pond_responsibilities",
   waterQuality: "water_quality",
   feedEntries: "feed_entries",
   tasks: "tasks",
   alerts: "alerts",
   alertActionHistory: "alert_action_history",
-  savedAlertViews: "saved_alert_views"
+  savedAlertViews: "saved_alert_views",
+  auditEvents: "audit_events",
+  auditEventMetadata: "audit_event_metadata",
+  aiRequests: "ai_requests",
+  aiResponses: "ai_responses",
+  aiFeedback: "ai_feedback"
 } as const;
 
 export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
@@ -43,6 +49,32 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       { name: "status", type: "text" },
       { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
       { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.pondResponsibilities,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "user_id", type: "text" },
+      { name: "pond_id", type: "text" },
+      { name: "responsibility_type", type: "text" },
+      { name: "active", type: "boolean", defaultExpression: "true" },
+      { name: "starts_at", type: "timestamptz", nullable: true },
+      { name: "ends_at", type: "timestamptz", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "pond_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.ponds,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: [
+      "idx_pond_responsibilities_user_active_pond",
+      "idx_pond_responsibilities_pond_active_user"
     ]
   },
   {
@@ -166,6 +198,123 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       { name: "filter_query", type: "jsonb", defaultExpression: "'{}'::jsonb" },
       { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
       { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.auditEvents,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "action", type: "text" },
+      { name: "resource_type", type: "text" },
+      { name: "resource_id", type: "text", nullable: true },
+      { name: "summary", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    indexes: ["idx_audit_events_resource_created_at", "idx_audit_events_action_created_at"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.auditEventMetadata,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "audit_event_id", type: "text", unique: true },
+      { name: "request_id", type: "text", nullable: true },
+      { name: "correlation_id", type: "text", nullable: true },
+      { name: "actor_id", type: "text", nullable: true },
+      { name: "http_method", type: "text", nullable: true },
+      { name: "request_path", type: "text", nullable: true },
+      { name: "status_code", type: "integer", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "audit_event_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.auditEvents,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: ["idx_audit_event_metadata_actor_created_at", "idx_audit_event_metadata_request_id"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "request_type", type: "text" },
+      { name: "requested_by", type: "text", nullable: true },
+      { name: "input_payload", type: "jsonb", defaultExpression: "'{}'::jsonb" },
+      { name: "status", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    indexes: ["idx_ai_requests_type_status_created_at", "idx_ai_requests_requested_by_created_at"]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiResponses,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "request_id", type: "text" },
+      { name: "status", type: "text" },
+      { name: "output_text", type: "text" },
+      { name: "model", type: "text" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "request_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      }
+    ],
+    indexes: [
+      "idx_ai_responses_request_created_at",
+      "idx_ai_responses_status_created_at",
+      "idx_ai_responses_model_created_at"
+    ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiFeedback,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "alert_id", type: "text" },
+      { name: "ai_response_id", type: "text", nullable: true },
+      { name: "ai_request_id", type: "text", nullable: true },
+      { name: "submitted_by", type: "text", nullable: true },
+      { name: "value", type: "text" },
+      { name: "note", type: "text", nullable: true },
+      { name: "explanation_payload", type: "jsonb", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "alert_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.alerts,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      },
+      {
+        column: "ai_response_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiResponses,
+        referencesColumn: "id",
+        onDelete: "set null"
+      },
+      {
+        column: "ai_request_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+        referencesColumn: "id",
+        onDelete: "set null"
+      }
+    ],
+    indexes: [
+      "idx_ai_feedback_alert_created_at",
+      "idx_ai_feedback_response_created_at",
+      "idx_ai_feedback_request_created_at",
+      "idx_ai_feedback_submitted_by_created_at",
+      "idx_ai_feedback_created_at"
     ]
   }
 ] as const;

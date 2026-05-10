@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
+import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
 import { PlaceholderAuthGuard } from "../../common/auth/placeholder-auth.guard";
 import { PlaceholderRoleGuard } from "../../common/auth/placeholder-role.guard";
+import { RequireRoles } from "../../common/auth/require-roles.decorator";
 import { delegateCreate, delegateGetById, delegateList, delegateUpdate } from "../../common/http/controller-delegation";
 import { CreateBatchesDto, QueryBatchesDto, UpdateBatchesDto } from "./dto";
 import { BatchesApplicationService } from "./application/batches.application-service";
@@ -21,6 +23,8 @@ export class BatchesController {
 
   // Collection handlers
   @Post()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async create(
     @Body() input: CreateBatchesDto
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.create>> {
@@ -34,19 +38,25 @@ export class BatchesController {
   }
 
   @Get()
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async list(
-    @Query() query: QueryBatchesDto
+    @Query() query: QueryBatchesDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.list>> {
     return delegateList(
       query,
       toQueryBatchesInput,
-      (mappedQuery) => this.batchesApplicationService.list(mappedQuery),
+      (mappedQuery) =>
+        this.batchesApplicationService.list(mappedQuery, resolveBatchReadRequesterScope(request?.user)),
       toBatchesListResponse
     );
   }
 
   // Resource handlers
   @Patch(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async update(
     @Param("id") id: string,
     @Body() input: UpdateBatchesDto
@@ -61,13 +71,31 @@ export class BatchesController {
   }
 
   @Get(":id")
+  @RequireAuthentication()
+  @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.batches.getById>> {
     return delegateGetById(
       id,
-      (resourceId) => this.batchesApplicationService.getById(resourceId),
+      (resourceId) =>
+        this.batchesApplicationService.getById(resourceId, resolveBatchReadRequesterScope(request?.user)),
       toBatchesItemResponse
     );
   }
+}
+
+function resolveBatchReadRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local"; readonly roles: readonly string[] } | undefined {
+  if (!user?.id || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider,
+    roles: user.roles
+  };
 }

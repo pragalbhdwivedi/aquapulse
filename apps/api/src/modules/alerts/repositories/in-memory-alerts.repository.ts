@@ -25,23 +25,61 @@ import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import type { AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
 
-const alert: AlertSummary = {
-  id: "alert-1",
-  createdAt: "2026-04-13T00:00:00.000Z",
-  updatedAt: "2026-04-13T00:00:00.000Z",
-  title: "Low dissolved oxygen warning",
-  severity: "high",
-  source: "water-quality",
-  pondId: "pond-1",
-  status: "open",
-  reviewState: "unreviewed",
-  actionHistory: [
-    {
-      action: "created",
-      timestamp: "2026-04-13T00:00:00.000Z"
-    }
-  ]
-};
+const alertsSeed: AlertSummary[] = [
+  {
+    id: "alert-1",
+    createdAt: "2026-04-13T00:00:00.000Z",
+    updatedAt: "2026-04-13T00:00:00.000Z",
+    title: "Low dissolved oxygen warning",
+    severity: "high",
+    source: "water-quality",
+    pondId: "pond-1",
+    status: "open",
+    assignedTo: "user-1",
+    reviewState: "under_review",
+    actionHistory: [
+      {
+        action: "created",
+        timestamp: "2026-04-13T00:00:00.000Z"
+      }
+    ]
+  },
+  {
+    id: "alert-2",
+    createdAt: "2026-04-13T01:00:00.000Z",
+    updatedAt: "2026-04-13T01:00:00.000Z",
+    title: "Feed delivery delay",
+    severity: "medium",
+    source: "feed",
+    pondId: "pond-2",
+    status: "acknowledged",
+    assignedTo: "user-2",
+    reviewState: "unreviewed",
+    actionHistory: [
+      {
+        action: "created",
+        timestamp: "2026-04-13T01:00:00.000Z"
+      }
+    ]
+  },
+  {
+    id: "alert-3",
+    createdAt: "2026-04-13T02:00:00.000Z",
+    updatedAt: "2026-04-13T02:00:00.000Z",
+    title: "Aeration inspection pending",
+    severity: "low",
+    source: "tasks",
+    pondId: "pond-3",
+    status: "open",
+    reviewState: "unreviewed",
+    actionHistory: [
+      {
+        action: "created",
+        timestamp: "2026-04-13T02:00:00.000Z"
+      }
+    ]
+  }
+];
 
 const alertStore = new WeakMap<InMemoryAlertsRepository, AlertSummary[]>();
 const savedViewStore = new WeakMap<InMemoryAlertsRepository, AlertSavedViewDefinition[]>();
@@ -50,7 +88,7 @@ const MAX_ALERT_HISTORY_ENTRIES = 25;
 const MAX_SAVED_VIEW_STORE_SIZE = 25;
 
 function getAlerts(repository: InMemoryAlertsRepository): AlertSummary[] {
-  return alertStore.get(repository) ?? [alert];
+  return alertStore.get(repository) ?? [...alertsSeed];
 }
 
 function getSavedViews(repository: InMemoryAlertsRepository): AlertSavedViewDefinition[] {
@@ -104,7 +142,7 @@ function applyAlertMutation(
   updatedAt: string
 ): AlertSummary {
   const alerts = getAlerts(repository);
-  const current = alerts.find((item) => item.id === id) ?? alerts[0];
+  const current = alerts.find((item) => item.id === id) ?? alerts[0] ?? alertsSeed[0];
   const updated: AlertSummary = {
     ...current,
     ...patch,
@@ -129,7 +167,7 @@ function applyAlertMutation(
 @Injectable()
 export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   constructor() {
-    alertStore.set(this, [alert]);
+    alertStore.set(this, [...alertsSeed]);
     savedViewStore.set(this, []);
   }
 
@@ -351,11 +389,13 @@ export class InMemoryAlertsRepository implements AlertsRepositoryPort {
   }
 
   async getById(id: string): Promise<AlertSummary> {
-    return getAlerts(this).find((item) => item.id === id) ?? getAlerts(this)[0];
+    return getAlerts(this).find((item) => item.id === id) ?? getAlerts(this)[0] ?? alertsSeed[0];
   }
 
   async list(query: AlertsListQueryContract): Promise<ListResponse<AlertSummary>> {
-    const filtered = filterAlertsByQuery(getAlerts(this), query);
+    const filtered = filterAlertsByQuery(getAlerts(this), query).filter((item) =>
+      query.alertId ? item.id === query.alertId : true
+    );
     return createPage(sortAlertsByQuery(filtered, query.sortBy), query.page, query.pageSize);
   }
 
@@ -373,6 +413,6 @@ export function resetInMemoryAlertsRepositoryState(repository?: InMemoryAlertsRe
     return;
   }
 
-  alertStore.set(repository, [alert]);
+  alertStore.set(repository, [...alertsSeed]);
   savedViewStore.set(repository, []);
 }

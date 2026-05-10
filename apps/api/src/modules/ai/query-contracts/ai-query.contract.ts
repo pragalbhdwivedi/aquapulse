@@ -1,6 +1,8 @@
 import type { AiResponseLogListQueryRequest, ListQueryRequest } from "@aquapulse/types";
 
-export interface AiResponseLogQueryContract extends AiResponseLogListQueryRequest {}
+export interface AiResponseLogQueryContract extends AiResponseLogListQueryRequest {
+  readonly requestedBy?: string;
+}
 
 export interface AiRequestLogQueryContract extends ListQueryRequest {
   readonly requestType?:

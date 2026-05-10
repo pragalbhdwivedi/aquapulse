@@ -16,12 +16,18 @@ describe("Schema and migrations foundation", () => {
   it("exposes a real schema definition aligned with the current prototype modules", () => {
     expect(aquaPulseSchemaTables.map((table) => table.name)).toEqual([
       AQUAPULSE_SCHEMA_TABLES.ponds,
+      AQUAPULSE_SCHEMA_TABLES.pondResponsibilities,
       AQUAPULSE_SCHEMA_TABLES.waterQuality,
       AQUAPULSE_SCHEMA_TABLES.feedEntries,
       AQUAPULSE_SCHEMA_TABLES.tasks,
       AQUAPULSE_SCHEMA_TABLES.alerts,
       AQUAPULSE_SCHEMA_TABLES.alertActionHistory,
-      AQUAPULSE_SCHEMA_TABLES.savedAlertViews
+      AQUAPULSE_SCHEMA_TABLES.savedAlertViews,
+      AQUAPULSE_SCHEMA_TABLES.auditEvents,
+      AQUAPULSE_SCHEMA_TABLES.auditEventMetadata,
+      AQUAPULSE_SCHEMA_TABLES.aiRequests,
+      AQUAPULSE_SCHEMA_TABLES.aiResponses,
+      AQUAPULSE_SCHEMA_TABLES.aiFeedback
     ]);
 
     expect(getDatabaseTableDefinition(AQUAPULSE_SCHEMA_TABLES.alerts)?.columns.some((column) => column.name === "assigned_to")).toBe(true);
@@ -34,20 +40,31 @@ describe("Schema and migrations foundation", () => {
   });
 
   it("keeps the migration manifest and SQL files in sync", async () => {
-    expect(databaseMigrationManifest.schemaVersion).toBe("0001_core_schema");
-    expect(databaseMigrationManifest.migrations).toHaveLength(1);
+    expect(databaseMigrationManifest.schemaVersion).toBe("0005_ai_feedback_persistence_foundation");
+    expect(databaseMigrationManifest.migrations).toHaveLength(5);
 
     for (const migration of databaseMigrationManifest.migrations) {
       await access(path.join(migrationsDir, migration.file));
     }
 
-    const sql = await readFile(
-      path.join(migrationsDir, databaseMigrationManifest.migrations[0]!.file),
-      "utf8"
-    );
+    const [coreSql, auditSql, aiSql, pondResponsibilitiesSql, aiFeedbackSql] = await Promise.all([
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[0]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[1]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[2]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[3]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[4]!.file), "utf8")
+    ]);
 
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS ponds");
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS alerts");
-    expect(sql).toContain("CREATE TABLE IF NOT EXISTS alert_action_history");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS ponds");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS alerts");
+    expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS alert_action_history");
+    expect(auditSql).toContain("CREATE TABLE IF NOT EXISTS audit_events");
+    expect(auditSql).toContain("CREATE TABLE IF NOT EXISTS audit_event_metadata");
+    expect(aiSql).toContain("CREATE TABLE IF NOT EXISTS ai_requests");
+    expect(aiSql).toContain("CREATE TABLE IF NOT EXISTS ai_responses");
+    expect(pondResponsibilitiesSql).toContain("CREATE TABLE IF NOT EXISTS pond_responsibilities");
+    expect(pondResponsibilitiesSql).toContain("idx_pond_responsibilities_user_active_pond");
+    expect(aiFeedbackSql).toContain("CREATE TABLE IF NOT EXISTS ai_feedback");
+    expect(aiFeedbackSql).toContain("idx_ai_feedback_alert_created_at");
   });
 });

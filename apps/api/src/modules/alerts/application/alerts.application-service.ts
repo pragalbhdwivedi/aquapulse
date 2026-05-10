@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   AlertAssignActionRequest,
   AlertBulkActionResult,
@@ -18,10 +18,23 @@ import type {
   OperationalAlertDecision
 } from "@aquapulse/types";
 import { findMatchingOperationalAlert } from "@aquapulse/types";
+import { createForbiddenResponse, createNotFoundResponse } from "../../../common/api/response-mapper";
+import { PondReadAuthorizationService } from "../../pond-responsibility/application/pond-read-authorization.service";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import { AlertsLiveUpdatesService } from "../live-updates/alerts-live-updates.service";
 import { ALERTS_REPOSITORY, type AlertsRepositoryPort } from "../ports/alerts-repository.port";
 import type { AlertsListQueryContract } from "../query-contracts/alerts-query.contract";
+
+interface AlertAssignmentRequesterScope {
+  readonly id: string;
+  readonly provider: "keycloak" | "local";
+}
+
+function shouldScopeAlertsByAssignment(
+  requester: AlertAssignmentRequesterScope | undefined
+): requester is AlertAssignmentRequesterScope & { readonly provider: "keycloak" } {
+  return requester?.provider === "keycloak" && requester.id.trim().length > 0;
+}
 
 @Injectable()
 export class AlertsApplicationService {
@@ -29,64 +42,121 @@ export class AlertsApplicationService {
     @Inject(ALERTS_REPOSITORY) private readonly alertsRepository: AlertsRepositoryPort,
     private readonly liveUpdatesService: AlertsLiveUpdatesService = {
       emit: () => undefined
-    } as unknown as AlertsLiveUpdatesService
+    } as unknown as AlertsLiveUpdatesService,
+    private readonly pondReadAuthorizationService: PondReadAuthorizationService = new PondReadAuthorizationService({
+      canReadPond: async () => true,
+      listActiveByUserId: async () => [],
+      hasActiveResponsibility: async () => true
+    } as never)
   ) {}
 
-  async create(_input: CreateAlertsDto): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async create(
+    _input: CreateAlertsDto,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    if (_input.pondId) {
+      const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, _input.pondId);
+
+      if (!canReadPond) {
+        throw new ForbiddenException(createForbiddenResponse().error);
+      }
+    }
+
     const alert = await this.alertsRepository.create(_input);
     await this.emitSingleAlertEvent("alert_created", alert, ["title", "severity", "source", "status"]);
     return { ok: true, data: alert };
   }
 
-  async update(_id: string, _input: UpdateAlertsDto): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async update(
+    _id: string,
+    _input: UpdateAlertsDto,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
+    const currentAlert = await this.alertsRepository.getById(_id);
+
+    if (_input.pondId && _input.pondId !== currentAlert.pondId) {
+      const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, _input.pondId);
+
+      if (!canReadPond) {
+        throw new ForbiddenException(createForbiddenResponse().error);
+      }
+    }
+
     const alert = await this.alertsRepository.update(_id, _input);
     await this.emitSingleAlertEvent("alert_updated", alert, Object.keys(_input));
     return { ok: true, data: alert };
   }
 
-  async acknowledge(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async acknowledge(
+    _id: string,
+    _input: AlertLifecycleActionRequest,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.acknowledge(_id, _input);
     await this.emitSingleAlertEvent("alert_lifecycle_changed", alert, ["status", "latestNote"]);
     return { ok: true, data: alert };
   }
 
   async bulkAcknowledge(
-    _input: AlertBulkLifecycleActionRequest
+    _input: AlertBulkLifecycleActionRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    await this.assertAlertsVisibleToRequester(_input.alertIds, requester);
     const result = await this.alertsRepository.bulkAcknowledge(_input);
     await this.emitBulkAlertEvent(result, ["status", "latestNote"]);
     return { ok: true, data: result };
   }
 
-  async resolve(_id: string, _input: AlertLifecycleActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async resolve(
+    _id: string,
+    _input: AlertLifecycleActionRequest,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.resolve(_id, _input);
     await this.emitSingleAlertEvent("alert_lifecycle_changed", alert, ["status", "latestNote"]);
     return { ok: true, data: alert };
   }
 
   async bulkResolve(
-    _input: AlertBulkLifecycleActionRequest
+    _input: AlertBulkLifecycleActionRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    await this.assertAlertsVisibleToRequester(_input.alertIds, requester);
     const result = await this.alertsRepository.bulkResolve(_input);
     await this.emitBulkAlertEvent(result, ["status", "latestNote"]);
     return { ok: true, data: result };
   }
 
-  async assign(_id: string, _input: AlertAssignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async assign(
+    _id: string,
+    _input: AlertAssignActionRequest,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.assign(_id, _input);
     await this.emitSingleAlertEvent("alert_lifecycle_changed", alert, ["assignedTo", "latestNote"]);
     return { ok: true, data: alert };
   }
 
   async bulkAssign(
-    _input: AlertBulkAssignActionRequest
+    _input: AlertBulkAssignActionRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    await this.assertAlertsVisibleToRequester(_input.alertIds, requester);
     const result = await this.alertsRepository.bulkAssign(_input);
     await this.emitBulkAlertEvent(result, ["assignedTo", "latestNote"]);
     return { ok: true, data: result };
   }
 
-  async unassign(_id: string, _input: AlertUnassignActionRequest): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async unassign(
+    _id: string,
+    _input: AlertUnassignActionRequest,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.unassign(_id, _input);
     await this.emitSingleAlertEvent("alert_lifecycle_changed", alert, ["assignedTo", "latestNote"]);
     return { ok: true, data: alert };
@@ -94,8 +164,10 @@ export class AlertsApplicationService {
 
   async setReviewState(
     _id: string,
-    _input: AlertReviewStateActionRequest
+    _input: AlertReviewStateActionRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.setReviewState(_id, _input);
     await this.emitSingleAlertEvent("alert_lifecycle_changed", alert, [
       "reviewState",
@@ -106,8 +178,10 @@ export class AlertsApplicationService {
   }
 
   async bulkSetReviewState(
-    _input: AlertBulkReviewStateActionRequest
+    _input: AlertBulkReviewStateActionRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertBulkActionResult>> {
+    await this.assertAlertsVisibleToRequester(_input.alertIds, requester);
     const result = await this.alertsRepository.bulkSetReviewState(_input);
     await this.emitBulkAlertEvent(result, ["reviewState", "reviewLabel", "latestNote"]);
     return { ok: true, data: result };
@@ -115,8 +189,10 @@ export class AlertsApplicationService {
 
   async attachExplanation(
     _id: string,
-    _input: AlertExplanationAttachmentRequest
+    _input: AlertExplanationAttachmentRequest,
+    requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
     const alert = await this.alertsRepository.attachExplanation(_id, _input);
     await this.emitSingleAlertEvent("alert_updated", alert, ["latestNote", "actionHistory"]);
     return { ok: true, data: alert };
@@ -132,11 +208,37 @@ export class AlertsApplicationService {
   async removeSavedView(_id: string): Promise<ApiSuccessEnvelope<AlertSavedViewDefinition[]>> {
     return { ok: true, data: await this.alertsRepository.removeSavedView(_id) };
   }
-  async list(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> { return { ok: true, data: await this.alertsRepository.list(_query) }; }
-  async summary(_query: AlertsListQueryContract): Promise<ApiSuccessEnvelope<AlertQueueSummary>> {
-    return { ok: true, data: await this.alertsRepository.summary(_query) };
+  async list(
+    _query: AlertsListQueryContract,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<ListResponse<AlertSummary>>> {
+    const scopedQuery: AlertsListQueryContract = shouldScopeAlertsByAssignment(requester)
+      ? {
+          ..._query,
+          assignedTo: requester.id
+        }
+      : _query;
+    return { ok: true, data: await this.alertsRepository.list(scopedQuery) };
   }
-  async getById(_id: string): Promise<ApiSuccessEnvelope<AlertSummary>> { return { ok: true, data: await this.alertsRepository.getById(_id) }; }
+  async summary(
+    _query: AlertsListQueryContract,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertQueueSummary>> {
+    const scopedQuery: AlertsListQueryContract = shouldScopeAlertsByAssignment(requester)
+      ? {
+          ..._query,
+          assignedTo: requester.id
+        }
+      : _query;
+    return { ok: true, data: await this.alertsRepository.summary(scopedQuery) };
+  }
+  async getById(
+    _id: string,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    await this.assertAlertVisibleToRequester(_id, requester);
+    return { ok: true, data: await this.alertsRepository.getById(_id) };
+  }
 
   async upsertOperationalDecision(
     decision: OperationalAlertDecision
@@ -227,6 +329,37 @@ export class AlertsApplicationService {
       return await this.alertsRepository.summary({ page: 1, pageSize: 20 });
     } catch {
       return undefined;
+    }
+  }
+
+  private async assertAlertsVisibleToRequester(
+    alertIds: readonly string[],
+    requester?: AlertAssignmentRequesterScope
+  ) {
+    if (!shouldScopeAlertsByAssignment(requester)) {
+      return;
+    }
+
+    await Promise.all(alertIds.map((alertId) => this.assertAlertVisibleToRequester(alertId, requester)));
+  }
+
+  private async assertAlertVisibleToRequester(
+    alertId: string,
+    requester?: AlertAssignmentRequesterScope
+  ) {
+    if (!shouldScopeAlertsByAssignment(requester)) {
+      return;
+    }
+
+    const visibleAlerts = await this.alertsRepository.list({
+      page: 1,
+      pageSize: 1,
+      alertId,
+      assignedTo: requester.id
+    });
+
+    if (visibleAlerts.items.length === 0) {
+      throw new NotFoundException(createNotFoundResponse("Alert").error);
     }
   }
 }

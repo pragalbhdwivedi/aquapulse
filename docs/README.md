@@ -8,9 +8,11 @@ If you are reviewing AquaPulse for the first time:
 
 1. Read the cross-surface walkthrough:
    [Cross-Surface UAT Demo Script And Reviewer Checklist](./runbooks/uat-cross-surface-demo-script-and-reviewer-checklist.md)
-2. Read the release-prep summary:
+2. Read the release candidate handoff:
+   [P1 Internal Release Candidate Handoff](./release/P1_INTERNAL_RELEASE_CANDIDATE_HANDOFF.md)
+3. Read the release-prep summary:
    [Release Prep Notes](./release-prep-internal-rollout.md)
-3. Read the current beta boundaries:
+4. Read the current beta boundaries:
    [Known Limitations And Beta Boundaries](./known-limitations-and-beta-boundaries.md)
 
 ## Setup And Runtime
@@ -48,5 +50,12 @@ If you are reviewing AquaPulse for the first time:
 
 ## Release Prep
 
+- [P1 Internal Release Candidate Handoff](./release/P1_INTERNAL_RELEASE_CANDIDATE_HANDOFF.md)
+- [P1 Release Readiness Checklist](./release/P1_RELEASE_READINESS_CHECKLIST.md)
+- [P1 Smoke Test Checklist](./release/P1_SMOKE_TEST_CHECKLIST.md)
+- [P1 Deferred Boundaries](./release/P1_DEFERRED_BOUNDARIES.md)
+- [P1 Rollback Notes](./release/P1_ROLLBACK_NOTES.md)
+- [P1 Environment Flags](./release/P1_ENVIRONMENT_FLAGS.md)
 - [Release Prep Notes](./release-prep-internal-rollout.md)
 - [Known Limitations And Beta Boundaries](./known-limitations-and-beta-boundaries.md)
+- [Release Boundary: Alerts Live Updates](./release-live-updates-boundary.md)

@@ -11,11 +11,13 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { BatchesModule } from "./modules/batches/batches.module";
 import { FeedModule } from "./modules/feed/feed.module";
 import { PondsModule } from "./modules/ponds/ponds.module";
+import { PondResponsibilityModule } from "./modules/pond-responsibility/pond-responsibility.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { WaterQualityModule } from "./modules/water-quality/water-quality.module";
 
 const CORE_MODULES = [
   AuthFoundationModule,
+  PondResponsibilityModule,
   PondsModule,
   BatchesModule,
   WaterQualityModule,

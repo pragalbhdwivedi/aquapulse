@@ -20,6 +20,30 @@ function getFeedEntries(repository: InMemoryFeedRepository): FeedEntry[] {
   return feedStore.get(repository) ?? [baseFeedEntry];
 }
 
+function matchesFeedQuery(item: FeedEntry, query: FeedListQueryContract): boolean {
+  if (query.readablePondIds && !query.readablePondIds.includes(item.pondId)) {
+    return false;
+  }
+
+  if (query.pondId && item.pondId !== query.pondId) {
+    return false;
+  }
+
+  if (query.batchId && item.batchId !== query.batchId) {
+    return false;
+  }
+
+  if (query.feedType && item.feedType !== query.feedType) {
+    return false;
+  }
+
+  if (query.search && !item.feedType.toLowerCase().includes(query.search.toLowerCase())) {
+    return false;
+  }
+
+  return true;
+}
+
 function createPage(items: FeedEntry[], page = 1, pageSize = 20): ListResponse<FeedEntry> {
   return {
     items,
@@ -75,13 +99,7 @@ export class InMemoryFeedRepository implements FeedRepositoryPort {
   }
 
   async list(query: FeedListQueryContract): Promise<ListResponse<FeedEntry>> {
-    const filtered = getFeedEntries(this).filter(
-      (item) =>
-        (!query.pondId || item.pondId === query.pondId) &&
-        (!query.batchId || item.batchId === query.batchId) &&
-        (!query.feedType || item.feedType === query.feedType) &&
-        (!query.search || item.feedType.toLowerCase().includes(query.search.toLowerCase()))
-    );
+    const filtered = getFeedEntries(this).filter((item) => matchesFeedQuery(item, query));
     return createPage(filtered, query.page, query.pageSize);
   }
 }

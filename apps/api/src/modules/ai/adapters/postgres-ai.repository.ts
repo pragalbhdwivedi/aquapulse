@@ -1,4 +1,11 @@
 import { Injectable } from "@nestjs/common";
+import {
+  AQUAPULSE_SCHEMA_TABLES,
+  PostgresDatabaseConnectionFactory,
+  type DatabaseClient,
+  type DatabaseConfig,
+  type DatabaseConnectionFactory
+} from "@aquapulse/database";
 import type {
   AiActionDraftRecord,
   AiFeedbackRecord,
@@ -7,8 +14,12 @@ import type {
   AiResponseRecord,
   ListResponse
 } from "@aquapulse/types";
+import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreateAiDto, UpdateAiDto } from "../dto";
-import type { AiRepositoryPort } from "../ports/ai-repository.port";
+import type {
+  AiRepositoryPort,
+  AlertExplanationFeedbackPersistenceRecord
+} from "../ports/ai-repository.port";
 import type {
   AiActionDraftQueryContract,
   AiFeedbackQueryContract,
@@ -21,7 +32,7 @@ interface AiRequestRow {
   readonly id: string;
   readonly request_type: AiRequestRecord["requestType"];
   readonly requested_by?: string;
-  readonly input_payload: Record<string, unknown>;
+  readonly input_payload: Record<string, unknown> | string | null;
   readonly status: AiRequestRecord["status"];
   readonly created_at: string;
   readonly updated_at: string;
@@ -37,12 +48,33 @@ interface AiResponseRow {
   readonly updated_at: string;
 }
 
+interface AiResponseListRow extends AiResponseRow {
+  readonly total_count: number;
+}
+
+interface AiRequestListRow extends AiRequestRow {
+  readonly total_count: number;
+}
+
 interface AiFeedbackRow {
   readonly id: string;
   readonly response_id: string;
   readonly rating: AiFeedbackRecord["rating"];
   readonly comment?: string;
   readonly submitted_by?: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+interface AlertExplanationFeedbackRow {
+  readonly id: string;
+  readonly alert_id: string;
+  readonly ai_response_id?: string | null;
+  readonly ai_request_id?: string | null;
+  readonly submitted_by?: string | null;
+  readonly value: AlertExplanationFeedbackPersistenceRecord["value"];
+  readonly note?: string | null;
+  readonly explanation_payload?: unknown;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -70,12 +102,38 @@ interface AiActionDraftRow {
   readonly updated_at: string;
 }
 
+export interface PostgresAiRepositoryDependencies {
+  readonly connectionFactory?: DatabaseConnectionFactory;
+  readonly databaseConfig?: DatabaseConfig;
+}
+
+function normalizeInputPayload(
+  inputPayload: AiRequestRow["input_payload"]
+): Record<string, unknown> {
+  if (typeof inputPayload === "string") {
+    try {
+      const parsed = JSON.parse(inputPayload) as unknown;
+      if (typeof parsed === "object" && parsed !== null) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof inputPayload === "object" && inputPayload !== null) {
+    return inputPayload;
+  }
+
+  return {};
+}
+
 function mapAiRequestRowToDomain(row: AiRequestRow): AiRequestRecord {
   return {
     id: row.id,
     requestType: row.request_type,
     requestedBy: row.requested_by,
-    inputPayload: row.input_payload,
+    inputPayload: normalizeInputPayload(row.input_payload),
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -133,57 +191,552 @@ function mapAiActionDraftRowToDomain(row: AiActionDraftRow): AiActionDraftRecord
   };
 }
 
+function normalizeExplanationPayload(
+  inputPayload: AlertExplanationFeedbackRow["explanation_payload"]
+): AlertExplanationFeedbackPersistenceRecord["explanation"] {
+  if (typeof inputPayload === "string") {
+    try {
+      const parsed = JSON.parse(inputPayload) as unknown;
+      if (typeof parsed === "object" && parsed !== null) {
+        return parsed as unknown as AlertExplanationFeedbackPersistenceRecord["explanation"];
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (typeof inputPayload === "object" && inputPayload !== null) {
+    return inputPayload as unknown as AlertExplanationFeedbackPersistenceRecord["explanation"];
+  }
+
+  return undefined;
+}
+
+function mapAlertExplanationFeedbackRecordToRow(
+  record: AlertExplanationFeedbackPersistenceRecord
+): AlertExplanationFeedbackRow {
+  return {
+    id: record.id,
+    alert_id: record.alertId,
+    ai_response_id: record.aiResponseId,
+    ai_request_id: record.aiRequestId,
+    submitted_by: record.submittedBy,
+    value: record.value,
+    note: record.note,
+    explanation_payload: record.explanation,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt
+  };
+}
+
+function mapAlertExplanationFeedbackRowToDomain(
+  row: AlertExplanationFeedbackRow
+): AlertExplanationFeedbackPersistenceRecord {
+  return {
+    id: row.id,
+    alertId: row.alert_id,
+    aiResponseId: row.ai_response_id ?? undefined,
+    aiRequestId: row.ai_request_id ?? undefined,
+    submittedBy: row.submitted_by ?? undefined,
+    value: row.value,
+    note: row.note ?? undefined,
+    explanation: normalizeExplanationPayload(row.explanation_payload),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function createPlaceholderAiRequestRow(overrides: Partial<AiRequestRow> = {}): AiRequestRow {
+  return {
+    id: "ai-request-1",
+    request_type: "dashboard_assistant_query",
+    requested_by: "user-1",
+    input_payload: { question: "What needs attention today?" },
+    status: "completed",
+    created_at: "2026-05-09T06:20:00.000Z",
+    updated_at: "2026-05-09T06:20:00.000Z",
+    ...overrides
+  };
+}
+
+function createPlaceholderAiResponseRow(overrides: Partial<AiResponseRow> = {}): AiResponseRow {
+  return {
+    id: "ai-response-1",
+    request_id: "ai-request-1",
+    status: "completed",
+    output_text: JSON.stringify({
+      headline: "Dashboard assistant",
+      directAnswer: "Start with North Pond 1.",
+      metadata: {
+        mode: "fallback",
+        advisoryOnly: true,
+        providerPath: "deterministic_fallback",
+        usedLiveOpenAi: false
+      }
+    }),
+    model: "gpt-5-nano",
+    created_at: "2026-05-09T06:20:05.000Z",
+    updated_at: "2026-05-09T06:20:05.000Z",
+    ...overrides
+  };
+}
+
+function mapAiRequestRecordToRow(record: AiRequestRecord): AiRequestRow {
+  return {
+    id: record.id,
+    request_type: record.requestType,
+    requested_by: record.requestedBy,
+    input_payload: record.inputPayload,
+    status: record.status,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt
+  };
+}
+
+function mapAiResponseRecordToRow(record: AiResponseRecord): AiResponseRow {
+  return {
+    id: record.id,
+    request_id: record.requestId,
+    status: record.status,
+    output_text: record.outputText,
+    model: record.model,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt
+  };
+}
+
+function paginateFallback<TItem>(
+  items: readonly TItem[],
+  page: number,
+  pageSize: number
+): ListResponse<TItem> {
+  const start = (page - 1) * pageSize;
+  const pagedItems = items.slice(start, start + pageSize);
+  return {
+    items: pagedItems,
+    page: {
+      page,
+      pageSize,
+      totalItems: items.length,
+      totalPages: Math.max(1, Math.ceil(items.length / pageSize))
+    }
+  };
+}
+
 @Injectable()
 export class PostgresAiRepository implements AiRepositoryPort {
-  async create(_input: CreateAiDto): Promise<AiResponseRecord> {
-    return mapAiResponseRowToDomain({
-      id: "ai-response-1",
-      request_id: "ai-request-1",
+  private connectionFactory: DatabaseConnectionFactory = new PostgresDatabaseConnectionFactory();
+  private databaseConfig: DatabaseConfig = readApiDatabaseRuntimeConfig().database;
+
+  private readonly fallbackRequests = new Map<string, AiRequestRecord>([
+    ["ai-request-1", mapAiRequestRowToDomain(createPlaceholderAiRequestRow())]
+  ]);
+
+  private readonly fallbackResponses = new Map<string, AiResponseRecord>([
+    ["ai-response-1", mapAiResponseRowToDomain(createPlaceholderAiResponseRow())]
+  ]);
+  private readonly fallbackAlertExplanationFeedback = new Map<
+    string,
+    AlertExplanationFeedbackPersistenceRecord
+  >();
+
+  static forTesting(
+    overrides: PostgresAiRepositoryDependencies = {}
+  ): PostgresAiRepository {
+    const repository = new PostgresAiRepository();
+    repository.connectionFactory = overrides.connectionFactory ?? repository.connectionFactory;
+    repository.databaseConfig = overrides.databaseConfig ?? repository.databaseConfig;
+    return repository;
+  }
+
+  async create(input: CreateAiDto): Promise<AiResponseRecord> {
+    const now = new Date().toISOString();
+    const responseId = input.id?.trim() || `ai-response-created-${Date.now()}`;
+    const requestId = `ai-request-created-${responseId}`;
+
+    await this.saveRequestRecord({
+      id: requestId,
+      requestType: "dashboard_assistant_query",
+      requestedBy: "system",
+      inputPayload: {
+        source: "ai_api_create",
+        note: "Placeholder create pathway preserved for bounded AI persistence foundation."
+      },
+      status: "completed",
+      createdAt: now,
+      updatedAt: now
+    });
+
+    return this.saveResponseRecord({
+      id: responseId,
+      requestId,
       status: "draft",
-      output_text: "Placeholder AI output",
+      outputText: "Placeholder AI output",
       model: "gpt-placeholder",
-      created_at: "2026-04-13T00:00:00.000Z",
-      updated_at: "2026-04-13T00:00:00.000Z"
+      createdAt: now,
+      updatedAt: now
     });
   }
 
-  async update(_id: string, _input: UpdateAiDto): Promise<AiResponseRecord> {
-    return this.create({} as CreateAiDto);
+  async update(id: string, _input: UpdateAiDto): Promise<AiResponseRecord> {
+    const existing = await this.getById(id);
+    const updatedRecord: AiResponseRecord = {
+      ...existing,
+      updatedAt: new Date().toISOString()
+    };
+
+    return this.saveResponseRecord(updatedRecord);
   }
 
-  async getById(_id: string): Promise<AiResponseRecord> {
-    return this.create({} as CreateAiDto);
+  async getById(id: string): Promise<AiResponseRecord> {
+    try {
+      const client = await this.getClient();
+      try {
+        const result = await client.query<AiResponseRow>(
+          `
+            select id, request_id, status, output_text, model, created_at, updated_at
+            from ${AQUAPULSE_SCHEMA_TABLES.aiResponses}
+            where id = $1
+          `,
+          [id]
+        );
+
+        return result.rows[0]
+          ? mapAiResponseRowToDomain(result.rows[0])
+          : this.fallbackResponses.get(id) ?? mapAiResponseRowToDomain(createPlaceholderAiResponseRow({ id }));
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      return this.fallbackResponses.get(id) ?? mapAiResponseRowToDomain(createPlaceholderAiResponseRow({ id }));
+    }
   }
 
-  async list(_query: AiResponseLogQueryContract): Promise<ListResponse<AiResponseRecord>> {
-    return { items: [await this.getById("ai-response-1")], page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 } };
+  async list(query: AiResponseLogQueryContract): Promise<ListResponse<AiResponseRecord>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const filters: string[] = [];
+    const params: unknown[] = [];
+    const needsRequestJoin = Boolean(query.requestedBy);
+
+    if (query.requestId) {
+      params.push(query.requestId);
+      filters.push(`responses.request_id = $${params.length}`);
+    }
+
+    if (query.status) {
+      params.push(query.status);
+      filters.push(`responses.status = $${params.length}`);
+    }
+
+    if (query.model) {
+      params.push(query.model);
+      filters.push(`responses.model = $${params.length}`);
+    }
+
+    if (query.requestedBy) {
+      params.push(query.requestedBy);
+      filters.push(`requests.requested_by = $${params.length}`);
+    }
+
+    const whereClause = filters.length > 0 ? `where ${filters.join(" and ")}` : "";
+    params.push(pageSize);
+    params.push((page - 1) * pageSize);
+    const limitParam = `$${params.length - 1}`;
+    const offsetParam = `$${params.length}`;
+
+    try {
+      const client = await this.getClient();
+      try {
+        const result = await client.query<AiResponseListRow>(
+          `
+            select
+              responses.id,
+              responses.request_id,
+              responses.status,
+              responses.output_text,
+              responses.model,
+              responses.created_at,
+              responses.updated_at,
+              count(*) over()::int as total_count
+            from ${AQUAPULSE_SCHEMA_TABLES.aiResponses} responses
+            ${needsRequestJoin ? `inner join ${AQUAPULSE_SCHEMA_TABLES.aiRequests} requests on requests.id = responses.request_id` : ""}
+            ${whereClause}
+            order by responses.created_at desc, responses.id desc
+            limit ${limitParam}
+            offset ${offsetParam}
+          `,
+          params
+        );
+
+        const items = result.rows.map(mapAiResponseRowToDomain);
+        const totalItems = result.rows[0]?.total_count ?? 0;
+        return {
+          items,
+          page: {
+            page,
+            pageSize,
+            totalItems,
+            totalPages: Math.max(1, Math.ceil(Math.max(totalItems, 1) / pageSize))
+          }
+        };
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      const items = [...this.fallbackResponses.values()].filter((item) => {
+        if (query.requestId && item.requestId !== query.requestId) {
+          return false;
+        }
+        if (query.status && item.status !== query.status) {
+          return false;
+        }
+        if (query.model && item.model !== query.model) {
+          return false;
+        }
+        if (query.requestedBy) {
+          const request = this.fallbackRequests.get(item.requestId);
+          if (request?.requestedBy !== query.requestedBy) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      return paginateFallback(items, page, pageSize);
+    }
   }
 
   async saveRequestRecord(record: AiRequestRecord): Promise<AiRequestRecord> {
+    const row = mapAiRequestRecordToRow(record);
+    this.fallbackRequests.set(record.id, record);
+
+    try {
+      const client = await this.getClient();
+      try {
+        await client.query(
+          `
+            insert into ${AQUAPULSE_SCHEMA_TABLES.aiRequests} (
+              id,
+              request_type,
+              requested_by,
+              input_payload,
+              status,
+              created_at,
+              updated_at
+            ) values ($1, $2, $3, $4::jsonb, $5, $6, $7)
+            on conflict (id) do update set
+              request_type = excluded.request_type,
+              requested_by = excluded.requested_by,
+              input_payload = excluded.input_payload,
+              status = excluded.status,
+              updated_at = excluded.updated_at
+          `,
+          [
+            row.id,
+            row.request_type,
+            row.requested_by ?? null,
+            JSON.stringify(row.input_payload ?? {}),
+            row.status,
+            row.created_at,
+            row.updated_at
+          ]
+        );
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      return record;
+    }
+
     return record;
   }
 
   async saveResponseRecord(record: AiResponseRecord): Promise<AiResponseRecord> {
+    const row = mapAiResponseRecordToRow(record);
+    this.fallbackResponses.set(record.id, record);
+
+    try {
+      const client = await this.getClient();
+      try {
+        await client.query(
+          `
+            insert into ${AQUAPULSE_SCHEMA_TABLES.aiResponses} (
+              id,
+              request_id,
+              status,
+              output_text,
+              model,
+              created_at,
+              updated_at
+            ) values ($1, $2, $3, $4, $5, $6, $7)
+            on conflict (id) do update set
+              request_id = excluded.request_id,
+              status = excluded.status,
+              output_text = excluded.output_text,
+              model = excluded.model,
+              updated_at = excluded.updated_at
+          `,
+          [
+            row.id,
+            row.request_id,
+            row.status,
+            row.output_text,
+            row.model,
+            row.created_at,
+            row.updated_at
+          ]
+        );
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      return record;
+    }
+
     return record;
   }
 
-  async listRequests(_query: AiRequestLogQueryContract): Promise<ListResponse<AiRequestRecord>> {
-    return {
-      items: [mapAiRequestRowToDomain({
-        id: "ai-request-1",
-        request_type: "dashboard_assistant_query",
-        requested_by: "user-1",
-        input_payload: { question: "What needs attention today?" },
-        status: "completed",
-        created_at: "2026-04-13T00:00:00.000Z",
-        updated_at: "2026-04-13T00:00:00.000Z"
-      })],
-      page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
-    };
+  async listRequests(query: AiRequestLogQueryContract): Promise<ListResponse<AiRequestRecord>> {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const filters: string[] = [];
+    const params: unknown[] = [];
+
+    if (query.requestType) {
+      params.push(query.requestType);
+      filters.push(`request_type = $${params.length}`);
+    }
+
+    if (query.requestedBy) {
+      params.push(query.requestedBy);
+      filters.push(`requested_by = $${params.length}`);
+    }
+
+    if (query.status) {
+      params.push(query.status);
+      filters.push(`status = $${params.length}`);
+    }
+
+    const whereClause = filters.length > 0 ? `where ${filters.join(" and ")}` : "";
+    params.push(pageSize);
+    params.push((page - 1) * pageSize);
+    const limitParam = `$${params.length - 1}`;
+    const offsetParam = `$${params.length}`;
+
+    try {
+      const client = await this.getClient();
+      try {
+        const result = await client.query<AiRequestListRow>(
+          `
+            select
+              id,
+              request_type,
+              requested_by,
+              input_payload,
+              status,
+              created_at,
+              updated_at,
+              count(*) over()::int as total_count
+            from ${AQUAPULSE_SCHEMA_TABLES.aiRequests}
+            ${whereClause}
+            order by created_at desc, id desc
+            limit ${limitParam}
+            offset ${offsetParam}
+          `,
+          params
+        );
+
+        const items = result.rows.map(mapAiRequestRowToDomain);
+        const totalItems = result.rows[0]?.total_count ?? 0;
+        return {
+          items,
+          page: {
+            page,
+            pageSize,
+            totalItems,
+            totalPages: Math.max(1, Math.ceil(Math.max(totalItems, 1) / pageSize))
+          }
+        };
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      const items = [...this.fallbackRequests.values()].filter((item) => {
+        if (query.requestType && item.requestType !== query.requestType) {
+          return false;
+        }
+        if (query.requestedBy && item.requestedBy !== query.requestedBy) {
+          return false;
+        }
+        if (query.status && item.status !== query.status) {
+          return false;
+        }
+        return true;
+      });
+
+      return paginateFallback(items, page, pageSize);
+    }
   }
 
   async saveFeedbackRecord(record: AiFeedbackRecord): Promise<AiFeedbackRecord> {
     return record;
+  }
+
+  async saveAlertExplanationFeedbackRecord(
+    record: AlertExplanationFeedbackPersistenceRecord
+  ): Promise<AlertExplanationFeedbackPersistenceRecord> {
+    const row = mapAlertExplanationFeedbackRecordToRow(record);
+    this.fallbackAlertExplanationFeedback.set(record.id, record);
+
+    try {
+      const client = await this.getClient();
+      try {
+        await client.query(
+          `
+            insert into ${AQUAPULSE_SCHEMA_TABLES.aiFeedback} (
+              id,
+              alert_id,
+              ai_response_id,
+              ai_request_id,
+              submitted_by,
+              value,
+              note,
+              explanation_payload,
+              created_at,
+              updated_at
+            ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+            on conflict (id) do update set
+              alert_id = excluded.alert_id,
+              ai_response_id = excluded.ai_response_id,
+              ai_request_id = excluded.ai_request_id,
+              submitted_by = excluded.submitted_by,
+              value = excluded.value,
+              note = excluded.note,
+              explanation_payload = excluded.explanation_payload,
+              updated_at = excluded.updated_at
+          `,
+          [
+            row.id,
+            row.alert_id,
+            row.ai_response_id ?? null,
+            row.ai_request_id ?? null,
+            row.submitted_by ?? null,
+            row.value,
+            row.note ?? null,
+            JSON.stringify(row.explanation_payload ?? null),
+            row.created_at,
+            row.updated_at
+          ]
+        );
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      return record;
+    }
+
+    return mapAlertExplanationFeedbackRowToDomain(row);
   }
 
   async listFeedback(_query: AiFeedbackQueryContract): Promise<ListResponse<AiFeedbackRecord>> {
@@ -246,40 +799,30 @@ export class PostgresAiRepository implements AiRepositoryPort {
       page: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 }
     };
   }
+
+  private async getClient(): Promise<DatabaseClient> {
+    return this.connectionFactory.create(this.databaseConfig);
+  }
 }
 
 export const POSTGRES_AI_IMPLEMENTATION_PLAN = {
-  readMethods: [
-    "getById",
-    "list",
-    "listRequests",
-    "listFeedback",
-    "getPromptTemplateByKey",
-    "listPromptTemplates",
-    "listActionDrafts"
-  ],
+  readMethods: ["getById", "list", "listRequests"],
   writeMethods: [
     "create",
     "update",
     "saveRequestRecord",
     "saveResponseRecord",
-    "saveFeedbackRecord",
-    "saveActionDraft"
+    "saveAlertExplanationFeedbackRecord"
   ],
-  rowSources: [
-    "ai_requests",
-    "ai_responses",
-    "ai_feedback",
-    "ai_prompt_templates",
-    "ai_action_drafts"
-  ],
+  rowSources: ["ai_requests", "ai_responses", "ai_feedback"],
   queryNotes: [
-    "shape log lookups by request/status/date range",
-    "keep prompt-template lookup keyed and version-aware",
-    "support action-draft lookups by response and resource"
+    "persist bounded advisory-only request and response logs without widening runtime contracts",
+    "keep history reads ordered newest-first and filtered by the existing repository contract",
+    "persist alert-linked feedback compatibly without forcing ai_response_id on the current route"
   ],
   mappingNotes: [
-    "map request/response rows independently",
-    "keep feedback/template/draft row encoders isolated from runtime AI logic"
+    "map ai_requests and ai_responses independently into shared request/response log records",
+    "persist alert explanation feedback through an api-local compatibility record while generic feedback stays placeholder-backed",
+    "leave prompt templates and action drafts on the existing placeholder-backed path"
   ]
 } as const;

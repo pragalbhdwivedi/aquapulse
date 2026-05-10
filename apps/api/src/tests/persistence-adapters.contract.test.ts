@@ -1,8 +1,10 @@
 import {
   createPlaceholderAlertRow,
   createPlaceholderAlertSavedViewRow,
+  createPlaceholderBatchRow,
   createPlaceholderFeedRow,
   createPlaceholderPondRow,
+  createPlaceholderPondResponsibilityRow,
   createPlaceholderTaskRow,
   createRecordingConnectionFactory,
   createTestDatabaseConfig
@@ -34,6 +36,13 @@ import { PostgresFeedRepository } from "../modules/feed/adapters/postgres-feed.r
 import type { PondsRepositoryPort } from "../modules/ponds/ports/ponds-repository.port";
 import { PONDS_ACTIVE_REPOSITORY, PONDS_ADAPTERS, PONDS_PERSISTENCE_PROVIDER } from "../modules/ponds/ponds.module";
 import { PostgresPondsRepository } from "../modules/ponds/adapters/postgres-ponds.repository";
+import {
+  POND_RESPONSIBILITY_ACTIVE_REPOSITORY,
+  POND_RESPONSIBILITY_ADAPTERS,
+  POND_RESPONSIBILITY_PERSISTENCE_PROVIDER
+} from "../modules/pond-responsibility/pond-responsibility.module";
+import { PostgresPondResponsibilityRepository } from "../modules/pond-responsibility/adapters/postgres-pond-responsibility.repository";
+import type { PondResponsibilityRepositoryPort } from "../modules/pond-responsibility/ports/pond-responsibility-repository.port";
 import type { TasksRepositoryPort } from "../modules/tasks/ports/tasks-repository.port";
 import { TASKS_ACTIVE_REPOSITORY, TASKS_ADAPTERS, TASKS_PERSISTENCE_PROVIDER } from "../modules/tasks/tasks.module";
 import { PostgresTasksRepository } from "../modules/tasks/adapters/postgres-tasks.repository";
@@ -70,8 +79,20 @@ describe("Persistence adapter skeletons", () => {
       }),
       databaseConfig: createTestDatabaseConfig()
     });
+    const pondResponsibilityRepository: PondResponsibilityRepositoryPort =
+      PostgresPondResponsibilityRepository.forTesting({
+        connectionFactory: createRecordingConnectionFactory([], {
+          rows: [createPlaceholderPondResponsibilityRow({ id: "pond-responsibility-1", user_id: "user-1" })]
+        }),
+        databaseConfig: createTestDatabaseConfig()
+      });
     const attachmentsRepository: AttachmentsRepositoryPort = new PostgresAttachmentsRepository();
-    const batchesRepository: BatchesRepositoryPort = new PostgresBatchesRepository();
+    const batchesRepository: BatchesRepositoryPort = PostgresBatchesRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        rows: [createPlaceholderBatchRow({ id: "batch-1" })]
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
     const feedRepository: FeedRepositoryPort = PostgresFeedRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory([], {
         rows: [createPlaceholderFeedRow({ id: "feed-1" })]
@@ -90,12 +111,47 @@ describe("Persistence adapter skeletons", () => {
       }),
       databaseConfig: createTestDatabaseConfig()
     });
-    const aiRepository: AiRepositoryPort = new PostgresAiRepository();
+    const aiRepository: AiRepositoryPort = PostgresAiRepository.forTesting({
+      connectionFactory: createRecordingConnectionFactory([], {
+        resolveRows(statement) {
+          if (statement.includes("from ai_requests")) {
+            return [{
+              id: "ai-request-1",
+              request_type: "dashboard_assistant_query",
+              requested_by: "user-1",
+              input_payload: { question: "What needs attention today?" },
+              status: "completed",
+              created_at: "2026-05-09T06:20:00.000Z",
+              updated_at: "2026-05-09T06:20:00.000Z",
+              total_count: 1
+            }] as never[];
+          }
 
-    const [ponds, alerts, alertSavedViews, attachments, batches, feed, tasks, waterQuality, ai] = await Promise.all([
+          if (statement.includes("from ai_responses")) {
+            return [{
+              id: "ai-response-1",
+              request_id: "ai-request-1",
+              status: "completed",
+              output_text: "{\"headline\":\"Dashboard assistant\"}",
+              model: "gpt-5-nano",
+              created_at: "2026-05-09T06:20:05.000Z",
+              updated_at: "2026-05-09T06:20:05.000Z",
+              total_count: 1
+            }] as never[];
+          }
+
+          return [];
+        }
+      }),
+      databaseConfig: createTestDatabaseConfig()
+    });
+
+    const [ponds, alerts, alertSavedViews, pondResponsibilities, hasPondAccess, attachments, batches, feed, tasks, waterQuality, ai] = await Promise.all([
       pondsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.list({ page: 1, pageSize: 20 }),
       alertsRepository.listSavedViews(),
+      pondResponsibilityRepository.listActiveByUserId("user-1", "2026-05-10T00:00:00.000Z"),
+      pondResponsibilityRepository.hasActiveResponsibility("user-1", "pond-1", "2026-05-10T00:00:00.000Z"),
       attachmentsRepository.list({ page: 1, pageSize: 20 }),
       batchesRepository.list({ page: 1, pageSize: 20 }),
       feedRepository.list({ page: 1, pageSize: 20 }),
@@ -107,6 +163,8 @@ describe("Persistence adapter skeletons", () => {
     expect(ponds.items[0]?.id).toBe("pond-1");
     expect(Array.isArray(alerts.items)).toBe(true);
     expect(Array.isArray(alertSavedViews)).toBe(true);
+    expect(pondResponsibilities[0]?.id).toBe("pond-responsibility-1");
+    expect(hasPondAccess).toBe(true);
     expect(attachments.items[0]?.id).toBe("attachment-1");
     expect(batches.items[0]?.id).toBe("batch-1");
     expect(feed.items[0]?.id).toBe("feed-1");
@@ -117,6 +175,7 @@ describe("Persistence adapter skeletons", () => {
 
   it("module provider composition keeps the in-memory adapter active by default", () => {
     expect(PONDS_ACTIVE_REPOSITORY.name).toBe("InMemoryPondsRepository");
+    expect(POND_RESPONSIBILITY_ACTIVE_REPOSITORY.name).toBe("InMemoryPondResponsibilityRepository");
     expect(ALERTS_ACTIVE_REPOSITORY.name).toBe("InMemoryAlertsRepository");
     expect(ATTACHMENTS_ACTIVE_REPOSITORY.name).toBe("InMemoryAttachmentsRepository");
     expect(BATCHES_ACTIVE_REPOSITORY.name).toBe("InMemoryBatchesRepository");
@@ -126,6 +185,7 @@ describe("Persistence adapter skeletons", () => {
     expect(AI_ACTIVE_REPOSITORY.name).toBe("InMemoryAiRepository");
 
     expect(PONDS_ADAPTERS).toContain(PostgresPondsRepository);
+    expect(POND_RESPONSIBILITY_ADAPTERS).toContain(PostgresPondResponsibilityRepository);
     expect(ALERTS_ADAPTERS).toContain(PostgresAlertsRepository);
     expect(ATTACHMENTS_ADAPTERS).toContain(PostgresAttachmentsRepository);
     expect(BATCHES_ADAPTERS).toContain(PostgresBatchesRepository);
@@ -135,6 +195,7 @@ describe("Persistence adapter skeletons", () => {
     expect(AI_ADAPTERS).toContain(PostgresAiRepository);
 
     expect(PONDS_PERSISTENCE_PROVIDER.useExisting).toBe(PONDS_ACTIVE_REPOSITORY);
+    expect(POND_RESPONSIBILITY_PERSISTENCE_PROVIDER.useExisting).toBe(POND_RESPONSIBILITY_ACTIVE_REPOSITORY);
     expect(ALERTS_PERSISTENCE_PROVIDER.useExisting).toBe(ALERTS_ACTIVE_REPOSITORY);
     expect(ATTACHMENTS_PERSISTENCE_PROVIDER.useExisting).toBe(ATTACHMENTS_ACTIVE_REPOSITORY);
     expect(BATCHES_PERSISTENCE_PROVIDER.useExisting).toBe(BATCHES_ACTIVE_REPOSITORY);
