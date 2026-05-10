@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards, UseInterceptors } from "@nestjs/common";
-import type { EndpointResponse } from "@aquapulse/types";
+import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards, UseInterceptors } from "@nestjs/common";
+import type { AuthenticatedUserSession, EndpointResponse } from "@aquapulse/types";
 import { aquaPulseEndpointCatalog } from "@aquapulse/types";
 import { PlaceholderAuditInterceptor } from "../../common/audit/placeholder-audit.interceptor";
 import { RequireAuthentication } from "../../common/auth/auth-slice.decorator";
@@ -47,12 +47,17 @@ export class AttachmentsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async list(
-    @Query() query: QueryAttachmentsDto
+    @Query() query: QueryAttachmentsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.list>> {
     return delegateList(
       query,
       toQueryAttachmentsInput,
-      (mappedQuery) => this.attachmentsApplicationService.list(mappedQuery),
+      (mappedQuery) =>
+        this.attachmentsApplicationService.list(
+          mappedQuery,
+          resolveAttachmentReadRequesterScope(request?.user)
+        ),
       toAttachmentsListResponse
     );
   }
@@ -78,12 +83,31 @@ export class AttachmentsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async getById(
-    @Param("id") id: string
+    @Param("id") id: string,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.attachments.getById>> {
     return delegateGetById(
       id,
-      (resourceId) => this.attachmentsApplicationService.getById(resourceId),
+      (resourceId) =>
+        this.attachmentsApplicationService.getById(
+          resourceId,
+          resolveAttachmentReadRequesterScope(request?.user)
+        ),
       toAttachmentsItemResponse
     );
   }
+}
+
+function resolveAttachmentReadRequesterScope(
+  user: AuthenticatedUserSession | null | undefined
+): { readonly id: string; readonly provider: "keycloak" | "local"; readonly roles: readonly string[] } | undefined {
+  if (!user?.id || (user.provider !== "keycloak" && user.provider !== "local")) {
+    return undefined;
+  }
+
+  return {
+    id: user.id,
+    provider: user.provider,
+    roles: user.roles
+  };
 }

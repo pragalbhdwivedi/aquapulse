@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { createPersistenceAdapterProvider, resolveConfiguredPersistenceAdapter } from "../../common/persistence/persistence-adapter.types";
+import { ResourceScopeModule } from "../resource-scope/resource-scope.module";
 import { PostgresAttachmentsRepository } from "./adapters/postgres-attachments.repository";
 import { AttachmentsApplicationService } from "./application/attachments.application-service";
 import { AttachmentsController } from "./attachments.controller";
@@ -26,7 +27,7 @@ const ATTACHMENTS_PROVIDERS = [AttachmentsService, ...ATTACHMENTS_ADAPTERS, ATTA
 const ATTACHMENTS_EXPORTS = [AttachmentsService, AttachmentsApplicationService];
 
 @Module({
-  imports: [],
+  imports: [ResourceScopeModule],
   controllers: [AttachmentsController],
   providers: ATTACHMENTS_PROVIDERS,
   exports: ATTACHMENTS_EXPORTS
