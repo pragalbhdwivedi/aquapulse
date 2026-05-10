@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   ApiSuccessEnvelope,
   ListResponse,
@@ -6,7 +6,7 @@ import type {
   WaterQualityReading
 } from "@aquapulse/types";
 import { evaluateWaterQualityAlertDecisions } from "@aquapulse/types";
-import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import { createForbiddenResponse, createNotFoundResponse } from "../../../common/api/response-mapper";
 import type { CreateWaterQualityDto, UpdateWaterQualityDto } from "../dto";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 import { PondReadAuthorizationService } from "../../pond-responsibility/application/pond-read-authorization.service";
@@ -32,8 +32,10 @@ export class WaterQualityApplicationService {
   ) {}
 
   async create(
-    input: WaterQualityCreateRequest
+    input: WaterQualityCreateRequest,
+    requester?: WaterQualityReadRequesterScope
   ): Promise<ApiSuccessEnvelope<WaterQualityReading>> {
+    await this.assertCanCreateForPond(input.pondId, requester);
     const created = await this.waterQualityRepository.create(input);
     const decisions = evaluateWaterQualityAlertDecisions(input);
 
@@ -43,7 +45,28 @@ export class WaterQualityApplicationService {
 
     return { ok: true, data: created };
   }
-  async update(_id: string, _input: UpdateWaterQualityDto): Promise<ApiSuccessEnvelope<WaterQualityReading>> { return { ok: true, data: await this.waterQualityRepository.update(_id, _input) }; }
+  async update(
+    _id: string,
+    _input: UpdateWaterQualityDto,
+    requester?: WaterQualityReadRequesterScope
+  ): Promise<ApiSuccessEnvelope<WaterQualityReading>> {
+    const existing = await this.waterQualityRepository.getById(_id);
+    const canReadExistingPond = await this.pondReadAuthorizationService.canReadPond(requester, existing.pondId);
+
+    if (!canReadExistingPond) {
+      throw new NotFoundException(createNotFoundResponse("Water-quality reading").error);
+    }
+
+    if (_input.pondId && _input.pondId !== existing.pondId) {
+      const canReadNewPond = await this.pondReadAuthorizationService.canReadPond(requester, _input.pondId);
+
+      if (!canReadNewPond) {
+        throw new ForbiddenException(createForbiddenResponse().error);
+      }
+    }
+
+    return { ok: true, data: await this.waterQualityRepository.update(_id, _input) };
+  }
   async list(
     _query: WaterQualityListQueryContract,
     requester?: WaterQualityReadRequesterScope
@@ -71,5 +94,16 @@ export class WaterQualityApplicationService {
     }
 
     return { ok: true, data: reading };
+  }
+
+  private async assertCanCreateForPond(
+    pondId: string,
+    requester?: WaterQualityReadRequesterScope
+  ) {
+    const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, pondId);
+
+    if (!canReadPond) {
+      throw new ForbiddenException(createForbiddenResponse().error);
+    }
   }
 }

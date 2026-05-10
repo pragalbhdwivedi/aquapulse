@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   ApiSuccessEnvelope,
   FeedCreateRequest,
@@ -7,7 +7,7 @@ import type {
   ListResponse
 } from "@aquapulse/types";
 import { evaluateFeedAlertDecisions } from "@aquapulse/types";
-import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import { createForbiddenResponse, createNotFoundResponse } from "../../../common/api/response-mapper";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 import { PondReadAuthorizationService } from "../../pond-responsibility/application/pond-read-authorization.service";
 import { FEED_REPOSITORY, type FeedRepositoryPort } from "../ports/feed-repository.port";
@@ -31,7 +31,11 @@ export class FeedApplicationService {
     } as never)
   ) {}
 
-  async create(input: FeedCreateRequest): Promise<ApiSuccessEnvelope<FeedEntry>> {
+  async create(
+    input: FeedCreateRequest,
+    requester?: FeedReadRequesterScope
+  ): Promise<ApiSuccessEnvelope<FeedEntry>> {
+    await this.assertCanCreateForPond(input.pondId, requester);
     const created = await this.feedRepository.create(input);
     const decisions = evaluateFeedAlertDecisions(input);
 
@@ -41,7 +45,20 @@ export class FeedApplicationService {
 
     return { ok: true, data: created };
   }
-  async update(id: string, input: FeedUpdateRequest): Promise<ApiSuccessEnvelope<FeedEntry>> { return { ok: true, data: await this.feedRepository.update(id, input) }; }
+  async update(
+    id: string,
+    input: FeedUpdateRequest,
+    requester?: FeedReadRequesterScope
+  ): Promise<ApiSuccessEnvelope<FeedEntry>> {
+    const existing = await this.feedRepository.getById(id);
+    const canReadExistingPond = await this.pondReadAuthorizationService.canReadPond(requester, existing.pondId);
+
+    if (!canReadExistingPond) {
+      throw new NotFoundException(createNotFoundResponse("Feed entry").error);
+    }
+
+    return { ok: true, data: await this.feedRepository.update(id, input) };
+  }
   async list(
     _query: FeedListQueryContract,
     requester?: FeedReadRequesterScope
@@ -66,5 +83,16 @@ export class FeedApplicationService {
     }
 
     return { ok: true, data: entry };
+  }
+
+  private async assertCanCreateForPond(
+    pondId: string,
+    requester?: FeedReadRequesterScope
+  ) {
+    const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, pondId);
+
+    if (!canReadPond) {
+      throw new ForbiddenException(createForbiddenResponse().error);
+    }
   }
 }

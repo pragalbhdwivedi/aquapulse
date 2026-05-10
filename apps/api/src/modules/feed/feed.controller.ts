@@ -26,13 +26,15 @@ export class FeedController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async create(
-    @Body() input: CreateFeedDto
+    @Body() input: CreateFeedDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.create>> {
     await this.feedService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateFeedInput,
-      (mappedInput) => this.feedApplicationService.create(mappedInput),
+      (mappedInput) =>
+        this.feedApplicationService.create(mappedInput, resolveFeedReadRequesterScope(request?.user)),
       toFeedItemResponse
     );
   }
@@ -59,13 +61,19 @@ export class FeedController {
   @RequireRoles("operator")
   async update(
     @Param("id") id: string,
-    @Body() input: UpdateFeedDto
+    @Body() input: UpdateFeedDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.feed.update>> {
     return delegateUpdate(
       id,
       input,
       toUpdateFeedInput,
-      (resourceId, mappedInput) => this.feedApplicationService.update(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.feedApplicationService.update(
+          resourceId,
+          mappedInput,
+          resolveFeedReadRequesterScope(request?.user)
+        ),
       toFeedItemResponse
     );
   }

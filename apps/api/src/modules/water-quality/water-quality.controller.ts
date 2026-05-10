@@ -32,13 +32,18 @@ export class WaterQualityController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async create(
-    @Body() input: CreateWaterQualityDto
+    @Body() input: CreateWaterQualityDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.waterQuality.create>> {
     await this.waterQualityService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateWaterQualityInput,
-      (mappedInput) => this.waterQualityApplicationService.create(mappedInput),
+      (mappedInput) =>
+        this.waterQualityApplicationService.create(
+          mappedInput,
+          resolveWaterQualityReadRequesterScope(request?.user)
+        ),
       toWaterQualityItemResponse
     );
   }
@@ -68,13 +73,19 @@ export class WaterQualityController {
   @RequireRoles("operator")
   async update(
     @Param("id") id: string,
-    @Body() input: UpdateWaterQualityDto
+    @Body() input: UpdateWaterQualityDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.waterQuality.update>> {
     return delegateUpdate(
       id,
       input,
       toUpdateWaterQualityInput,
-      (resourceId, mappedInput) => this.waterQualityApplicationService.update(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.waterQualityApplicationService.update(
+          resourceId,
+          mappedInput,
+          resolveWaterQualityReadRequesterScope(request?.user)
+        ),
       toWaterQualityItemResponse
     );
   }
