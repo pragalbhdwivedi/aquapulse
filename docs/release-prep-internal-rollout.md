@@ -2,6 +2,12 @@
 
 This document is a concise internal handoff for the current bounded AquaPulse release-prep state.
 
+For the current release candidate pack, start with:
+
+- [P1 Internal Release Candidate Handoff](./release/P1_INTERNAL_RELEASE_CANDIDATE_HANDOFF.md)
+- [P1 Release Readiness Checklist](./release/P1_RELEASE_READINESS_CHECKLIST.md)
+- [P1 Deferred Boundaries](./release/P1_DEFERRED_BOUNDARIES.md)
+
 ## Major Capabilities Delivered
 
 - Strong core workflow coverage across:
@@ -21,6 +27,7 @@ This document is a concise internal handoff for the current bounded AquaPulse re
   - approval note draft
   - AI history, reuse, and compare helpers
 - Runtime diagnostics and local-safe fallback visibility.
+- Live updates default-off release guard.
 
 ## UAT And Demo Readiness Highlights
 
@@ -37,6 +44,7 @@ This document is a concise internal handoff for the current bounded AquaPulse re
 - Default local development remains safe.
 - Full Keycloak enforcement is not forced by default.
 - Protected reads and writes are bounded and explicit rather than repo-wide.
+- Alert live updates remain disabled by default and are outside the default bounded rollout.
 - Diagnostics expose:
   - protected vs bypassed vs degraded state
   - provider-backed vs fallback AI mode
@@ -47,6 +55,7 @@ This document is a concise internal handoff for the current bounded AquaPulse re
 - AI remains backend-controlled, schema-validated, and advisory-only.
 - Deterministic fallback mode remains available for normal local verification.
 - AI history, reuse, and compare help operators review content faster without introducing automatic record mutation.
+- In active Keycloak mode, alert explanation feedback now requires durable `aiResponseId` linkage.
 
 ## Recommended Internal Review Order
 
@@ -64,7 +73,12 @@ This document is a concise internal handoff for the current bounded AquaPulse re
 - Repo-wide RBAC or full-domain auth enforcement
 - General AI chat
 - AI-driven approvals, closures, or operational writes
-- Websocket/platform expansion beyond the already bounded alerts live-update scope
+- Websocket/platform expansion beyond the current default-off alerts live-update scope
+- Saved-view ownership and sharing semantics
+- Attachment file-content authorization if a download route is added later
+- Pond, batch, and attachment write-authority refinement
+- Reviewer/admin AI feedback workflows
+- Supervisor/admin override model
 - Production analytics or full observability productization
 
 ## Still Beta / Internal
