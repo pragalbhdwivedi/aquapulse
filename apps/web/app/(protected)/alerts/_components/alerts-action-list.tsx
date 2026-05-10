@@ -516,6 +516,7 @@ export function AlertsActionList({
       try {
         const response = await repositories.alerts.submitExplanationFeedback({
           alertId,
+          aiResponseId: explanation.aiResponseId,
           value,
           note: feedbackNotes[alertId]?.trim() || undefined,
           explanation
