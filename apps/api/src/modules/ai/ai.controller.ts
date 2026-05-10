@@ -118,12 +118,20 @@ export class AiController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async explainAlert(
-    @Body() input: ExplainAlertDto
+    @Body() input: ExplainAlertDto,
+    @Req()
+    request?: {
+      user?: AuthenticatedUserSession | null;
+    }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.ai.explainAlert>> {
     return delegateAction(
       input,
       toExplainAlertInput,
-      (mappedInput) => this.aiApplicationService.explainAlert(mappedInput),
+      (mappedInput) =>
+        this.aiApplicationService.explainAlert(
+          mappedInput,
+          resolveAiHistoryRequesterScope(request?.user)
+        ),
       toAiAlertsExplainResponse
     );
   }

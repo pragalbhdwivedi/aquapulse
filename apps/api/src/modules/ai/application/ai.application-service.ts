@@ -45,6 +45,11 @@ interface AlertExplanationFeedbackCompatibilityInput {
   readonly aiRequestId?: string;
 }
 
+interface PersistedAlertExplanationLinkage {
+  readonly aiResponseId: string;
+  readonly aiRequestId: string;
+}
+
 function shouldScopeAiHistoryByRequester(
   requester: AiHistoryRequesterScope | undefined
 ): requester is AiHistoryRequesterScope & { readonly provider: "keycloak" } {
@@ -281,56 +286,66 @@ export class AiApplicationService {
     const requestRecord = requests.items.find((item) => item.id === record.requestId);
     return { ok: true, data: enrichAiResponseRecord(record, requestRecord) };
   }
-  async explainAlert(_input: ExplainAlertDto): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>> {
-    if (this.alertExplanationService) {
-      return { ok: true, data: await this.alertExplanationService.explainAlert(_input) };
-    }
+  async explainAlert(
+    _input: ExplainAlertDto,
+    requester?: AiHistoryRequesterScope
+  ): Promise<ApiSuccessEnvelope<AiAlertsExplainResponse>> {
+    const explanation = this.alertExplanationService
+      ? await this.alertExplanationService.explainAlert(_input)
+      : {
+          headline: "Placeholder AI explanation for an alert.",
+          summary: "Placeholder AI explanation for an alert.",
+          explanation: "Placeholder AI explanation for an alert.",
+          explanationHindi:
+            _input.outputMode === "bilingual"
+              ? "Hindi draft: Placeholder AI explanation for an alert."
+              : undefined,
+          recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
+          likelyCauses: [],
+          likelyFactors: [],
+          recommendedChecks: [],
+          immediateChecks: [],
+          suggestedActions: [],
+          escalationConsiderations: ["Escalate only after fresh verification if the alert condition remains high severity."],
+          observedFacts: ["The placeholder explanation only sees the requested alert identifier."],
+          confidenceNote: "Confidence is limited because no alert explanation service was attached.",
+          advisoryDisclaimer:
+            "Advisory only. AquaPulse will not mutate alerts from explanation output.",
+          missingInformationNote: "No attached alert explanation service was available, so the response stayed on the bounded fallback placeholder path.",
+          metadata: {
+            mode: "fallback" as const,
+            advisoryOnly: true as const,
+            generatedAt: "2026-04-16T00:00:00.000Z",
+            modelLabel: "gpt-5-nano",
+            sourceLabel: "application_service_placeholder",
+            usedLiveOpenAi: false,
+            providerPath: "deterministic_fallback" as const,
+            output: {
+              outputMode: _input.outputMode ?? "english_only",
+              primaryLanguage: "english" as const,
+              bilingual: _input.outputMode === "bilingual",
+              tone: _input.tone ?? "operator"
+            }
+          },
+          cache: {
+            status: "fresh" as const,
+            cachedAt: "2026-04-16T00:00:00.000Z",
+            freshness: "fresh" as const,
+            explanationVersion: "v1" as const,
+            generation: "fresh_fallback" as const
+          }
+        };
+
+    const linkage = await this.persistAlertExplanationResponseLinkage(_input, explanation, requester);
 
     return {
       ok: true,
-      data: {
-        headline: "Placeholder AI explanation for an alert.",
-        summary: "Placeholder AI explanation for an alert.",
-        explanation: "Placeholder AI explanation for an alert.",
-        explanationHindi:
-          _input.outputMode === "bilingual"
-            ? "Hindi draft: Placeholder AI explanation for an alert."
-            : undefined,
-        recommendations: ["Inspect aeration equipment.", "Repeat the reading."],
-        likelyCauses: [],
-        likelyFactors: [],
-        recommendedChecks: [],
-        immediateChecks: [],
-        suggestedActions: [],
-        escalationConsiderations: ["Escalate only after fresh verification if the alert condition remains high severity."],
-        observedFacts: ["The placeholder explanation only sees the requested alert identifier."],
-        confidenceNote: "Confidence is limited because no alert explanation service was attached.",
-        advisoryDisclaimer:
-          "Advisory only. AquaPulse will not mutate alerts from explanation output.",
-        missingInformationNote: "No attached alert explanation service was available, so the response stayed on the bounded fallback placeholder path.",
-        metadata: {
-          mode: "fallback",
-          advisoryOnly: true,
-          generatedAt: "2026-04-16T00:00:00.000Z",
-          modelLabel: "gpt-5-nano",
-          sourceLabel: "application_service_placeholder",
-          usedLiveOpenAi: false,
-          providerPath: "deterministic_fallback",
-          output: {
-            outputMode: _input.outputMode ?? "english_only",
-            primaryLanguage: "english",
-            bilingual: _input.outputMode === "bilingual",
-            tone: _input.tone ?? "operator"
+      data: linkage
+        ? {
+            ...explanation,
+            aiResponseId: linkage.aiResponseId
           }
-        },
-        cache: {
-          status: "fresh",
-          cachedAt: "2026-04-16T00:00:00.000Z",
-          freshness: "fresh",
-          explanationVersion: "v1",
-          generation: "fresh_fallback"
-        }
-      }
+        : explanation
     };
   }
   async submitAlertExplanationFeedback(
@@ -364,7 +379,7 @@ export class AiApplicationService {
         feedbackRecord,
         requester,
         compatibilityInput.aiResponseId,
-        compatibilityInput.aiRequestId ?? resolvedAiRequestId
+        resolvedAiRequestId ?? compatibilityInput.aiRequestId
       )
     );
 
@@ -387,13 +402,18 @@ export class AiApplicationService {
   ): AlertExplanationFeedbackCompatibilityInput {
     const compatibilityInput = input as AlertExplanationFeedbackDto &
       AlertExplanationFeedbackCompatibilityInput;
+    const nestedExplanationAiResponseId =
+      typeof input.explanation?.aiResponseId === "string" &&
+      input.explanation.aiResponseId.trim().length > 0
+        ? input.explanation.aiResponseId.trim()
+        : undefined;
 
     return {
       aiResponseId:
         typeof compatibilityInput.aiResponseId === "string" &&
         compatibilityInput.aiResponseId.trim().length > 0
           ? compatibilityInput.aiResponseId.trim()
-          : undefined,
+          : nestedExplanationAiResponseId,
       aiRequestId:
         typeof compatibilityInput.aiRequestId === "string" &&
         compatibilityInput.aiRequestId.trim().length > 0
@@ -427,6 +447,55 @@ export class AiApplicationService {
     }
 
     return ownedResponse.requestId;
+  }
+
+  private async persistAlertExplanationResponseLinkage(
+    input: ExplainAlertDto,
+    explanation: AiAlertsExplainResponse,
+    requester?: AiHistoryRequesterScope
+  ): Promise<PersistedAlertExplanationLinkage | undefined> {
+    const generatedAt = explanation.metadata.generatedAt;
+    const requestId = `ai-request-${randomUUID()}`;
+    const responseId = `ai-response-${randomUUID()}`;
+    const responseWithLinkage: AiAlertsExplainResponse = {
+      ...explanation,
+      aiResponseId: responseId
+    };
+
+    try {
+      await this.aiRepository.saveRequestRecord({
+        id: requestId,
+        createdAt: generatedAt,
+        updatedAt: generatedAt,
+        requestType: "alerts_explain",
+        requestedBy: requester?.id,
+        inputPayload: {
+          alertId: input.alertId,
+          includeRecommendations: input.includeRecommendations,
+          reuseCached: input.reuseCached,
+          tone: input.tone,
+          outputMode: input.outputMode
+        },
+        status: "completed"
+      });
+
+      await this.aiRepository.saveResponseRecord({
+        id: responseId,
+        createdAt: generatedAt,
+        updatedAt: generatedAt,
+        requestId,
+        status: "completed",
+        outputText: JSON.stringify(responseWithLinkage),
+        model: explanation.metadata.modelLabel
+      });
+
+      return {
+        aiResponseId: responseId,
+        aiRequestId: requestId
+      };
+    } catch {
+      return undefined;
+    }
   }
 
   private toAlertExplanationFeedbackPersistenceRecord(

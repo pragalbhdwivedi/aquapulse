@@ -525,12 +525,14 @@ export interface AlertExplanationFeedbackSummary {
 
 export interface AlertExplanationFeedbackRequest {
   readonly alertId: EntityId;
+  readonly aiResponseId?: EntityId;
   readonly value: AlertExplanationFeedbackValue;
   readonly note?: string;
   readonly explanation: AiAlertsExplainResponse;
 }
 
 export interface AiAlertsExplainResponse {
+  readonly aiResponseId?: EntityId;
   readonly headline: string;
   readonly explanation: string;
   readonly explanationHindi?: string;
