@@ -29,6 +29,8 @@ If you are reviewing AquaPulse for the first time:
 - [Pond Detail UAT And Demo Readiness](./runbooks/pond-detail-uat-demo-readiness.md)
 - [Tasks Detail UAT And Demo Readiness](./runbooks/tasks-detail-uat-demo-readiness.md)
 - [Feed Detail UAT And Demo Readiness](./runbooks/feed-detail-uat-demo-readiness.md)
+- [P1 Internal RC1 Smoke Results Template](./uat/P1_INTERNAL_RC1_SMOKE_RESULTS_TEMPLATE.md)
+- [P1 Internal RC1 Reviewer Notes Template](./uat/P1_INTERNAL_RC1_REVIEWER_NOTES_TEMPLATE.md)
 
 ## AI And Operator Assistance
 
