@@ -26,13 +26,14 @@ export class TasksController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async create(
-    @Body() input: CreateTasksDto
+    @Body() input: CreateTasksDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.tasks.create>> {
     await this.tasksService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateTasksInput,
-      (mappedInput) => this.tasksApplicationService.create(mappedInput),
+      (mappedInput) => this.tasksApplicationService.create(mappedInput, resolveTaskReadRequesterScope(request?.user)),
       toTasksItemResponse
     );
   }
@@ -58,13 +59,15 @@ export class TasksController {
   @RequireRoles("operator")
   async update(
     @Param("id") id: string,
-    @Body() input: UpdateTasksDto
+    @Body() input: UpdateTasksDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.tasks.update>> {
     return delegateUpdate(
       id,
       input,
       toUpdateTasksInput,
-      (resourceId, mappedInput) => this.tasksApplicationService.update(resourceId, mappedInput),
+      (resourceId, mappedInput) =>
+        this.tasksApplicationService.update(resourceId, mappedInput, resolveTaskReadRequesterScope(request?.user)),
       toTasksItemResponse
     );
   }

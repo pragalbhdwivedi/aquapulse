@@ -64,13 +64,15 @@ export class AlertsController {
   @RequireAuthentication()
   @RequireRoles("operator")
   async create(
-    @Body() input: CreateAlertsDto
+    @Body() input: CreateAlertsDto,
+    @Req() request?: { user?: AuthenticatedUserSession | null }
   ): Promise<EndpointResponse<typeof aquaPulseEndpointCatalog.alerts.create>> {
     await this.alertsService.getPlaceholder();
     return delegateCreate(
       input,
       toCreateAlertsInput,
-      (mappedInput) => this.alertsApplicationService.create(mappedInput),
+      (mappedInput) =>
+        this.alertsApplicationService.create(mappedInput, resolveAlertAssignmentRequesterScope(request?.user)),
       toAlertsItemResponse
     );
   }

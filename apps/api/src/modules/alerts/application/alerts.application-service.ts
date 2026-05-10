@@ -1,4 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   AlertAssignActionRequest,
   AlertBulkActionResult,
@@ -18,7 +18,8 @@ import type {
   OperationalAlertDecision
 } from "@aquapulse/types";
 import { findMatchingOperationalAlert } from "@aquapulse/types";
-import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import { createForbiddenResponse, createNotFoundResponse } from "../../../common/api/response-mapper";
+import { PondReadAuthorizationService } from "../../pond-responsibility/application/pond-read-authorization.service";
 import type { CreateAlertsDto, UpdateAlertsDto } from "../dto";
 import { AlertsLiveUpdatesService } from "../live-updates/alerts-live-updates.service";
 import { ALERTS_REPOSITORY, type AlertsRepositoryPort } from "../ports/alerts-repository.port";
@@ -41,10 +42,26 @@ export class AlertsApplicationService {
     @Inject(ALERTS_REPOSITORY) private readonly alertsRepository: AlertsRepositoryPort,
     private readonly liveUpdatesService: AlertsLiveUpdatesService = {
       emit: () => undefined
-    } as unknown as AlertsLiveUpdatesService
+    } as unknown as AlertsLiveUpdatesService,
+    private readonly pondReadAuthorizationService: PondReadAuthorizationService = new PondReadAuthorizationService({
+      canReadPond: async () => true,
+      listActiveByUserId: async () => [],
+      hasActiveResponsibility: async () => true
+    } as never)
   ) {}
 
-  async create(_input: CreateAlertsDto): Promise<ApiSuccessEnvelope<AlertSummary>> {
+  async create(
+    _input: CreateAlertsDto,
+    requester?: AlertAssignmentRequesterScope
+  ): Promise<ApiSuccessEnvelope<AlertSummary>> {
+    if (_input.pondId) {
+      const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, _input.pondId);
+
+      if (!canReadPond) {
+        throw new ForbiddenException(createForbiddenResponse().error);
+      }
+    }
+
     const alert = await this.alertsRepository.create(_input);
     await this.emitSingleAlertEvent("alert_created", alert, ["title", "severity", "source", "status"]);
     return { ok: true, data: alert };
@@ -56,6 +73,16 @@ export class AlertsApplicationService {
     requester?: AlertAssignmentRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertSummary>> {
     await this.assertAlertVisibleToRequester(_id, requester);
+    const currentAlert = await this.alertsRepository.getById(_id);
+
+    if (_input.pondId && _input.pondId !== currentAlert.pondId) {
+      const canReadPond = await this.pondReadAuthorizationService.canReadPond(requester, _input.pondId);
+
+      if (!canReadPond) {
+        throw new ForbiddenException(createForbiddenResponse().error);
+      }
+    }
+
     const alert = await this.alertsRepository.update(_id, _input);
     await this.emitSingleAlertEvent("alert_updated", alert, Object.keys(_input));
     return { ok: true, data: alert };
