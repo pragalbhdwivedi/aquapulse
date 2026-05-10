@@ -33,7 +33,8 @@ export const AQUAPULSE_SCHEMA_TABLES = {
   auditEvents: "audit_events",
   auditEventMetadata: "audit_event_metadata",
   aiRequests: "ai_requests",
-  aiResponses: "ai_responses"
+  aiResponses: "ai_responses",
+  aiFeedback: "ai_feedback"
 } as const;
 
 export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
@@ -272,6 +273,48 @@ export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
       "idx_ai_responses_request_created_at",
       "idx_ai_responses_status_created_at",
       "idx_ai_responses_model_created_at"
+    ]
+  },
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.aiFeedback,
+    columns: [
+      { name: "id", type: "text", primaryKey: true },
+      { name: "alert_id", type: "text" },
+      { name: "ai_response_id", type: "text", nullable: true },
+      { name: "ai_request_id", type: "text", nullable: true },
+      { name: "submitted_by", type: "text", nullable: true },
+      { name: "value", type: "text" },
+      { name: "note", type: "text", nullable: true },
+      { name: "explanation_payload", type: "jsonb", nullable: true },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ],
+    foreignKeys: [
+      {
+        column: "alert_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.alerts,
+        referencesColumn: "id",
+        onDelete: "cascade"
+      },
+      {
+        column: "ai_response_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiResponses,
+        referencesColumn: "id",
+        onDelete: "set null"
+      },
+      {
+        column: "ai_request_id",
+        referencesTable: AQUAPULSE_SCHEMA_TABLES.aiRequests,
+        referencesColumn: "id",
+        onDelete: "set null"
+      }
+    ],
+    indexes: [
+      "idx_ai_feedback_alert_created_at",
+      "idx_ai_feedback_response_created_at",
+      "idx_ai_feedback_request_created_at",
+      "idx_ai_feedback_submitted_by_created_at",
+      "idx_ai_feedback_created_at"
     ]
   }
 ] as const;

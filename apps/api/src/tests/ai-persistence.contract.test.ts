@@ -24,6 +24,18 @@ describe("AI persistence foundation", () => {
       created_at: string;
       updated_at: string;
     }>();
+    const feedback = new Map<string, {
+      id: string;
+      alert_id: string;
+      ai_response_id?: string | null;
+      ai_request_id?: string | null;
+      submitted_by?: string | null;
+      value: string;
+      note?: string | null;
+      explanation_payload?: Record<string, unknown> | string | null;
+      created_at: string;
+      updated_at: string;
+    }>();
 
     const repository = PostgresAiRepository.forTesting({
       connectionFactory: createRecordingConnectionFactory(recordedQueries, {
@@ -52,6 +64,23 @@ describe("AI persistence foundation", () => {
               model: params[4] as string,
               created_at: params[5] as string,
               updated_at: params[6] as string
+            });
+            return [];
+          }
+
+          if (normalized.startsWith("insert into ai_feedback")) {
+            feedback.set(params[0] as string, {
+              id: params[0] as string,
+              alert_id: params[1] as string,
+              ai_response_id: (params[2] as string | null) ?? undefined,
+              ai_request_id: (params[3] as string | null) ?? undefined,
+              submitted_by: (params[4] as string | null) ?? undefined,
+              value: params[5] as string,
+              note: (params[6] as string | null) ?? undefined,
+              explanation_payload:
+                typeof params[7] === "string" ? JSON.parse(params[7] as string) : (params[7] as Record<string, unknown> | null),
+              created_at: params[8] as string,
+              updated_at: params[9] as string
             });
             return [];
           }
@@ -110,6 +139,54 @@ describe("AI persistence foundation", () => {
 
     await repository.saveRequestRecord(requestRecord);
     await repository.saveResponseRecord(responseRecord);
+    await repository.saveAlertExplanationFeedbackRecord({
+      id: "ai-feedback-runtime-1",
+      alertId: "alert-1",
+      aiResponseId: undefined,
+      aiRequestId: undefined,
+      submittedBy: "operator-1",
+      value: "useful",
+      note: "Helpful explanation.",
+      explanation: {
+        headline: "Alert explanation",
+        summary: "Alert explanation summary",
+        explanation: "Alert explanation body",
+        recommendations: [],
+        likelyCauses: [],
+        likelyFactors: [],
+        recommendedChecks: [],
+        immediateChecks: [],
+        suggestedActions: [],
+        escalationConsiderations: [],
+        observedFacts: [],
+        confidenceNote: "Limited confidence.",
+        advisoryDisclaimer: "Advisory only.",
+        metadata: {
+          mode: "fallback",
+          advisoryOnly: true,
+          generatedAt: "2026-05-09T12:10:06.000Z",
+          modelLabel: "gpt-5-nano",
+          sourceLabel: "test",
+          usedLiveOpenAi: false,
+          providerPath: "deterministic_fallback",
+          output: {
+            outputMode: "english_only",
+            primaryLanguage: "english",
+            bilingual: false,
+            tone: "operator"
+          }
+        },
+        cache: {
+          status: "fresh",
+          cachedAt: "2026-05-09T12:10:06.000Z",
+          freshness: "fresh",
+          explanationVersion: "v1",
+          generation: "fresh_fallback"
+        }
+      },
+      createdAt: "2026-05-09T12:10:06.000Z",
+      updatedAt: "2026-05-09T12:10:06.000Z"
+    });
 
     const [listedResponses, listedRequests, detail] = await Promise.all([
       repository.list({ page: 1, pageSize: 20, requestId: requestRecord.id }),
@@ -122,7 +199,11 @@ describe("AI persistence foundation", () => {
     expect(detail.requestId).toBe("ai-request-runtime-1");
     expect(requests.get("ai-request-runtime-1")?.requested_by).toBe("operator-1");
     expect(responses.get("ai-response-runtime-1")?.model).toBe("gpt-5-nano");
+    expect(feedback.get("ai-feedback-runtime-1")?.alert_id).toBe("alert-1");
+    expect(feedback.get("ai-feedback-runtime-1")?.submitted_by).toBe("operator-1");
+    expect(feedback.get("ai-feedback-runtime-1")?.ai_response_id).toBeUndefined();
     expect(recordedQueries.some((query) => query.statement.includes("insert into ai_requests"))).toBe(true);
     expect(recordedQueries.some((query) => query.statement.includes("insert into ai_responses"))).toBe(true);
+    expect(recordedQueries.some((query) => query.statement.includes("insert into ai_feedback"))).toBe(true);
   });
 });

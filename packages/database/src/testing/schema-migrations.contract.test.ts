@@ -26,7 +26,8 @@ describe("Schema and migrations foundation", () => {
       AQUAPULSE_SCHEMA_TABLES.auditEvents,
       AQUAPULSE_SCHEMA_TABLES.auditEventMetadata,
       AQUAPULSE_SCHEMA_TABLES.aiRequests,
-      AQUAPULSE_SCHEMA_TABLES.aiResponses
+      AQUAPULSE_SCHEMA_TABLES.aiResponses,
+      AQUAPULSE_SCHEMA_TABLES.aiFeedback
     ]);
 
     expect(getDatabaseTableDefinition(AQUAPULSE_SCHEMA_TABLES.alerts)?.columns.some((column) => column.name === "assigned_to")).toBe(true);
@@ -39,18 +40,19 @@ describe("Schema and migrations foundation", () => {
   });
 
   it("keeps the migration manifest and SQL files in sync", async () => {
-    expect(databaseMigrationManifest.schemaVersion).toBe("0004_pond_responsibility_foundation");
-    expect(databaseMigrationManifest.migrations).toHaveLength(4);
+    expect(databaseMigrationManifest.schemaVersion).toBe("0005_ai_feedback_persistence_foundation");
+    expect(databaseMigrationManifest.migrations).toHaveLength(5);
 
     for (const migration of databaseMigrationManifest.migrations) {
       await access(path.join(migrationsDir, migration.file));
     }
 
-    const [coreSql, auditSql, aiSql, pondResponsibilitiesSql] = await Promise.all([
+    const [coreSql, auditSql, aiSql, pondResponsibilitiesSql, aiFeedbackSql] = await Promise.all([
       readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[0]!.file), "utf8"),
       readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[1]!.file), "utf8"),
       readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[2]!.file), "utf8"),
-      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[3]!.file), "utf8")
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[3]!.file), "utf8"),
+      readFile(path.join(migrationsDir, databaseMigrationManifest.migrations[4]!.file), "utf8")
     ]);
 
     expect(coreSql).toContain("CREATE TABLE IF NOT EXISTS ponds");
@@ -62,5 +64,7 @@ describe("Schema and migrations foundation", () => {
     expect(aiSql).toContain("CREATE TABLE IF NOT EXISTS ai_responses");
     expect(pondResponsibilitiesSql).toContain("CREATE TABLE IF NOT EXISTS pond_responsibilities");
     expect(pondResponsibilitiesSql).toContain("idx_pond_responsibilities_user_active_pond");
+    expect(aiFeedbackSql).toContain("CREATE TABLE IF NOT EXISTS ai_feedback");
+    expect(aiFeedbackSql).toContain("idx_ai_feedback_alert_created_at");
   });
 });

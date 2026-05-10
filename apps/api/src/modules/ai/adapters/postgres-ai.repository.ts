@@ -16,7 +16,10 @@ import type {
 } from "@aquapulse/types";
 import { readApiDatabaseRuntimeConfig } from "../../../common/config/database-runtime.config";
 import type { CreateAiDto, UpdateAiDto } from "../dto";
-import type { AiRepositoryPort } from "../ports/ai-repository.port";
+import type {
+  AiRepositoryPort,
+  AlertExplanationFeedbackPersistenceRecord
+} from "../ports/ai-repository.port";
 import type {
   AiActionDraftQueryContract,
   AiFeedbackQueryContract,
@@ -59,6 +62,19 @@ interface AiFeedbackRow {
   readonly rating: AiFeedbackRecord["rating"];
   readonly comment?: string;
   readonly submitted_by?: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+}
+
+interface AlertExplanationFeedbackRow {
+  readonly id: string;
+  readonly alert_id: string;
+  readonly ai_response_id?: string | null;
+  readonly ai_request_id?: string | null;
+  readonly submitted_by?: string | null;
+  readonly value: AlertExplanationFeedbackPersistenceRecord["value"];
+  readonly note?: string | null;
+  readonly explanation_payload?: unknown;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -175,6 +191,61 @@ function mapAiActionDraftRowToDomain(row: AiActionDraftRow): AiActionDraftRecord
   };
 }
 
+function normalizeExplanationPayload(
+  inputPayload: AlertExplanationFeedbackRow["explanation_payload"]
+): AlertExplanationFeedbackPersistenceRecord["explanation"] {
+  if (typeof inputPayload === "string") {
+    try {
+      const parsed = JSON.parse(inputPayload) as unknown;
+      if (typeof parsed === "object" && parsed !== null) {
+        return parsed as unknown as AlertExplanationFeedbackPersistenceRecord["explanation"];
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  if (typeof inputPayload === "object" && inputPayload !== null) {
+    return inputPayload as unknown as AlertExplanationFeedbackPersistenceRecord["explanation"];
+  }
+
+  return undefined;
+}
+
+function mapAlertExplanationFeedbackRecordToRow(
+  record: AlertExplanationFeedbackPersistenceRecord
+): AlertExplanationFeedbackRow {
+  return {
+    id: record.id,
+    alert_id: record.alertId,
+    ai_response_id: record.aiResponseId,
+    ai_request_id: record.aiRequestId,
+    submitted_by: record.submittedBy,
+    value: record.value,
+    note: record.note,
+    explanation_payload: record.explanation,
+    created_at: record.createdAt,
+    updated_at: record.updatedAt
+  };
+}
+
+function mapAlertExplanationFeedbackRowToDomain(
+  row: AlertExplanationFeedbackRow
+): AlertExplanationFeedbackPersistenceRecord {
+  return {
+    id: row.id,
+    alertId: row.alert_id,
+    aiResponseId: row.ai_response_id ?? undefined,
+    aiRequestId: row.ai_request_id ?? undefined,
+    submittedBy: row.submitted_by ?? undefined,
+    value: row.value,
+    note: row.note ?? undefined,
+    explanation: normalizeExplanationPayload(row.explanation_payload),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
 function createPlaceholderAiRequestRow(overrides: Partial<AiRequestRow> = {}): AiRequestRow {
   return {
     id: "ai-request-1",
@@ -264,6 +335,10 @@ export class PostgresAiRepository implements AiRepositoryPort {
   private readonly fallbackResponses = new Map<string, AiResponseRecord>([
     ["ai-response-1", mapAiResponseRowToDomain(createPlaceholderAiResponseRow())]
   ]);
+  private readonly fallbackAlertExplanationFeedback = new Map<
+    string,
+    AlertExplanationFeedbackPersistenceRecord
+  >();
 
   static forTesting(
     overrides: PostgresAiRepositoryDependencies = {}
@@ -608,6 +683,62 @@ export class PostgresAiRepository implements AiRepositoryPort {
     return record;
   }
 
+  async saveAlertExplanationFeedbackRecord(
+    record: AlertExplanationFeedbackPersistenceRecord
+  ): Promise<AlertExplanationFeedbackPersistenceRecord> {
+    const row = mapAlertExplanationFeedbackRecordToRow(record);
+    this.fallbackAlertExplanationFeedback.set(record.id, record);
+
+    try {
+      const client = await this.getClient();
+      try {
+        await client.query(
+          `
+            insert into ${AQUAPULSE_SCHEMA_TABLES.aiFeedback} (
+              id,
+              alert_id,
+              ai_response_id,
+              ai_request_id,
+              submitted_by,
+              value,
+              note,
+              explanation_payload,
+              created_at,
+              updated_at
+            ) values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+            on conflict (id) do update set
+              alert_id = excluded.alert_id,
+              ai_response_id = excluded.ai_response_id,
+              ai_request_id = excluded.ai_request_id,
+              submitted_by = excluded.submitted_by,
+              value = excluded.value,
+              note = excluded.note,
+              explanation_payload = excluded.explanation_payload,
+              updated_at = excluded.updated_at
+          `,
+          [
+            row.id,
+            row.alert_id,
+            row.ai_response_id ?? null,
+            row.ai_request_id ?? null,
+            row.submitted_by ?? null,
+            row.value,
+            row.note ?? null,
+            JSON.stringify(row.explanation_payload ?? null),
+            row.created_at,
+            row.updated_at
+          ]
+        );
+      } finally {
+        await client.dispose();
+      }
+    } catch {
+      return record;
+    }
+
+    return mapAlertExplanationFeedbackRowToDomain(row);
+  }
+
   async listFeedback(_query: AiFeedbackQueryContract): Promise<ListResponse<AiFeedbackRecord>> {
     return {
       items: [mapAiFeedbackRowToDomain({
@@ -676,14 +807,22 @@ export class PostgresAiRepository implements AiRepositoryPort {
 
 export const POSTGRES_AI_IMPLEMENTATION_PLAN = {
   readMethods: ["getById", "list", "listRequests"],
-  writeMethods: ["create", "update", "saveRequestRecord", "saveResponseRecord"],
-  rowSources: ["ai_requests", "ai_responses"],
+  writeMethods: [
+    "create",
+    "update",
+    "saveRequestRecord",
+    "saveResponseRecord",
+    "saveAlertExplanationFeedbackRecord"
+  ],
+  rowSources: ["ai_requests", "ai_responses", "ai_feedback"],
   queryNotes: [
     "persist bounded advisory-only request and response logs without widening runtime contracts",
-    "keep history reads ordered newest-first and filtered by the existing repository contract"
+    "keep history reads ordered newest-first and filtered by the existing repository contract",
+    "persist alert-linked feedback compatibly without forcing ai_response_id on the current route"
   ],
   mappingNotes: [
     "map ai_requests and ai_responses independently into shared request/response log records",
-    "leave feedback, prompt templates, and action drafts on the existing placeholder-backed path"
+    "persist alert explanation feedback through an api-local compatibility record while generic feedback stays placeholder-backed",
+    "leave prompt templates and action drafts on the existing placeholder-backed path"
   ]
 } as const;

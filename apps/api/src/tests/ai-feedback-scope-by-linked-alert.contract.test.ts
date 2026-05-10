@@ -2,6 +2,7 @@ import { NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { AiAlertsExplainResponse } from "@aquapulse/types";
 import { AiApplicationService } from "../modules/ai/application/ai.application-service";
+import type { AlertExplanationFeedbackPersistenceRecord } from "../modules/ai/ports/ai-repository.port";
 import { InMemoryAiRepository } from "../modules/ai/repositories/in-memory-ai.repository";
 import { AlertExplanationService } from "../modules/ai/services/alert-explanation.service";
 import { AlertsApplicationService } from "../modules/alerts/application/alerts.application-service";
@@ -49,24 +50,39 @@ const explanation: AiAlertsExplainResponse = {
   }
 };
 
+class RecordingInMemoryAiRepository extends InMemoryAiRepository {
+  readonly savedAlertExplanationFeedbackRecords: AlertExplanationFeedbackPersistenceRecord[] = [];
+
+  override async saveAlertExplanationFeedbackRecord(
+    record: AlertExplanationFeedbackPersistenceRecord
+  ): Promise<AlertExplanationFeedbackPersistenceRecord> {
+    this.savedAlertExplanationFeedbackRecords.push(record);
+    return record;
+  }
+}
+
 function createScopedAiFeedbackService() {
   const alertsService = new AlertsApplicationService(
     new InMemoryAlertsRepository(),
     liveUpdatesStub as never
   );
   const explanationService = new AlertExplanationService(alertsService);
+  const repository = new RecordingInMemoryAiRepository();
 
-  return new AiApplicationService(
-    new InMemoryAiRepository(),
-    explanationService,
-    undefined,
-    alertsService
-  );
+  return {
+    repository,
+    service: new AiApplicationService(
+      repository,
+      explanationService,
+      undefined,
+      alertsService
+    )
+  };
 }
 
 describe("AI feedback scope by linked alert visibility", () => {
   it("allows feedback for a linked alert visible to the requesting keycloak operator", async () => {
-    const service = createScopedAiFeedbackService();
+    const { service, repository } = createScopedAiFeedbackService();
 
     const feedback = await service.submitAlertExplanationFeedback(
       {
@@ -80,10 +96,13 @@ describe("AI feedback scope by linked alert visibility", () => {
 
     expect(feedback.data.alertId).toBe("alert-1");
     expect(feedback.data.value).toBe("useful");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.alertId).toBe("alert-1");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.submittedBy).toBe("user-1");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.aiResponseId).toBeUndefined();
   });
 
   it("returns not found when feedback targets an out-of-scope linked alert", async () => {
-    const service = createScopedAiFeedbackService();
+    const { service } = createScopedAiFeedbackService();
 
     await expect(
       service.submitAlertExplanationFeedback(
@@ -98,7 +117,7 @@ describe("AI feedback scope by linked alert visibility", () => {
   });
 
   it("returns not found when feedback targets a missing linked alert in active auth mode", async () => {
-    const service = createScopedAiFeedbackService();
+    const { service } = createScopedAiFeedbackService();
 
     await expect(
       service.submitAlertExplanationFeedback(
@@ -113,7 +132,7 @@ describe("AI feedback scope by linked alert visibility", () => {
   });
 
   it("keeps local-safe feedback broad for development flows", async () => {
-    const service = createScopedAiFeedbackService();
+    const { service, repository } = createScopedAiFeedbackService();
 
     const feedback = await service.submitAlertExplanationFeedback(
       {
@@ -127,5 +146,40 @@ describe("AI feedback scope by linked alert visibility", () => {
 
     expect(feedback.data.alertId).toBe("alert-2");
     expect(feedback.data.value).toBe("not_useful");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.submittedBy).toBe("local-operator");
+  });
+
+  it("derives response ownership and request linkage when an optional aiResponseId is provided", async () => {
+    const { service, repository } = createScopedAiFeedbackService();
+
+    const feedback = await service.submitAlertExplanationFeedback(
+      {
+        alertId: "alert-1",
+        value: "neutral",
+        explanation,
+        aiResponseId: "ai-response-1"
+      } as never,
+      { id: "user-1", provider: "keycloak" }
+    );
+
+    expect(feedback.data.alertId).toBe("alert-1");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.aiResponseId).toBe("ai-response-1");
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.aiRequestId).toBe("ai-request-1");
+  });
+
+  it("returns not found when an optional aiResponseId belongs to another keycloak operator", async () => {
+    const { service } = createScopedAiFeedbackService();
+
+    await expect(
+      service.submitAlertExplanationFeedback(
+        {
+          alertId: "alert-1",
+          value: "neutral",
+          explanation,
+          aiResponseId: "ai-response-7"
+        } as never,
+        { id: "user-1", provider: "keycloak" }
+      )
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

@@ -8,7 +8,10 @@ import type {
   ListResponse
 } from "@aquapulse/types";
 import type { CreateAiDto, UpdateAiDto } from "../dto";
-import type { AiRepositoryPort } from "../ports/ai-repository.port";
+import type {
+  AiRepositoryPort,
+  AlertExplanationFeedbackPersistenceRecord
+} from "../ports/ai-repository.port";
 import type {
   AiActionDraftQueryContract,
   AiFeedbackQueryContract,
@@ -222,6 +225,8 @@ const aiFeedback: AiFeedbackRecord = {
   submittedBy: "user-1"
 };
 
+const alertExplanationFeedbackRecords: AlertExplanationFeedbackPersistenceRecord[] = [];
+
 const aiPromptTemplate: AiPromptTemplateRecord = {
   id: "ai-template-1",
   createdAt: "2026-04-13T00:00:00.000Z",
@@ -319,6 +324,20 @@ export class InMemoryAiRepository implements AiRepositoryPort {
   }
 
   async saveFeedbackRecord(record: AiFeedbackRecord): Promise<AiFeedbackRecord> {
+    return record;
+  }
+
+  async saveAlertExplanationFeedbackRecord(
+    record: AlertExplanationFeedbackPersistenceRecord
+  ): Promise<AlertExplanationFeedbackPersistenceRecord> {
+    const existingIndex = alertExplanationFeedbackRecords.findIndex((item) => item.id === record.id);
+
+    if (existingIndex >= 0) {
+      alertExplanationFeedbackRecords[existingIndex] = record;
+    } else {
+      alertExplanationFeedbackRecords.push(record);
+    }
+
     return record;
   }
 

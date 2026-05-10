@@ -11,7 +11,7 @@ export interface DatabaseMigrationManifest {
 }
 
 export const databaseMigrationManifest: DatabaseMigrationManifest = {
-  schemaVersion: "0004_pond_responsibility_foundation",
+  schemaVersion: "0005_ai_feedback_persistence_foundation",
   migrations: [
     {
       id: "0001_core_schema",
@@ -40,6 +40,13 @@ export const databaseMigrationManifest: DatabaseMigrationManifest = {
       file: "0004_pond_responsibility_foundation.sql",
       description:
         "Add durable pond responsibility mapping to support future pond-scoped authorization seams without changing current runtime behavior."
+    },
+    {
+      id: "0005_ai_feedback_persistence_foundation",
+      name: "ai feedback persistence foundation",
+      file: "0005_ai_feedback_persistence_foundation.sql",
+      description:
+        "Add durable alert-linked AI feedback storage with optional AI response/request linkage for compatibility-focused feedback persistence."
     }
   ]
 } as const;

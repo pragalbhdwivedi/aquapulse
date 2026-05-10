@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type {
   AiApprovalNoteDraftResponse,
@@ -32,10 +33,16 @@ import { AlertExplanationService } from "../services/alert-explanation.service";
 import { OperatorAssistanceService } from "../services/operator-assistance.service";
 import { createNotFoundResponse } from "../../../common/api/response-mapper";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
+import type { AlertExplanationFeedbackPersistenceRecord } from "../ports/ai-repository.port";
 
 interface AiHistoryRequesterScope {
   readonly id: string;
   readonly provider: "keycloak" | "local";
+}
+
+interface AlertExplanationFeedbackCompatibilityInput {
+  readonly aiResponseId?: string;
+  readonly aiRequestId?: string;
 }
 
 function shouldScopeAiHistoryByRequester(
@@ -331,22 +338,37 @@ export class AiApplicationService {
     requester?: AiHistoryRequesterScope
   ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>> {
     await this.assertLinkedAlertVisibleForFeedback(_input.alertId, requester);
+    const compatibilityInput = this.toFeedbackCompatibilityInput(_input);
+    const resolvedAiRequestId = await this.assertOwnedAiResponseVisibleForFeedback(
+      compatibilityInput.aiResponseId,
+      requester
+    );
 
+    let feedbackRecord: AlertExplanationFeedbackRecord;
     if (this.alertExplanationService) {
-      return { ok: true, data: await this.alertExplanationService.submitFeedback(_input) };
-    }
-
-    return {
-      ok: true,
-      data: {
+      feedbackRecord = await this.alertExplanationService.submitFeedback(_input);
+    } else {
+      feedbackRecord = {
         alertId: _input.alertId,
         value: _input.value,
         note: _input.note?.trim() || undefined,
         submittedAt: "2026-04-16T00:00:00.000Z",
         generation: _input.explanation.cache.generation,
         sourceMode: _input.explanation.metadata.mode
-      }
-    };
+      };
+    }
+
+    await this.aiRepository.saveAlertExplanationFeedbackRecord(
+      this.toAlertExplanationFeedbackPersistenceRecord(
+        _input,
+        feedbackRecord,
+        requester,
+        compatibilityInput.aiResponseId,
+        compatibilityInput.aiRequestId ?? resolvedAiRequestId
+      )
+    );
+
+    return { ok: true, data: feedbackRecord };
   }
 
   private async assertLinkedAlertVisibleForFeedback(
@@ -358,6 +380,74 @@ export class AiApplicationService {
     }
 
     await this.alertsApplicationService.getById(alertId, requester);
+  }
+
+  private toFeedbackCompatibilityInput(
+    input: AlertExplanationFeedbackDto
+  ): AlertExplanationFeedbackCompatibilityInput {
+    const compatibilityInput = input as AlertExplanationFeedbackDto &
+      AlertExplanationFeedbackCompatibilityInput;
+
+    return {
+      aiResponseId:
+        typeof compatibilityInput.aiResponseId === "string" &&
+        compatibilityInput.aiResponseId.trim().length > 0
+          ? compatibilityInput.aiResponseId.trim()
+          : undefined,
+      aiRequestId:
+        typeof compatibilityInput.aiRequestId === "string" &&
+        compatibilityInput.aiRequestId.trim().length > 0
+          ? compatibilityInput.aiRequestId.trim()
+          : undefined
+    };
+  }
+
+  private async assertOwnedAiResponseVisibleForFeedback(
+    aiResponseId: string | undefined,
+    requester?: AiHistoryRequesterScope
+  ): Promise<string | undefined> {
+    if (!aiResponseId) {
+      return undefined;
+    }
+
+    if (!shouldScopeAiHistoryByRequester(requester)) {
+      const response = await this.aiRepository.getById(aiResponseId);
+      return response.requestId;
+    }
+
+    const visibleResponses = await this.aiRepository.list({
+      page: 1,
+      pageSize: 1000,
+      requestedBy: requester.id
+    });
+    const ownedResponse = visibleResponses.items.find((item) => item.id === aiResponseId);
+
+    if (!ownedResponse) {
+      throw new NotFoundException(createNotFoundResponse("AI history record").error);
+    }
+
+    return ownedResponse.requestId;
+  }
+
+  private toAlertExplanationFeedbackPersistenceRecord(
+    input: AlertExplanationFeedbackDto,
+    feedbackRecord: AlertExplanationFeedbackRecord,
+    requester: AiHistoryRequesterScope | undefined,
+    aiResponseId: string | undefined,
+    aiRequestId: string | undefined
+  ): AlertExplanationFeedbackPersistenceRecord {
+    return {
+      id: `ai-feedback-${randomUUID()}`,
+      alertId: input.alertId,
+      aiResponseId,
+      aiRequestId,
+      submittedBy: requester?.id,
+      value: feedbackRecord.value,
+      note: feedbackRecord.note,
+      explanation: input.explanation,
+      createdAt: feedbackRecord.submittedAt,
+      updatedAt: feedbackRecord.submittedAt
+    };
   }
   async summarizePond(_input: SummarizePondDto): Promise<ApiSuccessEnvelope<AiPondsSummarizeResponse>> {
     if (this.operatorAssistanceService) {

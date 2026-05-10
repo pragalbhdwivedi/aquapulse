@@ -28,9 +28,10 @@ describe("Database package foundation", () => {
     expect(config.database).toBe("aquapulse");
     expect(runtime.defaultAdapter).toBe("in-memory");
     expect(selectPersistenceAdapter(runtime, registry)).toBe("memory");
-    expect(databaseMigrationManifest.schemaVersion).toBe("0004_pond_responsibility_foundation");
+    expect(databaseMigrationManifest.schemaVersion).toBe("0005_ai_feedback_persistence_foundation");
     expect(AQUAPULSE_SCHEMA_TABLES.alerts).toBe("alerts");
     expect(AQUAPULSE_SCHEMA_TABLES.aiResponses).toBe("ai_responses");
+    expect(AQUAPULSE_SCHEMA_TABLES.aiFeedback).toBe("ai_feedback");
     expect(AQUAPULSE_SCHEMA_TABLES.pondResponsibilities).toBe("pond_responsibilities");
 
     expectTypeOf(config).toEqualTypeOf<DatabaseConfig>();
