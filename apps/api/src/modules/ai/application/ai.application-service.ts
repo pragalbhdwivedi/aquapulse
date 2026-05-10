@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import type {
   AiApprovalNoteDraftResponse,
   AiAlertsExplainResponse,
@@ -31,7 +31,10 @@ import { AI_REPOSITORY, type AiRepositoryPort } from "../ports/ai-repository.por
 import type { AiResponseLogQueryContract } from "../query-contracts/ai-query.contract";
 import { AlertExplanationService } from "../services/alert-explanation.service";
 import { OperatorAssistanceService } from "../services/operator-assistance.service";
-import { createNotFoundResponse } from "../../../common/api/response-mapper";
+import {
+  createNotFoundResponse,
+  createValidationErrorResponse
+} from "../../../common/api/response-mapper";
 import { AlertsApplicationService } from "../../alerts/application/alerts.application-service";
 import type { AlertExplanationFeedbackPersistenceRecord } from "../ports/ai-repository.port";
 
@@ -354,6 +357,7 @@ export class AiApplicationService {
   ): Promise<ApiSuccessEnvelope<AlertExplanationFeedbackRecord>> {
     await this.assertLinkedAlertVisibleForFeedback(_input.alertId, requester);
     const compatibilityInput = this.toFeedbackCompatibilityInput(_input);
+    this.assertAiResponseLinkagePresentForActiveAuth(compatibilityInput.aiResponseId, requester);
     const resolvedAiRequestId = await this.assertOwnedAiResponseVisibleForFeedback(
       compatibilityInput.aiResponseId,
       requester
@@ -395,6 +399,21 @@ export class AiApplicationService {
     }
 
     await this.alertsApplicationService.getById(alertId, requester);
+  }
+
+  private assertAiResponseLinkagePresentForActiveAuth(
+    aiResponseId: string | undefined,
+    requester?: AiHistoryRequesterScope
+  ): void {
+    if (!shouldScopeAiHistoryByRequester(requester) || aiResponseId) {
+      return;
+    }
+
+    throw new BadRequestException(
+      createValidationErrorResponse({
+        aiResponseId: "aiResponseId is required for alert explanation feedback in active authenticated mode."
+      }).error
+    );
   }
 
   private toFeedbackCompatibilityInput(

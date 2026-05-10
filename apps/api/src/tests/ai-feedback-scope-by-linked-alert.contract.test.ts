@@ -1,4 +1,4 @@
-import { NotFoundException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
 import type { AiAlertsExplainResponse } from "@aquapulse/types";
 import { AiApplicationService } from "../modules/ai/application/ai.application-service";
@@ -81,6 +81,21 @@ function createScopedAiFeedbackService() {
 }
 
 describe("AI feedback scope by linked alert visibility", () => {
+  it("rejects active-auth feedback without aiResponseId using validation-style error behavior", async () => {
+    const { service } = createScopedAiFeedbackService();
+
+    await expect(
+      service.submitAlertExplanationFeedback(
+        {
+          alertId: "alert-1",
+          value: "useful",
+          explanation
+        },
+        { id: "user-1", provider: "keycloak" }
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it("allows feedback for a linked alert visible to the requesting keycloak operator", async () => {
     const { service, repository } = createScopedAiFeedbackService();
 
@@ -89,7 +104,8 @@ describe("AI feedback scope by linked alert visibility", () => {
         alertId: "alert-1",
         value: "useful",
         note: "Helpful explanation.",
-        explanation
+        explanation,
+        aiResponseId: "ai-response-1"
       },
       { id: "user-1", provider: "keycloak" }
     );
@@ -98,7 +114,7 @@ describe("AI feedback scope by linked alert visibility", () => {
     expect(feedback.data.value).toBe("useful");
     expect(repository.savedAlertExplanationFeedbackRecords[0]?.alertId).toBe("alert-1");
     expect(repository.savedAlertExplanationFeedbackRecords[0]?.submittedBy).toBe("user-1");
-    expect(repository.savedAlertExplanationFeedbackRecords[0]?.aiResponseId).toBeUndefined();
+    expect(repository.savedAlertExplanationFeedbackRecords[0]?.aiResponseId).toBe("ai-response-1");
   });
 
   it("returns not found when feedback targets an out-of-scope linked alert", async () => {
