@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev": "corepack pnpm exec tsx watch src/main.ts",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "dev": "corepack pnpm exec next dev",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
