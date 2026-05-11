@@ -62,6 +62,17 @@ corepack pnpm ponds:verify-linked-smoke
 - Keep `NEXT_PUBLIC_AQUAPULSE_WEB_ALERTS_LIVE_UPDATES` unset or set to `false`.
 - Live updates are not assignment-scoped yet and are out of scope for normal RC smoke verification.
 
+## Local Smoke DB Troubleshooting
+
+If Windows Docker shows the smoke Postgres container as healthy but `localhost:54329` does not accept connections, use the Windows troubleshooting steps in [P1_INTERNAL_RC1_LOCAL_SMOKE_DB_TROUBLESHOOTING.md](/C:/Users/tanuj/code/AquaPulse/aquapulse/docs/uat/P1_INTERNAL_RC1_LOCAL_SMOKE_DB_TROUBLESHOOTING.md).
+
+Important local-only note:
+
+- the smoke DB prepare scripts do not read a raw `DATABASE_URL`
+- they do support env overrides such as `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USER`, and `DATABASE_PASSWORD`
+- they also support smoke-specific overrides such as `AQUAPULSE_ALERTS_SMOKE_DB_HOST` and `AQUAPULSE_ALERTS_SMOKE_DB_PORT`
+- if Docker port forwarding is broken, use those host/port env overrides for temporary recovery instead of changing any production config
+
 ## Smoke Result Log
 
 | Surface | Environment | Mode | Result | Notes | Reviewer | Date |
@@ -75,4 +86,5 @@ corepack pnpm ponds:verify-linked-smoke
 | Feed runtime verifier | local | local-safe | | | | |
 | Tasks runtime verifier | local | local-safe | | | | |
 | Live updates default-off check | local | local-safe | | | | |
+| Smoke DB port-forwarding check | local | local-safe | | | | |
 

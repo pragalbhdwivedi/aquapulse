@@ -42,6 +42,17 @@ corepack pnpm feed:verify-runtime
 corepack pnpm tasks:verify-runtime
 ```
 
+## Windows Smoke DB Port-Forwarding Note
+
+If the local smoke Postgres container is healthy but Windows cannot connect to `localhost:54329`, use [P1_INTERNAL_RC1_LOCAL_SMOKE_DB_TROUBLESHOOTING.md](/C:/Users/tanuj/code/AquaPulse/aquapulse/docs/uat/P1_INTERNAL_RC1_LOCAL_SMOKE_DB_TROUBLESHOOTING.md).
+
+Boundaries for reviewers:
+
+- this is a local Windows Docker forwarding issue, not an API auth or schema issue
+- smoke prep commands support `DATABASE_HOST` and `DATABASE_PORT` style overrides
+- smoke prep commands do not currently consume a raw `DATABASE_URL`
+- do not change production config or runtime authorization behavior while working around local smoke DB access
+
 ## Release Boundary Reminders
 
 - This RC is for bounded internal review only.
@@ -59,6 +70,8 @@ corepack pnpm tasks:verify-runtime
 - Commands used:
 - Any blocker:
 - Any env confusion:
+- Any Windows Docker port-forwarding issue on `localhost:54329`:
+- If a workaround was used, which env overrides were applied:
 
 ### Authorization Behavior
 
@@ -71,6 +84,7 @@ corepack pnpm tasks:verify-runtime
 - Web runtime notes:
 - Diagnostics notes:
 - Docs clarity notes:
+- Smoke DB troubleshooting notes:
 
 ### Deferred Boundary Confusion
 
