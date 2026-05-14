@@ -1,9 +1,11 @@
 # 🌊 AquaPulse
 
-![Status](https://img.shields.io/badge/status-active%20prototype-0ea5e9)
+![Status](https://img.shields.io/badge/status-active%20prototype%20%2F%20internal%20beta-0ea5e9)
 ![Runtime](https://img.shields.io/badge/runtime-mock%20%2F%20in--memory-success)
 ![Cutover](https://img.shields.io/badge/cutover-incremental%20Postgres%20%2B%20HTTP-8b5cf6)
 ![Alerts](https://img.shields.io/badge/domain-alerts%20workbench-critical)
+![Docs](https://img.shields.io/badge/docs-source--ready-22c55e)
+![AppSec](https://img.shields.io/badge/AppSec-47%20point%20baseline-f97316)
 ![Stack](https://img.shields.io/badge/stack-Next.js%20%2B%20NestJS%20%2B%20PostgreSQL-111827)
 ![AI](https://img.shields.io/badge/AI-OpenAI%20nano%20planned-f59e0b)
 
@@ -28,7 +30,35 @@ It is designed to help farm operators, supervisors, admins, owners, and data-ent
 - **Runtime default:** Mock / in-memory safe mode
 - **Cutover strategy:** Gradual, opt-in Postgres and HTTP cutovers
 - **Current strongest domain:** Alerts workbench and operator workflow
+- **Latest verified backend state:** API dev server starts locally; `/api/health` and `/api/diagnostics/runtime` return `200`
+- **Documentation status:** Source-ready docs pack prepared for `docs/`
+- **Security status:** RBAC, audit, AI safety, and 47-point AppSec baseline mapped
 - **Deployment target:** Self-hosted on Proxmox / Linux VMs
+- **Production status:** Not production-ready yet; staging, DB cutover, RBAC enforcement, backups, and Gemini audit remain required
+
+---
+
+## 🧭 Tracker Snapshot
+
+AquaPulse is tracked as a multi-phase project with sessions, branches, dependencies, risks, Codex tasks, Gemini audit gates, and deployment checks.
+
+| Metric | Current Snapshot |
+|---|---:|
+| Total phases | 6 |
+| Total planned sessions | 42 |
+| Total feature branches | 39 |
+| Average session completion | 24.5% |
+| Critical Codex tasks | 10 |
+| Open critical risks | 5 |
+
+| Phase | Name | Completion | Current Position |
+|---|---|---:|---|
+| P0 | Foundation, Planning & Governance | 81.5% | Strong planning base |
+| P1 | Core Platform / Prototype MVP | 36.2% | Active MVP build |
+| P2 | Full Operations Expansion | 9.1% | Planned |
+| P3 | Sensors, IoT & Automation | 0.8% | Future / planning |
+| P4 | Support, Documentation & Training | 0% | Future |
+| P5 | Production Hardening & Enterprise Readiness | 1.4% | Early planning |
 
 ---
 
@@ -54,6 +84,7 @@ The platform aims to provide a **real-time farm command center** for daily aquac
 - Batch lifecycle
 - Water-quality recording
 - Feed entry and tracking
+- Mortality tracking
 - Task assignment and follow-up
 - Alerts, triage, and review flows
 - Audit trail foundations
@@ -70,12 +101,31 @@ The platform aims to provide a **real-time farm command center** for daily aquac
 ### Planned operations expansion
 - Inventory
 - Medicines and treatments
-- Mortality tracking
 - Expenses
 - Harvest and sales
 - Approval workflows
 - Sensor ingestion
 - Automation / escalation rules
+- Management and finance reporting
+
+---
+
+## 👥 Roles
+
+| Role | Main Scope | Target Stage |
+|---|---|---|
+| Owner | Full visibility, executive reports, final approvals | MVP |
+| Admin | Users, roles, masters, thresholds, settings | MVP |
+| Supervisor | Alerts, tasks, approvals, operations review | MVP |
+| Pond Manager | Pond entries, assigned tasks, alert response | MVP |
+| Data Entry Operator | Forms, uploads, CSV import, drafts | MVP |
+| Accountant | Inventory value, expenses, harvest, sales, reports | P2 |
+| Warehouse Manager | Receive, issue, and adjust stock | P2 |
+| Lab Technician | Water readings and sample records | P2 |
+| Worker | Assigned task completion only | P2 / P3 |
+| Partner Viewer | Read-only approved reports | P2 |
+| Auditor | Read-only audit and compliance view | P4 |
+| IoT Device Admin | Device and sensor management | P3 |
 
 ---
 
@@ -123,15 +173,19 @@ NestJS API
 ```
 
 ### Core stack
-- **Frontend:** Next.js
-- **Backend:** NestJS
+- **Frontend:** Next.js + TypeScript
+- **Backend:** NestJS + TypeScript
 - **Database:** PostgreSQL
 - **Time-series:** TimescaleDB
-- **Auth (planned):** Keycloak
-- **Realtime (planned):** Socket.IO
-- **Dashboards (planned):** Grafana
-- **Reports (planned):** Metabase
-- **AI:** OpenAI-powered assistant layer using a nano model tier by default
+- **Auth:** Keycloak
+- **Realtime:** Socket.IO
+- **Dashboards:** Grafana OSS
+- **Reports:** Metabase OSS
+- **Search:** Meilisearch later
+- **AI:** Backend-only OpenAI Responses API using a nano model tier by default
+- **Deployment:** Proxmox VMs, Debian 12 preferred
+
+> Older FastAPI / Python / n8n starter references should be treated as historical context unless explicitly approved again.
 
 ---
 
@@ -155,9 +209,80 @@ AquaPulse AI is meant to **assist**, not control.
 - change thresholds
 - post inventory or finance records
 - modify critical operational data without humans
+- delete records
+- receive full database dumps
 
 ### Design rule
 > **AI explains, summarizes, drafts, and assists. Humans and rule engines decide.**
+
+---
+
+## 🔐 AppSec 47-Point Baseline
+
+AquaPulse AppSec is planned as a backend-enforced security and audit baseline. Frontend role hiding is treated as UX only, not authorization.
+
+### A. Governance and planning
+- [ ] 1. Security owner defined
+- [ ] 2. Threat model created for farm, finance, inventory, AI, and IoT flows
+- [ ] 3. Data classification completed
+- [ ] 4. Security requirements added to PRD/TRD
+- [ ] 5. AppSec checks included in Definition of Done
+- [ ] 6. Gemini audit gate required before production
+
+### B. Authentication and session security
+- [ ] 7. Keycloak OIDC/JWT login implemented
+- [ ] 8. Protected APIs reject missing token with `401`
+- [ ] 9. Invalid/expired tokens rejected
+- [ ] 10. Session timeout and refresh behavior defined
+- [ ] 11. Deactivated users blocked
+- [ ] 12. Admin accounts separated from normal operator accounts
+
+### C. Authorization and RBAC
+- [ ] 13. Backend permission guards implemented
+- [ ] 14. Role-to-permission matrix finalized
+- [ ] 15. Wrong-role access returns `403`
+- [ ] 16. Sensitive actions require explicit permissions
+- [ ] 17. Partner/viewer roles are read-only
+- [ ] 18. Field-level permission needs documented for later phases
+
+### D. Input, API, and data validation
+- [ ] 19. DTO validation on all write endpoints
+- [ ] 20. Shared schemas between frontend/backend where useful
+- [ ] 21. Unsafe deletes blocked or converted to void flows
+- [ ] 22. Pagination, filtering, and sorting guarded
+- [ ] 23. API response envelope standardized
+- [ ] 24. Error responses avoid leaking internals
+
+### E. Database, migrations, and auditability
+- [ ] 25. PostgreSQL migrations used for schema changes
+- [ ] 26. Rollback strategy documented for migrations
+- [ ] 27. Sensitive actions written to audit log
+- [ ] 28. Threshold changes audited
+- [ ] 29. Alert closure/dismissal audited
+- [ ] 30. Treatment, inventory, expense, and batch closure changes audited
+- [ ] 31. Record deletion/voiding requires audit reason
+
+### F. Secrets, infrastructure, and deployment
+- [ ] 32. No secrets committed to repo
+- [ ] 33. OpenAI/API keys backend-only
+- [ ] 34. Database never exposed publicly
+- [ ] 35. CORS restricted by environment
+- [ ] 36. TLS through reverse proxy
+- [ ] 37. Firewall enabled on every VM
+- [ ] 38. Backup and restore test documented
+- [ ] 39. Staging environment required before production
+
+### G. File upload and attachment security
+- [ ] 40. Upload MIME/type validation
+- [ ] 41. Upload size limits enforced
+- [ ] 42. Attachments served through controlled backend path
+- [ ] 43. Attachment deletion audited
+
+### H. AI safety and realtime controls
+- [ ] 44. AI cannot directly write critical records
+- [ ] 45. AI receives minimal context only
+- [ ] 46. AI output is schema-validated and logged
+- [ ] 47. Realtime events emit only after successful database commit
 
 ---
 
@@ -174,58 +299,10 @@ packages/
   validation/ # shared schemas
   database/   # DB runtime, schema, migrations, adapters
   ai/         # future AI gateway package
-  ui/         # shared UI layer (future / partial)
+  ui/         # shared UI layer
 
 docs/
   runbooks/   # local dev and operational runbooks
-```
-
----
-
-## 🌳 Repo Tree
-
-```text
-aquapulse/
-├─ apps/
-│  ├─ api/
-│  │  ├─ src/
-│  │  │  ├─ common/
-│  │  │  ├─ modules/
-│  │  │  │  ├─ alerts/
-│  │  │  │  ├─ ponds/
-│  │  │  │  ├─ water-quality/
-│  │  │  │  ├─ feed/
-│  │  │  │  ├─ tasks/
-│  │  │  │  └─ ai/
-│  │  │  └─ main.ts
-│  ├─ web/
-│  │  ├─ app/
-│  │  │  ├─ (protected)/
-│  │  │  └─ api/
-│  │  └─ src/
-│  │     ├─ clients/
-│  │     ├─ contracts/
-│  │     ├─ features/
-│  │     ├─ mocks/
-│  │     ├─ queries/
-│  │     ├─ repositories/
-│  │     └─ server/
-│  └─ worker/
-├─ packages/
-│  ├─ ai/
-│  ├─ database/
-│  │  ├─ migrations/
-│  │  ├─ scripts/
-│  │  └─ src/
-│  ├─ types/
-│  ├─ ui/
-│  └─ validation/
-├─ docs/
-│  └─ runbooks/
-├─ .env.example
-├─ package.json
-├─ pnpm-workspace.yaml
-└─ tsconfig.base.json
 ```
 
 ---
@@ -259,6 +336,7 @@ This approach reduces risk while the app grows module by module.
 - stable alert workbench flow
 - gradual Postgres adapter cutovers
 - local alerts HTTP bridge
+- runtime diagnostics endpoint
 - docs/runbooks for local alerts cutover
 
 ### Current engineering style
@@ -267,114 +345,7 @@ This approach reduces risk while the app grows module by module.
 - keep runtime safe by default
 - cut over one domain at a time
 - prefer deterministic testable behavior
-
----
-
-## 📦 Key Feature Areas
-
-### 1. Pond operations
-- pond list
-- pond detail
-- pond-linked water quality
-- pond-linked alerts
-
-### 2. Water quality
-- create / update flows
-- operator-friendly recording path
-- basis for alert generation
-
-### 3. Feed
-- feed entry flow
-- feed update flow
-- anomaly checks as alert input
-
-### 4. Tasks
-- task create / update
-- operational follow-up surface
-
-### 5. Alerts
-- list
-- summary
-- detail
-- lifecycle actions
-- triage actions
-- bulk actions
-- saved views
-- review queue
-- owner workload
-- dashboard summary reuse
-
----
-
-## 🖼️ Screenshots
-
-Add screenshots here as the UI matures.
-
-Suggested sections:
-
-### Dashboard
-```md
-![Dashboard](./docs/screenshots/dashboard.png)
-```
-
-### Alerts Workbench
-```md
-![Alerts Workbench](./docs/screenshots/alerts-workbench.png)
-```
-
-### Pond Detail
-```md
-![Pond Detail](./docs/screenshots/pond-detail.png)
-```
-
-### Feed Entry
-```md
-![Feed Entry](./docs/screenshots/feed-entry.png)
-```
-
-> Recommended repo path: `docs/screenshots/`
-
----
-
-## 🌿 Branch Strategy
-
-Use a simple controlled branch flow:
-
-- `main` → stable branch
-- `develop` → optional integration branch if you want a staging stream
-- `feature/...` → all scoped implementation work
-- `fix/...` → focused bug fixes
-- `docs/...` → docs-only changes if needed
-
-### Suggested branch naming
-- `feat/runtime-health-and-diagnostics-base`
-- `feat/openai-nano-alert-explanations`
-- `feat/postgres-water-quality-cutover`
-- `fix/alerts-runtime-config`
-- `docs/local-runbook-update`
-
-### Working rule
-- one branch = one bounded outcome
-- preserve contracts whenever possible
-- merge only after typecheck + tests pass
-
----
-
-## 🛠️ Local Development
-
-### Default expectation
-You can work on AquaPulse without switching the entire app to a live DB/runtime.
-
-### Typical development modes
-- **mock / in-memory mode** → safest default
-- **alerts-only HTTP opt-in mode** → for local backend exercise
-- **Postgres-backed adapter path** → enabled selectively during cutover work
-
-### Repo workflow
-- feature branches for focused slices
-- verify with typecheck + tests
-- keep page-facing contracts stable
-- merge only when branch behavior is bounded and verified
+- Codex implements; Gemini audits before production
 
 ---
 
@@ -387,81 +358,19 @@ corepack pnpm --filter @aquapulse/web typecheck
 corepack pnpm exec vitest run
 ```
 
+### Backend local verification
+```bash
+corepack pnpm --filter @aquapulse/api run dev
+curl -i http://localhost:4000/api/health
+curl -i http://localhost:4000/api/diagnostics/runtime
+```
+
 ### Database-related scripts
 ```bash
 corepack pnpm db:migrations:list
 corepack pnpm db:migrations:verify
 corepack pnpm db:migrations:show
 ```
-
-> Exact local cutover setup should follow the repo runbooks and `.env.example`.
-
----
-
-## ⚙️ Exact Local Setup Steps
-
-### 1. Clone and enter the repo
-```bash
-git clone <your-repo-url>
-cd aquapulse
-```
-
-### 2. Install dependencies
-```bash
-corepack enable
-corepack pnpm install
-```
-
-### 3. Create env file
-Copy `.env.example` and adjust only what you need.
-
-```bash
-cp .env.example .env
-```
-
-### 4. Run typechecks once
-```bash
-corepack pnpm --filter @aquapulse/api typecheck
-corepack pnpm --filter @aquapulse/web typecheck
-```
-
-### 5. Run tests
-```bash
-corepack pnpm exec vitest run
-```
-
-### 6. Start backend
-Use your current backend start command from the repo scripts.
-
-Example:
-```bash
-corepack pnpm --filter @aquapulse/api dev
-```
-
-### 7. Start frontend
-```bash
-corepack pnpm --filter @aquapulse/web dev
-```
-
-### 8. Default mode
-By default, AquaPulse should stay in:
-- mock
-- in-memory
-- safe local mode
-
-### 9. Alerts-only HTTP opt-in mode
-If you want to exercise the alerts workbench against a running backend, configure the relevant env variables in `.env` and use the documented runbook in:
-
-```text
-docs/runbooks/alerts-local-http-cutover.md
-```
-
-### 10. Verify local health
-Check:
-- frontend loads
-- alerts page shows runtime mode clearly
-- backend is reachable if alerts HTTP mode is enabled
-- tests still pass after config changes
 
 ---
 
@@ -477,18 +386,100 @@ Suggested places to look in the repo:
 - `apps/api` → backend modules and routes
 - `apps/web` → frontend workbench and dashboards
 
+### Source-ready documentation pack
+
+The source-ready documentation pack is prepared for copy into `docs/`:
+
+```text
+docs/
+├── README_DOCS_INDEX.md
+├── MANIFEST.json
+├── product/PRD.md
+├── technical/TRD.md
+├── design/UI_UX_DESIGN.md
+├── flows/APP_FLOW.md
+├── database/BACKEND_SCHEMA.md
+├── handoff/CODEX_HANDOFF.md
+├── security/SECURITY_RBAC_AUDIT.md
+├── api/API_CONTRACTS.md
+├── realtime/REALTIME_EVENTS.md
+├── ai/AI_GOVERNANCE.md
+├── testing/ACCEPTANCE_CRITERIA.md
+└── deployment/DEPLOYMENT_READINESS.md
+```
+
+### Mandatory first analysis docs
+
+Before any new implementation session, Codex should create:
+
+```text
+docs/analysis/REPOSITORY_AUDIT.md
+docs/analysis/IMPLEMENTATION_STATUS.md
+docs/analysis/GAP_ANALYSIS.md
+docs/analysis/TECHNICAL_DEBT.md
+docs/analysis/DUPLICATE_SYSTEMS.md
+docs/analysis/MISSING_CONTRACTS.md
+docs/analysis/SAFE_TO_MODIFY.md
+docs/analysis/BLOCKERS.md
+```
+
+---
+
+## 🌿 Branch Strategy
+
+Use a controlled branch flow:
+
+- `main` → stable branch
+- `develop` → optional integration branch if you want a staging stream
+- `analysis/...` → repository audit and gap analysis branches
+- `feature/...` → all scoped implementation work
+- `fix/...` → focused bug fixes
+- `docs/...` → docs-only changes if needed
+- `infra/...` → deployment and VM/service work
+
+### Suggested branch naming
+- `analysis/p0-s0-1-repository-audit`
+- `docs/p0-s0-2-source-docs-pack`
+- `feature/p1-s1-2-auth-rbac`
+- `feature/p1-s1-3-water-quality`
+- `feature/p1-s1-5-ai-alert-explanations`
+- `fix/alerts-runtime-config`
+- `infra/staging-deployment`
+
+### Working rule
+- one branch = one bounded outcome
+- analyze repository state first
+- preserve contracts whenever possible
+- merge only after typecheck + tests pass
+- production only after Gemini audit passes
+
 ---
 
 ## 🧭 Product Roadmap
 
+### Phase 0 — Foundation and governance
+- requirement discovery
+- product scope and module boundaries
+- role and permission planning
+- technical architecture
+- AI governance
+- deployment strategy
+- database and ERD planning
+- UX/UI direction
+
 ### Phase 1 — Core ops MVP
+- repo and monorepo foundation
+- auth / RBAC
 - live dashboard
 - ponds
+- batches
 - water quality
 - feed
+- mortality
 - tasks
 - alerts
 - audit base
+- AI v1
 
 ### Phase 2 — Operations completeness
 - inventory
@@ -497,6 +488,7 @@ Suggested places to look in the repo:
 - harvest / sales
 - approvals
 - advanced reporting
+- search
 
 ### Phase 3 — Sensor + automation expansion
 - device registry
@@ -505,24 +497,21 @@ Suggested places to look in the repo:
 - anomaly correlation
 - escalation workflows
 
-### Phase 4 — Production hardening
+### Phase 4 — Support, documentation, and training
+- SOPs
+- user manuals
+- training portal
+- operational playbooks
+- feedback workflow
+
+### Phase 5 — Production hardening
 - worker layer
 - background jobs
 - stronger backups
 - diagnostics
 - HA-ready deployment path
 - security and release hardening
-
----
-
-## 🔐 Security Principles
-
-- backend-only secret usage
-- no direct AI key exposure in frontend
-- auditability for important actions
-- role-based access planned through Keycloak
-- careful cutover strategy instead of big-bang runtime changes
-- no AI direct control over critical records
+- DR runbooks
 
 ---
 
@@ -552,25 +541,10 @@ Suggested places to look in the repo:
 - `aquapulse-web`
 - `aquapulse-api`
 - `aquapulse-db`
-- `aquapulse-auth` (planned)
-- `aquapulse-ops` (planned)
-
-### Minimum deployment flow
-1. provision Linux host / VM
-2. configure DNS and reverse proxy
-3. set environment variables
-4. run migrations when DB-backed cutovers are needed
-5. deploy backend
-6. deploy frontend
-7. verify health and runtime diagnostics
-8. verify alerts workbench path
-9. verify tests and smoke checks
-
-### Recommended domains
-- `app.example.com` → frontend
-- `api.example.com` → API
-- `auth.example.com` → auth provider later
-- `ops.example.com` → dashboards later
+- `aquapulse-auth`
+- `aquapulse-ops`
+- `aquapulse-edge` if a separate proxy VM is preferred
+- `aquapulse-iot` later for MQTT and sensor ingestion
 
 ### Before production
 - backups tested
@@ -579,7 +553,10 @@ Suggested places to look in the repo:
 - env validation clean
 - cutover mode understood
 - AI keys only on backend
+- RBAC validated
+- audit logs validated
 - smoke checks documented
+- Gemini audit passed
 
 ---
 
@@ -587,12 +564,15 @@ Suggested places to look in the repo:
 
 The project is being built with a structured feature-branch approach:
 
-1. define bounded scope
-2. implement across contracts / backend / frontend / tests
-3. keep default runtime safe
-4. verify with typecheck + tests
-5. cut over incrementally
-6. preserve compatibility wherever possible
+1. analyze repository state
+2. generate gap analysis
+3. define bounded scope
+4. implement across contracts / backend / frontend / tests
+5. keep default runtime safe
+6. verify with typecheck + tests
+7. cut over incrementally
+8. preserve compatibility wherever possible
+9. prepare Gemini audit
 
 ---
 
@@ -620,5 +600,8 @@ This README reflects the current AquaPulse direction:
 - mock-safe default runtime
 - incremental Postgres cutover
 - strong alerts-first operator workflow
+- source-ready documentation pack prepared
+- 47-point AppSec baseline mapped
 - AI assistant layer planned on top of operational data
+- Codex builds and Gemini audits before production
 - local-dev workflow and deployment path included
