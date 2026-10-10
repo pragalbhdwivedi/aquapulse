@@ -34,10 +34,21 @@ export const AQUAPULSE_SCHEMA_TABLES = {
   auditEventMetadata: "audit_event_metadata",
   aiRequests: "ai_requests",
   aiResponses: "ai_responses",
-  aiFeedback: "ai_feedback"
+  aiFeedback: "ai_feedback",
+  farmWorkspaces: "farm_workspaces"
 } as const;
 
 export const aquaPulseSchemaTables: readonly DatabaseTableDefinition[] = [
+  {
+    name: AQUAPULSE_SCHEMA_TABLES.farmWorkspaces,
+    columns: [
+      { name: "organization_id", type: "text", primaryKey: true },
+      { name: "state", type: "jsonb" },
+      { name: "revision", type: "bigint", defaultExpression: "1" },
+      { name: "created_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" },
+      { name: "updated_at", type: "timestamptz", defaultExpression: "CURRENT_TIMESTAMP" }
+    ]
+  },
   {
     name: AQUAPULSE_SCHEMA_TABLES.ponds,
     columns: [

@@ -1,5 +1,6 @@
 node_modules/
 .pnpm-store/
+.pnpm-cache/
 
 .next/
 dist/
@@ -11,6 +12,7 @@ coverage/
 .env.*.local
 
 *.log
+*.tsbuildinfo
 pnpm-debug.log*
 
 .DS_Store

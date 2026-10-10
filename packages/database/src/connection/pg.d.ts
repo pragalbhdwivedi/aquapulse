@@ -5,6 +5,9 @@ declare module "pg" {
   }
 
   export interface PoolConfig {
+    connectionString?: string;
+    connectionTimeoutMillis?: number;
+    statement_timeout?: number;
     host?: string;
     port?: number;
     database?: string;
@@ -13,7 +16,7 @@ declare module "pg" {
     min?: number;
     max?: number;
     application_name?: string;
-    ssl?: {
+    ssl?: boolean | {
       rejectUnauthorized?: boolean;
     };
   }

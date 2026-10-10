@@ -11,7 +11,7 @@ export interface DatabaseMigrationManifest {
 }
 
 export const databaseMigrationManifest: DatabaseMigrationManifest = {
-  schemaVersion: "0005_ai_feedback_persistence_foundation",
+  schemaVersion: "0006_integrated_farming",
   migrations: [
     {
       id: "0001_core_schema",
@@ -47,6 +47,12 @@ export const databaseMigrationManifest: DatabaseMigrationManifest = {
       file: "0005_ai_feedback_persistence_foundation.sql",
       description:
         "Add durable alert-linked AI feedback storage with optional AI response/request linkage for compatibility-focused feedback persistence."
+    },
+    {
+      id: "0006_integrated_farming",
+      name: "integrated farming manual pilot",
+      file: "0006_integrated_farming.sql",
+      description: "Add a transactionally locked business workspace for integrated farm operations and ERP draft reconciliation."
     }
   ]
 } as const;

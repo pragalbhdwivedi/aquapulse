@@ -1,5 +1,6 @@
 export const protectedNavigation = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/farming", label: "Integrated Farming" },
   { href: "/ponds", label: "Ponds" },
   { href: "/ponds/map", label: "Pond Map" },
   { href: "/alerts", label: "Alerts" },

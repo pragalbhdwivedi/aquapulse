@@ -13,3 +13,4 @@ export * from "./mapping/row-mapper.js";
 export * from "./mapping/aquapulse-row-mappers.js";
 export * from "./schema/index.js";
 export * from "./testing/database-test-helpers.js";
+export * from "./farming/workspace-store.js";
