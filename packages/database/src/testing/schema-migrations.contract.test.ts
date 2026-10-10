@@ -15,6 +15,7 @@ const migrationsDir = path.resolve(__dirname, "../../migrations");
 describe("Schema and migrations foundation", () => {
   it("exposes a real schema definition aligned with the current prototype modules", () => {
     expect(aquaPulseSchemaTables.map((table) => table.name)).toEqual([
+      AQUAPULSE_SCHEMA_TABLES.farmWorkspaces,
       AQUAPULSE_SCHEMA_TABLES.ponds,
       AQUAPULSE_SCHEMA_TABLES.pondResponsibilities,
       AQUAPULSE_SCHEMA_TABLES.waterQuality,
@@ -40,8 +41,12 @@ describe("Schema and migrations foundation", () => {
   });
 
   it("keeps the migration manifest and SQL files in sync", async () => {
-    expect(databaseMigrationManifest.schemaVersion).toBe("0005_ai_feedback_persistence_foundation");
-    expect(databaseMigrationManifest.migrations).toHaveLength(5);
+    expect(databaseMigrationManifest.schemaVersion).toBe("0006_integrated_farming");
+    expect(databaseMigrationManifest.migrations).toHaveLength(6);
+    const farmingSql = await readFile(path.join(migrationsDir, "0006_integrated_farming.sql"), "utf8");
+    expect(farmingSql).toContain("CREATE TABLE IF NOT EXISTS farm_workspaces");
+    const jsonManifest = JSON.parse(await readFile(path.join(migrationsDir, "manifest.json"), "utf8"));
+    expect(jsonManifest).toEqual(databaseMigrationManifest);
 
     for (const migration of databaseMigrationManifest.migrations) {
       await access(path.join(migrationsDir, migration.file));

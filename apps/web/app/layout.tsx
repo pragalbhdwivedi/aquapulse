@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+export const metadata = { manifest: "/manifest.webmanifest" };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

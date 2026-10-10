@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { protectedNavigation } from "./navigation";
+import "./protected-layout.css";
 
 export function ProtectedLayoutShell({
   children,
@@ -18,7 +19,7 @@ export function ProtectedLayoutShell({
   readSurfaceLabel?: string;
 }) {
   return (
-    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "240px 1fr" }}>
+    <div className="protected-layout">
       <aside style={{ padding: "1.5rem", borderRight: "1px solid #1f2937" }}>
         <h2>AquaPulse</h2>
         <p style={{ color: "#94a3b8", fontSize: "0.9rem", marginTop: 0 }}>
@@ -44,7 +45,7 @@ export function ProtectedLayoutShell({
           ))}
         </ul>
       </aside>
-      <main style={{ padding: "1.5rem" }}>{children}</main>
+      <main style={{ padding: "1.5rem", minWidth: 0 }}>{children}</main>
     </div>
   );
 }

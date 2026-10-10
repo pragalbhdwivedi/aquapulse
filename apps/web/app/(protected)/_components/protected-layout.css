@@ -1,0 +1,24 @@
+.protected-layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+}
+.protected-layout > aside {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 760px) {
+  .protected-layout {
+    display: block;
+  }
+  .protected-layout > aside {
+    border-bottom: 1px solid #1f2937;
+  }
+  .protected-layout > aside > ul {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .protected-layout > aside > p {
+    display: none;
+  }
+}

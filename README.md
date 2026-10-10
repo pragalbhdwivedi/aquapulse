@@ -1,5 +1,7 @@
 # AquaPulse
 
+Integrated farming development now includes an additive India-first manual pilot at `/farming`. See [implementation status](docs/implementation/INTEGRATED_FARMING_STATUS.md) and [setup/runbook](docs/implementation/INTEGRATED_FARMING_RUNBOOK.md) for delivered workflows, verification and outstanding specialist/ERP release gates.
+
 <p align="center">
   <strong>Open-source aquaculture management system for stock tracking, health monitoring, feeding, and water quality management.</strong>
 </p>

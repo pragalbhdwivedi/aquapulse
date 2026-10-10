@@ -14,9 +14,11 @@ import { PondsModule } from "./modules/ponds/ponds.module";
 import { PondResponsibilityModule } from "./modules/pond-responsibility/pond-responsibility.module";
 import { TasksModule } from "./modules/tasks/tasks.module";
 import { WaterQualityModule } from "./modules/water-quality/water-quality.module";
+import { FarmingModule } from "./modules/farming/farming.module";
 
 const CORE_MODULES = [
   AuthFoundationModule,
+  FarmingModule,
   PondResponsibilityModule,
   PondsModule,
   BatchesModule,
